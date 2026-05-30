@@ -2572,7 +2572,7 @@ function switchPageTab(btn, panelId){
   if(panel) panel.classList.add('active');
 }
 
-var G = window.G || {};
+
 // ─── VBS CR/CP ─────────────────────────────────────
 function toApiDate(iso){if(!iso)return '';var p=iso.split('-');return p[2]+p[1]+p[0];}
 function daysAgo(d){if(!d)return null;return Math.round((new Date()-new Date(d))/86400000);}
