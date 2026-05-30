@@ -2572,7 +2572,7 @@ function switchPageTab(btn, panelId){
   if(panel) panel.classList.add('active');
 }
 
-
+var G = window.G || {};
 // ─── VBS CR/CP ─────────────────────────────────────
 function toApiDate(iso){if(!iso)return '';var p=iso.split('-');return p[2]+p[1]+p[0];}
 function daysAgo(d){if(!d)return null;return Math.round((new Date()-new Date(d))/86400000);}
@@ -2687,93 +2687,101 @@ function tiGetAcessos(){var a=[];document.querySelectorAll('#ti-acessos-checks i
 function tiGerarEmail(tipo){
   var hoje=new Date().toLocaleDateString('pt-BR'),body='';
   if(tipo==='in'){
-    var nome=document.getElementById('ti-nome').value||'—';
-    var emailEu=document.getElementById('ti-email-euph').value||'—';
-    var emailPe=document.getElementById('ti-email-pessoal').value||'—';
-    var tel=document.getElementById('ti-tel').value||'—';
-    var nasc=document.getElementById('ti-nasc').value?new Date(document.getElementById('ti-nasc').value).toLocaleDateString('pt-BR'):'—';
+    var nome=document.getElementById('ti-nome').value||'---';
+    var emailEu=document.getElementById('ti-email-euph').value||'---';
+    var emailPe=document.getElementById('ti-email-pessoal').value||'---';
+    var tel=document.getElementById('ti-tel').value||'---';
+    var nasc=document.getElementById('ti-nasc').value?new Date(document.getElementById('ti-nasc').value).toLocaleDateString('pt-BR'):'---';
     var tipoC=document.getElementById('ti-tipo-contrat').value;
     var depto=document.getElementById('ti-depto').value;
-    var cargo=document.getElementById('ti-cargo').value||'—';
-    var inicio=document.getElementById('ti-inicio').value?new Date(document.getElementById('ti-inicio').value).toLocaleDateString('pt-BR'):'—';
-    var fim=document.getElementById('ti-fim').value?new Date(document.getElementById('ti-fim').value).toLocaleDateString('pt-BR'):'—';
-    var motivo=document.getElementById('ti-motivo').value||'—';
-    var subst=document.getElementById('ti-subst').value||'—';
-    var gestor=document.getElementById('ti-gestor').value||'—';
-    var aprovTs=document.getElementById('ti-aprov-ts').value||'—';
+    var cargo=document.getElementById('ti-cargo').value||'---';
+    var inicio=document.getElementById('ti-inicio').value?new Date(document.getElementById('ti-inicio').value).toLocaleDateString('pt-BR'):'---';
+    var fim=document.getElementById('ti-fim').value?new Date(document.getElementById('ti-fim').value).toLocaleDateString('pt-BR'):'---';
+    var motivo=document.getElementById('ti-motivo').value||'---';
+    var subst=document.getElementById('ti-subst').value||'---';
+    var gestor=document.getElementById('ti-gestor').value||'---';
+    var aprovTs=document.getElementById('ti-aprov-ts').value||'---';
     var equip=document.getElementById('ti-equipamento').value||'A definir';
     var compTipo=document.getElementById('ti-comp-tipo').value;
-    var acessos=tiGetAcessos()||'—';
-    var obs=document.getElementById('ti-obs').value||'—';
-    body='Para: thiago.oliveira@euphoriacreative.com
-Assunto: FICHA DE CADASTRO TI — '+nome+'
-
-Ola Thiago, tudo bem?
-
-Infos da nova contratacao — '+depto+'
-
-FICHA DE CADASTRO TI
-─────────────────────────────────────────────
-Nome completo: '+nome+'
-E-mail Euphoria sugerido: '+emailEu+'@euphoriacreative.com
-Tipo de contratacao: '+tipoC+'
-Departamento: '+depto+'
-Cargo: '+cargo+'
-
-Data de inicio: '+inicio+'
-Data final (se temporario/freela): '+fim+'
-Motivo da contratacao: '+motivo+'
-Se for substituicao, de quem? '+subst+'
-─────────────────────────────────────────────
-E-mail pessoal: '+emailPe+'
-Telefone de contato: '+tel+'
-Data de nascimento: '+nasc+'
-─────────────────────────────────────────────
-Aprovador(a) de Timesheet: '+aprovTs+'
-Gestor(a) direto(a): '+gestor+'
-─────────────────────────────────────────────
-Tipo de equipamento: '+equip+'
-Computador: '+compTipo+'
-Acessos necessarios: '+acessos+'
-─────────────────────────────────────────────
-Observacoes: '+obs+'
-
-Abs,
-Team People & RH — Euphoria Creative';
-    document.getElementById('ti-email-body-in').textContent=body;document.getElementById('ti-email-preview-in').style.display='block';
+    var acessos=tiGetAcessos()||'---';
+    var obs=document.getElementById('ti-obs').value||'---';
+    var linhas=[
+      'Para: thiago.oliveira@euphoriacreative.com',
+      'Assunto: FICHA DE CADASTRO TI - '+nome,
+      '',
+      'Ola Thiago, tudo bem?',
+      '',
+      'Infos da nova contratacao - '+depto,
+      '',
+      'FICHA DE CADASTRO TI',
+      '-----------------------------------------',
+      'Nome completo: '+nome,
+      'E-mail Euphoria sugerido: '+emailEu+'@euphoriacreative.com',
+      'Tipo de contratacao: '+tipoC,
+      'Departamento: '+depto,
+      'Cargo: '+cargo,
+      '',
+      'Data de inicio: '+inicio,
+      'Data final (se temporario/freela): '+fim,
+      'Motivo da contratacao: '+motivo,
+      'Se for substituicao, de quem? '+subst,
+      '-----------------------------------------',
+      'E-mail pessoal: '+emailPe,
+      'Telefone de contato: '+tel,
+      'Data de nascimento: '+nasc,
+      '-----------------------------------------',
+      'Aprovador(a) de Timesheet: '+aprovTs,
+      'Gestor(a) direto(a): '+gestor,
+      '-----------------------------------------',
+      'Tipo de equipamento: '+equip,
+      'Computador: '+compTipo,
+      'Acessos necessarios: '+acessos,
+      '-----------------------------------------',
+      'Observacoes: '+obs,
+      '',
+      'Abs,',
+      'Team People & RH - Euphoria Creative'
+    ];
+    body=linhas.join('\n');
+    document.getElementById('ti-email-body-in').textContent=body;
+    document.getElementById('ti-email-preview-in').style.display='block';
   }else{
-    var nome=document.getElementById('ti-out-nome').value||'—';
+    var nome=document.getElementById('ti-out-nome').value||'---';
     var depto=document.getElementById('ti-out-depto').value;
-    var saida=document.getElementById('ti-out-saida').value?new Date(document.getElementById('ti-out-saida').value).toLocaleDateString('pt-BR'):'—';
+    var saida=document.getElementById('ti-out-saida').value?new Date(document.getElementById('ti-out-saida').value).toLocaleDateString('pt-BR'):'---';
     var motivo=document.getElementById('ti-out-motivo').value;
-    var email=document.getElementById('ti-out-email').value||'—';
-    var tel=document.getElementById('ti-out-tel').value||'—';
+    var email=document.getElementById('ti-out-email').value||'---';
+    var tel=document.getElementById('ti-out-tel').value||'---';
     var bloqueio=document.getElementById('ti-out-bloqueio').value?new Date(document.getElementById('ti-out-bloqueio').value).toLocaleDateString('pt-BR'):saida;
-    var gestor=document.getElementById('ti-out-gestor').value||'—';
-    var obs=document.getElementById('ti-out-obs').value||'—';
-    body='Para: thiago.oliveira@euphoriacreative.com
-Assunto: CANCELAMENTO DE FERRAMENTAS TI — '+nome+'
-
-Ola Thiago, tudo bem?
-
-CANCELAMENTO DE FERRAMENTAS DE TI
-─────────────────────────────────────────────
-Nome completo: '+nome+'
-Departamento: '+depto+'
-Data de saida: '+saida+'
-Motivacao: '+motivo+'
-─────────────────────────────────────────────
-E-mail pessoal: '+email+'
-Telefone de contato: '+tel+'
-─────────────────────────────────────────────
-Data de bloqueio de acessos: '+bloqueio+'
-Gestor(a): '+gestor+'
-─────────────────────────────────────────────
-Observacoes: '+obs+'
-
-Abs,
-Team People & RH — Euphoria Creative';
-    document.getElementById('ti-email-body-out').textContent=body;document.getElementById('ti-email-preview-out').style.display='block';
+    var gestor=document.getElementById('ti-out-gestor').value||'---';
+    var obs=document.getElementById('ti-out-obs').value||'---';
+    var linhas=[
+      'Para: thiago.oliveira@euphoriacreative.com',
+      'Assunto: CANCELAMENTO DE FERRAMENTAS TI - '+nome,
+      '',
+      'Ola Thiago, tudo bem?',
+      '',
+      'CANCELAMENTO DE FERRAMENTAS DE TI',
+      '-----------------------------------------',
+      'Nome completo: '+nome,
+      'Departamento: '+depto,
+      'Data de saida: '+saida,
+      'Motivacao: '+motivo,
+      '-----------------------------------------',
+      'E-mail pessoal: '+email,
+      'Telefone de contato: '+tel,
+      '-----------------------------------------',
+      'Data de bloqueio de acessos: '+bloqueio,
+      'Gestor(a): '+gestor,
+      '-----------------------------------------',
+      'Observacoes: '+obs,
+      '',
+      'Abs,',
+      'Team People & RH - Euphoria Creative'
+    ];
+    body=linhas.join('\n');
+    document.getElementById('ti-email-body-out').textContent=body;
+    document.getElementById('ti-email-preview-out').style.display='block';
   }
 }
 function tiCopiarEmail(tipo){var el=document.getElementById('ti-email-body-'+tipo);navigator.clipboard.writeText(el.textContent).then(function(){alert('E-mail copiado! Cole e envie para thiago.oliveira@euphoriacreative.com');});}
@@ -2785,5 +2793,4 @@ function jurMarcarTI(i){ tiFichas[i].status='Concluido ✓'; tiRenderPainel(); }
 
 </script>
 </body>
-</html><!-- v8 -->
- 
+</html>
