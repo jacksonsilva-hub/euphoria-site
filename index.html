@@ -1749,15 +1749,15 @@ function switchTITab(tab,e){
   document.querySelectorAll('#page-ti .tab-panel').forEach(function(p){p.classList.remove('active');});
   document.getElementById('ti-'+tab).classList.add('active');
   if(e&&e.target)e.target.classList.add('active');
-  if(tab==='ativos')tiRenderAtivos();if(tab==='estoque')estRender();if(tab==='licencas')licRender();
+  if(tab==='ativos')// tiRenderAtivos removedif(tab==='estoque')estRender();if(tab==='licencas')licRender();
 }
 function tiAdicionar(){
   var nome=document.getElementById('ti-nome').value.trim();if(!nome)return;
   var d=getTIAtivos();d.push({id:Date.now(),nome:nome,tipo:document.getElementById('ti-tipo').value,resp:document.getElementById('ti-resp').value.trim(),serie:document.getElementById('ti-serie').value.trim(),valor:parseFloat(document.getElementById('ti-valor').value)||0,status:document.getElementById('ti-status').value});
-  saveTIAtivos(d);['ti-nome','ti-resp','ti-serie','ti-valor'].forEach(function(id){document.getElementById(id).value='';}); tiRenderAtivos();
+  saveTIAtivos(d);['ti-nome','ti-resp','ti-serie','ti-valor'].forEach(function(id){document.getElementById(id).value='';}); // tiRenderAtivos removed
 }
-function tiRemover(id){saveTIAtivos(getTIAtivos().filter(function(x){return x.id!==id;}));tiRenderAtivos();}
-function tiRenderAtivos(){
+function tiRemover(id){saveTIAtivos(getTIAtivos().filter(function(x){return x.id!==id;}));// tiRenderAtivos removed}
+function // tiRenderAtivos removed{
   var d=getTIAtivos(), total=d.reduce(function(s,a){return s+a.valor;},0);
   document.getElementById('ti-kpis').innerHTML=[{label:'Total',value:String(d.length),sub:'ativos'},{label:'Em Uso',value:String(d.filter(function(a){return a.status==='ativo';}).length),sub:'alocados'},{label:'Patrimônio',value:fmt(total),sub:'TI'}].map(function(k){return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-value">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
   var slm={ativo:'badge-blue',disponivel:'badge-green',manutencao:'badge-amber',baixado:'badge-gray'};
@@ -1956,7 +1956,7 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('ts-data').value = new Date().toISOString().slice(0,10);
   tsRenderKPIs(); tsRenderTable(); tsPopulateFilters();
   projRenderKanban(); pplRenderTable();
-  tiRenderAtivos(); estRender(); licRender();
+  // tiRenderAtivos removed estRender(); licRender();
   jurRenderPainel(); gRenderHistorico();
   setupDragDrop('cr-upload-zone', parseCR);
   setupDragDrop('cp-upload-zone', parseCP);
