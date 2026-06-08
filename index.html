@@ -2577,19 +2577,166 @@ function jurPreencherPJ(val){if(!val)return;try{var p=JSON.parse(val);if(p.nome)
 function jurPreencherDistrato(val){if(!val)return;try{var p=JSON.parse(val);if(p.nome)document.getElementById('dt-nome').value=p.empresa||p.nome;if(p.cpf)document.getElementById('dt-doc').value=p.cnpj||p.cpf;if(p.cargo)document.getElementById('dt-cargo').value=p.cargo;if(p.salario)document.getElementById('dt-honorarios').value=p.salario;if(p.inicio)document.getElementById('dt-inicio-original').value=p.inicio;}catch(e){}}
 function jurPreencherCarta(val){if(!val)return;try{var p=JSON.parse(val);if(p.nome)document.getElementById('carta-nome').value=p.nome;if(p.cargo)document.getElementById('carta-cargo').value=p.cargo;if(p.salario)document.getElementById('carta-salario').value=p.salario;}catch(e){}}
 function jurAddClausula(){var d=document.createElement('div');d.className='ad-row';d.style.cssText='display:grid;grid-template-columns:200px 1fr auto;gap:8px;margin-bottom:8px';d.innerHTML='<input type="text" placeholder="Ex: Clausula 4a" class="field-input ad-clausula-nome"><input type="text" placeholder="Nova redacao..." class="field-input ad-clausula-texto"><button class="btn" onclick="this.parentElement.remove()" style="padding:5px 9px">x</button>';document.getElementById('ad-clausulas').appendChild(d);}
-async function jurGerarContrato(tipo){
+function jurGerarContrato(tipo){
   var dados=jurColetarDados(tipo);if(!dados)return;
-  document.getElementById('jur-form-area').style.display='none';document.getElementById('jur-gerar-loading').style.display='block';document.getElementById('jur-gerar-result').style.display='none';
-  try{var res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:jurMontarPrompt(tipo,dados)}]})});
-  var data=await res.json();var texto=data.content&&data.content[0]?data.content[0].text:'Erro';
-  jurDocAtual={tipo:tipo,dados:dados,texto:texto};
-  var titulos={cliente:'Contrato de Prestacao de Servicos',pj:'Contrato PJ',freela:'Contrato Freela',distrato:'Distrato',aditivo:'Aditivo Contratual',carta:'Carta Proposta'};
-  document.getElementById('jur-doc-titulo').textContent=(titulos[tipo]||tipo)+' - '+(dados.nome||dados.empresa||'');
-  document.getElementById('jur-doc-preview').textContent=texto;
-  document.getElementById('jur-gerar-loading').style.display='none';document.getElementById('jur-gerar-result').style.display='block';
-  jurContratos.push({tipo:tipo,nome:dados.nome||dados.empresa||'Contrato',data:new Date().toLocaleDateString('pt-BR'),valor:dados.honorarios||dados.valor||'---',texto:texto});jurRenderPainel();
-  }catch(e){document.getElementById('jur-gerar-loading').style.display='none';document.getElementById('jur-form-area').style.display='block';alert('Erro: '+e.message);}
+  document.getElementById('jur-form-area').style.display='none';
+  document.getElementById('jur-gerar-loading').style.display='block';
+  document.getElementById('jur-gerar-result').style.display='none';
+  
+  setTimeout(function(){
+    var texto=jurMontarTemplate(tipo,dados);
+    jurDocAtual={tipo:tipo,dados:dados,texto:texto};
+    var titulos={cliente:'Contrato de Prestacao de Servicos',pj:'Contrato PJ',freela:'Contrato Freela/Fornecedor',distrato:'Distrato',aditivo:'Aditivo Contratual',carta:'Carta Proposta'};
+    document.getElementById('jur-doc-titulo').textContent=(titulos[tipo]||tipo)+' - '+(dados.nome||dados.empresa||'');
+    document.getElementById('jur-doc-preview').textContent=texto;
+    document.getElementById('jur-gerar-loading').style.display='none';
+    document.getElementById('jur-gerar-result').style.display='block';
+    jurContratos.push({tipo:tipo,nome:dados.nome||dados.empresa||'Contrato',data:new Date().toLocaleDateString('pt-BR'),valor:dados.honorarios||dados.valor||'---',texto:texto});
+    jurRenderPainel();
+  },800);
 }
+
+function jurMontarTemplate(tipo,d){
+  var hoje=new Date().toLocaleDateString('pt-BR');
+  var city='Sao Paulo (SP), '+hoje;
+  var euphoria='EUPHORIA PUBLICIDADE LTDA., pessoa juridica de direito privado, inscrita no CNPJ/ME sob o no 47.882.625/0001-98, com sede na cidade de Sao Paulo, Estado de Sao Paulo, na Av. Doutor Chucri Zaidan, no 1550, cj. 2715 A, Vila Sao Francisco (Zona Sul) - CEP 04.711-130, neste ato representada por seu apoderado, Sr. CAIO SALES HORTA DEL MANTO, brasileiro, casado, empresario, portador da Cedula de Identidade RG no 28.202.482-7 SSP/SP, inscrito no CPF/ME sob o no 302.764.508-09 ("CONTRATANTE")';
+  var testemunha='TESTEMUNHA:\n\nNome: Andressa Senatti Fukunaga\nRG: 47.080.149-9\nCPF/MF: 381.935.628-28';
+  
+  if(tipo==='pj'){
+    var ini=d.inicio?new Date(d.inicio+'T12:00:00').toLocaleDateString('pt-BR'):hoje;
+    return 'INSTRUMENTO PARTICULAR DE PRESTACAO DE SERVICOS\n\n'+
+    'Pelo presente instrumento e na melhor forma de direito, as partes:\n\n'+
+    '- '+euphoria+'\n\n'+
+    '- '+(d.empresa||d.nome).toUpperCase()+', pessoa juridica de direito privado, inscrita no CNPJ/ME sob o no '+d.cnpj+', neste ato representada por seu socio '+d.nome.toUpperCase()+', inscrito no CPF/ME sob o no '+d.cpf+' ("CONTRATADA").\n\n'+
+    'CLAUSULA PRIMEIRA - DO OBJETO\n\n'+
+    'A CONTRATANTE resolve contratar a CONTRATADA para prestar servicos combinados de consultoria na area de publicidade, '+d.cargo+', servicos de escritorio e apoio administrativo.\n\n'+
+    'CLAUSULA SEGUNDA - DOS SERVICOS\n\n'+
+    'A CONTRATADA prestara os servicos descritos a CONTRATANTE e suas subsidiarias, bem como todas as empresas pertencentes ao mesmo grupo economico. A CONTRATADA possui autonomia formal, organizacional, administrativa e operacional para execucao dos servicos objeto do presente contrato.\n\n'+
+    'CLAUSULA TERCEIRA - DA VIGENCIA\n\n'+
+    'Acordam as Partes que o presente Contrato tera inicio em '+ini+' e tera prazo determinado de dois (2) anos, sendo renovado automaticamente por igual periodo, exceto se qualquer das Partes se manifestar contrariamente, mediante notificacao com no minimo trinta (30) dias de antecedencia.\n\n'+
+    'CLAUSULA QUARTA - DO PAGAMENTO\n\n'+
+    'Em contraprestacao aos servicos acordados, a CONTRATADA fara jus ao recebimento de honorarios mensais correspondentes a R$ '+d.honorarios+', com vencimento sempre no ultimo dia util do mes relativo a prestacao dos servicos. Nao efetivado o pagamento na data aprazada, incidira juros de mora de 1% ao mes, alem de multa de 2%, corrigidos pelo IGP/FGV.\n\n'+
+    'CLAUSULA QUINTA - DAS OBRIGACOES DAS PARTES\n\n'+
+    'A CONTRATADA se obriga a seguir os protocolos determinados pela legislacao e pela CONTRATANTE, dar ciencia de qualquer anormalidade e responder por eventuais infracoes a legislacao.\n\n'+
+    'CLAUSULA SEXTA - DOS DIREITOS AUTORAIS\n\n'+
+    'Todos os trabalhos elaborados pela CONTRATADA serao de propriedade exclusiva da CONTRATANTE, mesmo apos o termino do presente contrato.\n\n'+
+    'CLAUSULA SETIMA - DA RESPONSABILIDADE TRABALHISTA\n\n'+
+    'Nenhum preposto ou socio da CONTRATADA tera qualquer tipo de vinculo trabalhista ou previdenciario com a CONTRATANTE.\n\n'+
+    'CLAUSULA OITAVA - DA RESCISAO\n\n'+
+    'Qualquer das partes podera rescindir o presente Contrato, mediante previa notificacao de 30 (trinta) dias, sem penalidade contratual.\n\n'+
+    'CLAUSULA NONA - DA CONFIDENCIALIDADE\n\n'+
+    'A CONTRATADA tomara todas as precaucoes necessarias para salvaguardar a confidencialidade das informacoes da CONTRATANTE e nao utilizara, copiara ou divulgara quaisquer informacoes confidenciais a terceiros.\n\n'+
+    'CLAUSULA DECIMA - DISPOSICOES FINAIS\n\n'+
+    'As Partes elegem o foro da Comarca de Sao Paulo para dirimir quaisquer questoes oriundas do presente contrato.\n\n'+
+    city+'\n\n'+
+    'EUPHORIA PUBLICIDADE LTDA.\np. CAIO SALES HORTA DEL MANTO\n\n'+
+    (d.empresa||d.nome).toUpperCase()+'\np. '+d.nome.toUpperCase()+'\n\n'+testemunha;
+  }
+  
+  if(tipo==='cliente'){
+    var ini=d.inicio?new Date(d.inicio+'T12:00:00').toLocaleDateString('pt-BR'):hoje;
+    return 'INSTRUMENTO PARTICULAR DE PRESTACAO DE SERVICOS\n\n'+
+    'Pelo presente instrumento e na melhor forma de direito, as partes:\n\n'+
+    '- '+euphoria+'\n\n'+
+    '- '+d.empresa.toUpperCase()+', pessoa juridica de direito privado, inscrita no CNPJ/ME sob o no '+d.cnpj+', neste ato representada por '+d.rep.toUpperCase()+', inscrito no CPF/ME sob o no '+d.repCpf+', com endereco em '+d.endereco+' ("CONTRATADA").\n\n'+
+    'CLAUSULA PRIMEIRA - DO OBJETO\n\n'+
+    'A CONTRATANTE resolve contratar a CONTRATADA para prestar os seguintes servicos: '+d.servicos+'.\n\n'+
+    'CLAUSULA SEGUNDA - DA VIGENCIA\n\n'+
+    'O presente Contrato tera inicio em '+ini+' e tera prazo determinado de doze (12) meses, sendo renovado automaticamente, exceto se qualquer das Partes se manifestar contrariamente com 30 dias de antecedencia.\n\n'+
+    'CLAUSULA TERCEIRA - DO PAGAMENTO\n\n'+
+    'Em contraprestacao aos servicos, a CONTRATADA fara jus ao recebimento de honorarios mensais correspondentes a R$ '+d.honorarios+', com vencimento sempre no ultimo dia util do mes.\n\n'+
+    'CLAUSULA QUARTA - DA CONFIDENCIALIDADE\n\n'+
+    'A CONTRATADA tomara todas as precaucoes necessarias para salvaguardar a confidencialidade das informacoes da CONTRATANTE.\n\n'+
+    'CLAUSULA QUINTA - DA RESCISAO\n\n'+
+    'Qualquer das partes podera rescindir o presente Contrato, mediante previa notificacao de 30 (trinta) dias.\n\n'+
+    'CLAUSULA SEXTA - DOS DIREITOS AUTORAIS\n\n'+
+    'Todos os trabalhos elaborados serao de propriedade exclusiva da CONTRATANTE.\n\n'+
+    city+'\n\n'+
+    'EUPHORIA PUBLICIDADE LTDA.\np. CAIO SALES HORTA DEL MANTO\n\n'+
+    d.empresa.toUpperCase()+'\np. '+d.rep.toUpperCase()+'\n\n'+testemunha;
+  }
+  
+  if(tipo==='freela'){
+    var ini=d.inicio?new Date(d.inicio+'T12:00:00').toLocaleDateString('pt-BR'):hoje;
+    return 'INSTRUMENTO PARTICULAR DE PRESTACAO DE SERVICOS - FREELANCER/FORNECEDOR\n\n'+
+    'Pelo presente instrumento, as partes:\n\n'+
+    '- '+euphoria+'\n\n'+
+    '- '+d.nome.toUpperCase()+', CPF/CNPJ no '+d.doc+' ("CONTRATADO").\n\n'+
+    'CLAUSULA PRIMEIRA - DO OBJETO\n\n'+
+    'A CONTRATANTE contrata o CONTRATADO para prestar os seguintes servicos: '+d.servico+'.\n\n'+
+    'CLAUSULA SEGUNDA - DA VIGENCIA\n\n'+
+    'O presente Contrato tera inicio em '+ini+' com prazo de '+d.prazo+'.\n\n'+
+    'CLAUSULA TERCEIRA - DO PAGAMENTO\n\n'+
+    'Pelo servico prestado, o CONTRATADO fara jus ao recebimento de R$ '+d.valor+'. O pagamento sera efetuado mediante emissao de Nota Fiscal.\n\n'+
+    'CLAUSULA QUARTA - DA CONFIDENCIALIDADE E DIREITOS AUTORAIS\n\n'+
+    'Todo material produzido sera de propriedade exclusiva da CONTRATANTE. O CONTRATADO mantera sigilo sobre todas as informacoes confidenciais.\n\n'+
+    'CLAUSULA QUINTA - DA RESCISAO\n\n'+
+    'Qualquer das partes podera rescindir mediante notificacao previa de 15 dias.\n\n'+
+    city+'\n\n'+
+    'EUPHORIA PUBLICIDADE LTDA.\np. CAIO SALES HORTA DEL MANTO\n\n'+
+    d.nome.toUpperCase()+'\n\n'+testemunha;
+  }
+  
+  if(tipo==='distrato'){
+    var ini=d.inicioOriginal?new Date(d.inicioOriginal+'T12:00:00').toLocaleDateString('pt-BR'):'';
+    var res=d.rescisao?new Date(d.rescisao+'T12:00:00').toLocaleDateString('pt-BR'):hoje;
+    return 'INSTRUMENTO PARTICULAR DE DISTRATO DO CONTRATO DE PRESTACAO DE SERVICOS E OUTRAS AVENCAS\n\n'+
+    'CELEBRADO ENTRE EUPHORIA PUBLICIDADE LTDA E '+(d.nome||d.empresa||'').toUpperCase()+'\n\n'+
+    'Pelo presente instrumento particular de distrato:\n\n'+
+    '- EUPHORIA PUBLICIDADE LTDA, CNPJ 47.882.625/0001-98, representada por CAIO SALES HORTA DEL MANTO ("EUPHORIA PUBLICIDADE LTDA"); e\n\n'+
+    '- '+d.nome.toUpperCase()+', CPF/CNPJ no '+d.doc+(d.cargo?', cargo: '+d.cargo:'')+'.\n\n'+
+    'PREMISSAS\n\n'+
+    'CONSIDERANDO QUE em '+ini+', as Partes formalizaram um Contrato de Prestacao de Servicos;\n\n'+
+    'CONSIDERANDO QUE as Partes, de comum acordo, resolvem na presente data rescindir o contrato de prestacao de servicos firmado, com efeitos em '+res+'.\n\n'+
+    'As Partes outorgam reciprocamente a mais plena, ampla, geral, irrevogavel e irretratavel QUITACAO, para nada mais reclamarem uns dos outros.\n\n'+
+    (d.valor?'Euphoria Creative declara o pagamento de R$ '+d.valor+' em carater de rescisao de contrato'+(d.banco?' na conta: '+d.banco:'')+'\n\n':'')+
+    'O presente distrato e celebrado em carater irrevogavel e irretratavel, renunciando as Partes a faculdade do arrependimento.\n\n'+
+    'As Partes elegem o foro da Comarca de Sao Paulo para dirimir quaisquer questoes oriundas do presente distrato.\n\n'+
+    city+'\n\n'+
+    'EUPHORIA PUBLICIDADE LTDA.\np. CAIO SALES HORTA DEL MANTO\n\n'+
+    d.nome.toUpperCase()+'\n\n'+testemunha;
+  }
+  
+  if(tipo==='aditivo'){
+    var clas=d.clausulas.map(function(c){return c.nome+': '+c.texto;}).join('\n');
+    var ini=d.dataOriginal?new Date(d.dataOriginal+'T12:00:00').toLocaleDateString('pt-BR'):'';
+    var vig=d.dataVigor?new Date(d.dataVigor+'T12:00:00').toLocaleDateString('pt-BR'):hoje;
+    return d.numero+' ADITIVO CONTRATUAL AO INSTRUMENTO PARTICULAR DE PRESTACAO DE SERVICOS\n\n'+
+    'Pelo presente instrumento, as partes:\n\n'+
+    '- '+euphoria+'\n\n'+
+    '- '+d.nome.toUpperCase()+', CPF/CNPJ no '+d.doc+', neste ato representada por '+d.rep.toUpperCase()+', CPF no '+d.repCpf+' ("CONTRATADA").\n\n'+
+    '(i) Considerando a assinatura pelas Partes do Instrumento Particular de Prestacao de Servicos em '+ini+';\n'+
+    '(ii) Considerando a necessidade de alteracao das seguintes clausulas.\n\n'+
+    'RESOLVEM AS PARTES aditar o referido instrumento, com vigencia a partir de '+vig+':\n\n'+
+    clas+'\n\n'+
+    'Permaneceram integralmente validas as demais clausulas nao alteradas expressamente por meio deste aditivo.\n\n'+
+    city+'\n\n'+
+    'EUPHORIA PUBLICIDADE LTDA.\np. CAIO SALES HORTA DEL MANTO\n\n'+
+    d.nome.toUpperCase()+'\np. '+d.rep.toUpperCase()+'\n\n'+testemunha;
+  }
+  
+  if(tipo==='carta'){
+    var ini=d.inicio?new Date(d.inicio+'T12:00:00').toLocaleDateString('pt-BR'):'';
+    return 'Sao Paulo, '+hoje+'\n\n'+
+    'Estimado(a) '+d.nome+',\n\n'+
+    'Depois do processo de entrevistas realizado pela equipe da Euphoria Creative, gostaríamos de formalizar uma proposta de trabalho para atuar no nosso time a partir do proximo dia '+ini+'. Esta posicao tem um grande valor estrategico para a empresa, clientes e todas as metas que queremos atingir no futuro. Para isso, nossa proposta esta baseada no seguinte pacote:\n\n'+
+    'Regime de Contratacao: Prestador de Servicos (PJ).\n\n'+
+    'Cargo: '+d.cargo+'\n\n'+
+    'Salario Base: R$ '+d.salario+(d.salario?' (com 13o e 1/3 de ferias)':'')+'.\n\n'+
+    (d.flash?'Flash Beneficio: R$ '+d.flash+' mensais referentes ao vale-refeicao e vale-transporte.\n\n':'')+
+    (d.plano?'Plano de saude: '+d.plano+', sem descontos, 100% pago pela empresa (sem dependentes).\n\n':'')+
+    'Pacote contabilidade: 100% pago pela agencia para emissao de notas fiscais.\n\n'+
+    (d.obs?d.obs+'\n\n':'')+
+    'Codigo de Conduta: A empresa espera que seus prestadores de servico cumpram as leis do Brasil e respeitem as regras trabalhistas do pais. Fica claro que todo prestador nao se comprometera com nenhum emprego ou atividade que tenha conflito com os clientes e/ou modelo de trabalho da Euphoria Creative.\n\n'+
+    'A partir dessa proposta, gostaríamos de confirmar seu interesse de se juntar ao time assim podemos iniciar os tramites legais de contratacao dos seus servicos. Caso esteja de acordo com essa oferta, pedimos que assine este documento digitalmente.\n\n'+
+    'De acordo: ________________________\n'+
+    '                        '+d.nome+'\n\n'+
+    'A oferta atual e valida assim que temos esse documento assinado e enviado pelo candidato com tempo habil para os tramites de contratacao.';
+  }
+  
+  return 'Template nao encontrado para o tipo: '+tipo;
+}
+
 function jurColetarDados(tipo){var d={};
 if(tipo==='cliente'){d.empresa=document.getElementById('cc-nome-empresa').value;d.cnpj=document.getElementById('cc-cnpj').value;d.rep=document.getElementById('cc-rep-nome').value;d.repCpf=document.getElementById('cc-rep-cpf').value;d.endereco=document.getElementById('cc-endereco').value;d.honorarios=document.getElementById('cc-honorarios').value;d.inicio=document.getElementById('cc-inicio').value;d.servicos=document.getElementById('cc-servicos').value;if(!d.empresa||!d.honorarios){alert('Preencha Razao Social e Honorarios');return null;}}
 else if(tipo==='pj'){d.nome=document.getElementById('pj-nome').value;d.cpf=document.getElementById('pj-cpf').value;d.empresa=document.getElementById('pj-empresa').value;d.cnpj=document.getElementById('pj-cnpj').value;d.endereco=document.getElementById('pj-endereco').value;d.cargo=document.getElementById('pj-cargo').value;d.honorarios=document.getElementById('pj-honorarios').value;d.inicio=document.getElementById('pj-inicio').value;if(!d.nome||!d.honorarios){alert('Preencha Nome e Honorarios');return null;}}
