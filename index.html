@@ -1455,22 +1455,46 @@ async function gerarProposta() {
 }
 
 function gRenderProposta(p) {
-  var subtotal=0;
+  var subtotalBR=0, subtotalMX=0;
   var rows = p.equipe.map(function(m) {
-    var RC2=gGetRateCard(); var rateObj=(RC2[m.departamento]||{})[m.cargo]||{}; var rate = (typeof rateObj==='object' ? (rateObj[m.seniority]||Object.values(rateObj)[0]) : rateObj) || (gPaisAtivo==='mx'?300:200);
-    var sub = m.horas * rate; subtotal += sub;
-    return Object.assign({rate:rate,subtotal:sub}, m);
+    var plRow=m.pais||(p.pais||gPaisAtivo||'br');
+    var RC2=plRow==='mx'?RATE_CARD_MX:RATE_CARD;
+    var moedaRow=plRow==='mx'?'MX$':'R$';
+    var rateObj=(RC2[m.departamento]||{})[m.cargo]||{};
+    var rate=(typeof rateObj==='object'?(rateObj[m.seniority]||Object.values(rateObj)[0]):rateObj)||(plRow==='mx'?300:200);
+    var sub=m.horas*rate;
+    if(plRow==='mx') subtotalMX+=sub; else subtotalBR+=sub;
+    return Object.assign({rate:rate,subtotal:sub,moedaRow:moedaRow,plRow:plRow},m);
   });
-  var taxes=subtotal*p.impostos, totalMes=subtotal+taxes, totalContrato=totalMes*p.duracao;
-  var moeda = gGetMoeda();
-  var usdMes = gPaisAtivo==='mx' ? gMxnParaUsd(totalMes) : gBrlParaUsd(totalMes);
-  var usdContrato = gPaisAtivo==='mx' ? gMxnParaUsd(totalContrato) : gBrlParaUsd(totalContrato);
+  // For conjunto: convert MX to BRL equivalent for total (informative)
+  var isConjunto = (p.pais||gPaisAtivo)==='conjunto';
+  var isMX = (p.pais||gPaisAtivo)==='mx';
+  var moeda = isMX ? 'MX$' : 'R$';
+  var subtotal = isMX ? subtotalMX : (isConjunto ? subtotalBR : subtotalBR);
+  var subtotalMXinBRL = subtotalMX > 0 ? (subtotalMX / (gCotacoes.usdMxn - gCotacoes.spreadMxn)) * (gCotacoes.usdBrl - gCotacoes.spreadBrl) : 0;
+  var subtotalTotal = isConjunto ? subtotalBR + subtotalMXinBRL : subtotal;
+  var taxes = subtotalTotal * p.impostos;
+  var totalMes = subtotalTotal + taxes;
+  var totalContrato = totalMes * p.duracao;
+  var usdMes = isMX ? gMxnParaUsd(totalMes) : gBrlParaUsd(totalMes);
   function fmt(v){return moeda+' '+Math.round(v).toLocaleString('pt-BR');}
-  document.getElementById('g-result-title').textContent = (p.cliente||'Proposta')+' — '+(p.tipo||'').replace('_',' ').toUpperCase()+' 🇧🇷'.replace('🇧🇷', gPaisAtivo==='mx'?'🇲🇽':gPaisAtivo==='conjunto'?'🌎':'🇧🇷');
-  document.getElementById('g-result-sub').textContent = p.duracao+' meses • Impostos '+(p.impostos*100).toFixed(1)+'% • Ref. USD: '+gFmtUsd(usdMes)+'/mês';
-  document.getElementById('g-kpis').innerHTML=[{label:'Subtotal Equipe',value:fmt(subtotal),sub:'por mês'},{label:'Total com Impostos',value:fmt(totalMes),sub:'mensal'},{label:'Total do Contrato',value:fmt(totalContrato),sub:p.duracao+' meses'},{label:'Com Rebate 7.5%',value:fmt(totalContrato/(1-.075)),sub:'gross'},].map(function(k){return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-value" style="font-size:18px">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
-  document.getElementById('g-team-body').innerHTML=rows.map(function(m){return '<tr><td><span class="badge badge-blue">'+m.departamento+'</span></td><td>'+m.cargo+'</td><td>'+m.seniority+'</td><td style="text-align:right">'+m.horas+'h</td><td style="text-align:right">'+((m.dedicacao||0)*100).toFixed(0)+'%</td><td style="text-align:right">R$ '+m.rate.toLocaleString('pt-BR')+'</td><td style="text-align:right">R$ '+Math.round(m.subtotal).toLocaleString('pt-BR')+'</td></tr>';}).join('')+'<tr class="summary-row"><td colspan="6">Total Mensal</td><td style="text-align:right"><strong>R$ '+Math.round(totalMes).toLocaleString('pt-BR')+'</strong></td></tr>';
-  document.getElementById('g-summary').innerHTML='<div class="chart-title">Observações</div><p style="font-size:12px;color:var(--text2);line-height:1.7">'+(p.observacoes||'')+'</p>';
+  function fmtBrl(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR');}
+  var bandeira = isMX?'🇲🇽':isConjunto?'🌎':'🇧🇷';
+  document.getElementById('g-result-title').textContent = (p.cliente||'Proposta')+' — '+(p.tipo||'').replace(/_/g,' ').toUpperCase()+' '+bandeira;
+  document.getElementById('g-result-sub').textContent = p.duracao+' meses • Impostos '+(p.impostos*100).toFixed(1)+'%'+(isConjunto?' • BR+MX consolidado':'')+' • Ref. USD: '+gFmtUsd(usdMes)+'/mês';
+  // KPIs — sem Rebate
+  document.getElementById('g-kpis').innerHTML=[
+    {label:'Subtotal Equipe',value:isConjunto?fmtBrl(subtotalTotal):fmt(subtotal),sub:'por mês'},
+    {label:'Total com Impostos',value:isConjunto?fmtBrl(totalMes):fmt(totalMes),sub:'mensal'},
+    {label:'Total do Contrato',value:isConjunto?fmtBrl(totalContrato):fmt(totalContrato),sub:p.duracao+' meses'},
+    {label:'Ref. USD',value:gFmtUsd(usdMes),sub:'por mês'}
+  ].map(function(k){return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-value" style="font-size:18px">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
+  // Table rows — moeda por linha
+  document.getElementById('g-team-body').innerHTML=rows.map(function(m){
+    var paisFlag = isConjunto ? '<span style="margin-right:4px">'+(m.plRow==='mx'?'🇲🇽':'🇧🇷')+'</span>' : '';
+    return '<tr><td>'+paisFlag+'<span class="badge badge-blue">'+m.departamento+'</span></td><td>'+m.cargo+'</td><td>'+(m.seniority||'Pleno')+'</td><td style="text-align:right">'+m.horas+'h</td><td style="text-align:right">'+((m.horas/160)*100).toFixed(0)+'%</td><td style="text-align:right">'+m.moedaRow+' '+m.rate.toLocaleString('pt-BR')+'</td><td style="text-align:right">'+m.moedaRow+' '+Math.round(m.subtotal).toLocaleString('pt-BR')+'</td></tr>';
+  }).join('')+'<tr class="summary-row"><td colspan="6">Total Mensal</td><td style="text-align:right"><strong>'+(isConjunto?fmtBrl(totalMes):fmt(totalMes))+'</strong></td></tr>';
+  document.getElementById('g-summary').innerHTML='<div class="chart-title">Observações</div><p style="font-size:12px;color:var(--text2);line-height:1.7">'+(p.observacoes||'')+'</p>'+(isConjunto&&subtotalMX>0?'<div style="font-size:11px;color:var(--text3);margin-top:8px">🇲🇽 MX$ '+Math.round(subtotalMX).toLocaleString('pt-BR')+' convertido a R$ '+Math.round(subtotalMXinBRL).toLocaleString('pt-BR')+' (cotação efetiva)</div>':'');
   document.getElementById('growth-result').style.display='block';
 }
 
@@ -2004,13 +2028,23 @@ function gUpdateCargos(deptSel, id) {
 function gUpdateSen(cargoSel, id) {
   var row = document.getElementById('mrow-' + id);
   if (!row) return;
+  var pl = row.getAttribute('data-pais') || gPaisAtivo || 'br';
+  var rc = pl === 'mx' ? RATE_CARD_MX : RATE_CARD;
+  var moeda = pl === 'mx' ? 'MX$' : 'R$';
   var dept = row.querySelector('.mrow-dept').value;
   var cargo = cargoSel.value;
-  var rates = (RATE_CARD[dept] || {})[cargo] || {};
+  var rateVal = (rc[dept] || {})[cargo];
   var senSel = row.querySelector('.mrow-sen');
-  senSel.innerHTML = Object.entries(rates).map(function(e){return '<option value="'+e[0]+'">'+e[0]+' — R$ '+e[1]+'/h</option>';}).join('');
   var rateEl = row.querySelector('.mrow-rate');
-  rateEl.textContent = 'R$' + (Object.values(rates)[0] || 0) + '/h';
+  if (typeof rateVal === 'object' && rateVal !== null) {
+    // BR: has seniority levels
+    senSel.innerHTML = Object.entries(rateVal).map(function(e){return '<option value="'+e[0]+'">'+e[0]+' — '+moeda+' '+e[1]+'/h</option>';}).join('');
+    rateEl.textContent = moeda+(Object.values(rateVal)[0]||0)+'/h';
+  } else {
+    // MX: flat rate, no seniority
+    senSel.innerHTML = '<option value="Pleno">Pleno — '+moeda+' '+(rateVal||0).toFixed(0)+'/h</option>';
+    rateEl.textContent = moeda+(rateVal||0).toFixed(0)+'/h';
+  }
 }
 
 function gRemoverLinha(id) {
@@ -2033,14 +2067,15 @@ function gGerarDeManual() {
     var cargo = row.querySelector('.mrow-cargo') ? row.querySelector('.mrow-cargo').value : '';
     var sen = row.querySelector('.mrow-sen') ? row.querySelector('.mrow-sen').value : '';
     var horas = parseInt(row.querySelector('.mrow-horas') ? row.querySelector('.mrow-horas').value : 40) || 40;
-    if (dept && cargo && sen) {
-      equipe.push({ departamento: dept, cargo: cargo, seniority: sen, horas: horas, dedicacao: horas/160 });
+    var pl = row.getAttribute('data-pais') || gPaisAtivo || 'br';
+    if (dept && cargo) {
+      equipe.push({ departamento: dept, cargo: cargo, seniority: sen||'Pleno', horas: horas, dedicacao: horas/160, pais: pl });
     }
   });
 
   if (!equipe.length) { alert('Adicione pelo menos um profissional!'); return; }
 
-  gCurrentProposta = { cliente: cliente, tipo: tipo, duracao: duracao, ohv: ohv, margem: margem, impostos: impostos, equipe: equipe, observacoes: 'Proposta montada manualmente.', data: new Date().toISOString() };
+  gCurrentProposta = { cliente: cliente, tipo: tipo, duracao: duracao, ohv: ohv, margem: margem, impostos: impostos, equipe: equipe, pais: gPaisAtivo, observacoes: 'Proposta montada manualmente.', data: new Date().toISOString() };
   gRenderProposta(gCurrentProposta);
   gFecharManual();
   document.getElementById('growth-result').style.display = 'block';
