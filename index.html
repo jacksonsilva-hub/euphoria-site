@@ -3288,9 +3288,7 @@ function switchFinTab(tab, e) {
 }
 
 // ── AUTH ──────────────────────────────────────────────
-var USERS = [
-  {user:'jackson.silva',email:'jackson.silva@euphoriacreative.com',pass:'Euphoria2024',name:'Jackson Silva',role:'admin',initials:'JS'},
-];
+
 var PERMISSIONS = {
   admin:['financeiro','growth','timesheet','projetos','people','juridico','ti'],
   gestor:['growth','timesheet','projetos','people'],
@@ -3997,45 +3995,6 @@ function exportarPropostaExcel() {
   a.click();
 }
 
-function exportarPropostaPDF() {
-  if (!gCurrentProposta) return;
-  var p = gCurrentProposta;
-  var subtotal = 0;
-  var rowsHtml = p.equipe.map(function(m) {
-    var rate = ((RATE_CARD[m.departamento]||{})[m.cargo]||{})[m.seniority] || 0;
-    var sub = m.horas * rate; subtotal += sub;
-    return '<tr><td>'+m.departamento+'</td><td>'+m.cargo+'</td><td>'+m.seniority+'</td><td>'+m.horas+'h</td><td>R$ '+rate+'</td><td><strong>R$ '+Math.round(sub).toLocaleString('pt-BR')+'</strong></td></tr>';
-  }).join('');
-  var taxes = subtotal*(p.impostos||.155), totalMes=subtotal+taxes, totalContrato=totalMes*(p.duracao||12);
-
-  var win = window.open('','_blank');
-  win.document.write('<html><head><title>Proposta '+( p.cliente||'')+'</title><style>'+
-    'body{font-family:Arial,sans-serif;padding:40px;color:#111;max-width:800px;margin:0 auto}'+
-    'h1{font-size:28px;font-weight:900;letter-spacing:-1px}'+
-    'h2{font-size:14px;color:#666;font-weight:400;margin-top:4px;margin-bottom:32px}'+
-    'table{width:100%;border-collapse:collapse;margin-bottom:24px}'+
-    'th{background:#111;color:#fff;padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase}'+
-    'td{padding:8px 12px;border-bottom:1px solid #eee;font-size:13px}'+
-    '.totals{background:#f9f9f9;border-radius:8px;padding:20px;margin-top:16px}'+
-    '.total-line{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee;font-size:13px}'+
-    '.total-line.main{font-weight:700;font-size:16px;border-bottom:none;margin-top:8px}'+
-    '@media print{button{display:none}}'+
-  '</style></head><body>'+
-    '<h1>EUPH⬤RIA</h1>'+
-    '<h2>Proposta Comercial — '+((p.tipo||'').replace('_',' ').toUpperCase())+'</h2>'+
-    '<table><tr><th>Cliente</th><th>Duração</th><th>OHV</th><th>Margem</th></tr>'+
-    '<tr><td><strong>'+(p.cliente||'—')+'</strong></td><td>'+(p.duracao||12)+' meses</td><td>'+(p.ohv||1.7)+'</td><td>'+((p.margem||.2)*100).toFixed(0)+'%</td></tr></table>'+
-    '<table><tr><th>Departamento</th><th>Cargo</th><th>Seniority</th><th>Horas/mês</th><th>Rate R$/h</th><th>Subtotal/mês</th></tr>'+rowsHtml+'</table>'+
-    '<div class="totals">'+
-      '<div class="total-line"><span>Subtotal Equipe</span><span>R$ '+Math.round(subtotal).toLocaleString('pt-BR')+'</span></div>'+
-      '<div class="total-line"><span>Impostos ('+((p.impostos||.155)*100).toFixed(1)+'%)</span><span>R$ '+Math.round(taxes).toLocaleString('pt-BR')+'</span></div>'+
-      '<div class="total-line main"><span>TOTAL MENSAL</span><span>R$ '+Math.round(totalMes).toLocaleString('pt-BR')+'</span></div>'+
-      '<div class="total-line main"><span>TOTAL CONTRATO ('+( p.duracao||12)+'x)</span><span>R$ '+Math.round(totalContrato).toLocaleString('pt-BR')+'</span></div>'+
-    '</div>'+
-    '<br><button onclick="window.print()" style="background:#111;color:#fff;border:none;padding:12px 24px;border-radius:6px;cursor:pointer;font-size:14px">🖨️ Imprimir / Salvar PDF</button>'+
-  '</html>');
-  win.document.close();
-}
 
 
 // ═══════════════════════════════════════════════════
