@@ -320,9 +320,25 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
 <div class="aging-card"><div class="aging-label">A Vencer 30d</div><div class="aging-value" id="cr-av">—</div></div>
 <div class="aging-card"><div class="aging-label">Total Aberto</div><div class="aging-value pos" id="cr-tot">—</div></div>
 </div>
+<!-- CHARTS ROW -->
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+  <div class="chart-card" style="padding:14px">
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Top Clientes em Aberto</div>
+    <canvas id="chartCRTopCli" height="160"></canvas>
+  </div>
+  <div class="chart-card" style="padding:14px">
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Tipo de Pagamento</div>
+    <canvas id="chartCRTipo" height="160"></canvas>
+  </div>
+  <div class="chart-card" style="padding:14px">
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Aging por Faixa</div>
+    <canvas id="chartCRaging" height="160"></canvas>
+    <div id="cr-runway" style="margin-top:10px;padding:8px;background:var(--bg3);border-radius:6px;text-align:center;font-size:11px;color:var(--text3)">Runway: —</div>
+  </div>
+</div>
 <div class="table-card"><div class="table-header"><span class="table-title">Títulos a Receber</span><span class="table-meta" id="cr-meta-vbs">0 registros</span></div>
-<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Cliente</th><th>N Doc.</th><th>Emissão</th><th>Vencimento</th><th>Dias</th><th style="text-align:right">Vlr. Doc.</th><th style="text-align:right">Em Aberto</th><th>Status</th></tr></thead>
-<tbody id="cr-tbody-vbs"><tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text3)">Selecione o período e clique em Buscar</td></tr></tbody></table></div></div>
+<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Cliente</th><th>N Doc.</th><th>Emissão</th><th>Vencimento</th><th>Dias</th><th style="text-align:right">Vlr. Doc.</th><th style="text-align:right">Em Aberto</th><th style="text-align:right">Fee</th><th style="text-align:right">Repasse</th><th>Status</th></tr></thead>
+<tbody id="cr-tbody-vbs"><tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text3)">Selecione o período e clique em Buscar</td></tr></tbody></table></div></div>
 </div>
 <div class="tab-panel" id="fin-cp">
 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
@@ -339,68 +355,76 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
 <div class="aging-card"><div class="aging-label">A Vencer 30d</div><div class="aging-value" id="cp-av">—</div></div>
 <div class="aging-card"><div class="aging-label">Total Aberto</div><div class="aging-value neg" id="cp-tot">—</div></div>
 </div>
+<!-- CP CHARTS -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+  <div class="chart-card" style="padding:14px">
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Por Tipo de Despesa</div>
+    <canvas id="chartCPTipo" height="200"></canvas>
+  </div>
+  <div class="chart-card" style="padding:14px">
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Maiores Fornecedores</div>
+    <canvas id="chartCPFornec" height="200"></canvas>
+  </div>
+</div>
 <div class="table-card"><div class="table-header"><span class="table-title">Títulos a Pagar</span><span class="table-meta" id="cp-meta-vbs">0 registros</span></div>
-<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Fornecedor</th><th>Cliente</th><th>N Doc.</th><th>Vencimento</th><th>Dias</th><th style="text-align:right">Vlr. Doc.</th><th style="text-align:right">Saldo</th><th>Status</th></tr></thead>
+<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Fornecedor</th><th>Tipo Despesa</th><th>N Doc.</th><th>Vencimento</th><th>Dias</th><th style="text-align:right">Vlr. Doc.</th><th style="text-align:right">Saldo</th><th>Status</th></tr></thead>
 <tbody id="cp-tbody-vbs"><tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text3)">Selecione o período e clique em Buscar</td></tr></tbody></table></div></div>
 </div>
 <div class="tab-panel" id="fin-cashflow">
-      <!-- Saldo Inicial -->
-      <div style="display:flex;gap:12px;align-items:flex-end;margin-bottom:16px;flex-wrap:wrap">
-        <div>
-          <label style="font-size:10px;color:var(--text3);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.1em">Saldo Inicial (R$)</label>
-          <input type="text" id="cf-saldo-inicial" placeholder="Ex: 500.000,00" value=""
-            style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-family:var(--font-mono);font-size:13px;outline:none;width:200px"
-            oninput="renderCashflow()">
-        </div>
-        <div>
-          <label style="font-size:10px;color:var(--text3);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.1em">Mês de referência</label>
-          <select id="cf-mes" onchange="renderCashflow()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:8px 12px;border-radius:6px;font-family:var(--font-mono);font-size:12px;outline:none">
-            <option value="all">Todos os meses</option>
-            <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
-            <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
-            <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
-            <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
-          </select>
-        </div>
-        <div style="font-size:11px;color:var(--text3);padding-bottom:8px">
-          📎 Dados das abas <strong style="color:var(--text2)">Contas a Receber</strong> e <strong style="color:var(--text2)">Contas a Pagar</strong>
-        </div>
-      </div>
+  <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;flex-wrap:wrap">
+    <div>
+      <div class="chart-title" style="margin:0">Fluxo de Caixa</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:2px">Baseado em CR e CP carregados • Busque CR e CP primeiro</div>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+      <label style="font-size:10px;color:var(--text3)">SALDO INICIAL (R$)</label>
+      <input type="number" id="cf-saldo-inicial" placeholder="0" value="0" style="width:120px;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;outline:none">
+      <button class="btn btn-primary" onclick="buildCashflowVbs()" style="padding:6px 14px;font-size:11px">Gerar Fluxo</button>
+    </div>
+  </div>
 
-      <!-- KPIs -->
-      <div class="kpi-grid" id="cf-kpis" style="margin-bottom:16px"></div>
+  <!-- KPIs -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px" id="cf-vbs-kpis">
+    <div class="kpi-card"><div class="kpi-label">Total a Receber</div><div class="kpi-value" id="cfv-rec">—</div><div class="kpi-sub">CR em aberto</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total a Pagar</div><div class="kpi-value neg" id="cfv-pag">—</div><div class="kpi-sub">CP em aberto</div></div>
+    <div class="kpi-card"><div class="kpi-label">Saldo Projetado</div><div class="kpi-value" id="cfv-saldo">—</div><div class="kpi-sub">CR - CP</div></div>
+    <div class="kpi-card"><div class="kpi-label">Runway</div><div class="kpi-value" id="cfv-runway">—</div><div class="kpi-sub">meses de caixa</div></div>
+  </div>
 
-      <!-- Chart -->
-      <div class="chart-card chart-full" style="margin-bottom:16px">
-        <div class="chart-title">Fluxo de Caixa Mensal <span>Entradas vs Saídas vs Saldo</span></div>
-        <div style="position:relative;height:280px"><canvas id="chartCashflow"></canvas></div>
-      </div>
+  <!-- CHARTS -->
+  <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:16px">
+    <div class="chart-card" style="padding:14px">
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Entradas vs Saídas por Mês</div>
+      <canvas id="chartCFVbs" height="200"></canvas>
+    </div>
+    <div class="chart-card" style="padding:14px">
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Saldo Acumulado</div>
+      <canvas id="chartCFSaldo" height="200"></canvas>
+    </div>
+  </div>
 
-      <!-- Detailed table -->
-      <div class="charts-row">
-        <div class="table-card">
-          <div class="table-header"><span class="table-title">Entradas (A Receber)</span></div>
-          <table class="tbl">
-            <thead><tr><th>Cliente</th><th>Vencimento</th><th style="text-align:right">Valor</th><th>Status</th></tr></thead>
-            <tbody id="cf-entradas-body"></tbody>
-          </table>
-        </div>
-        <div class="table-card">
-          <div class="table-header"><span class="table-title">Saídas (A Pagar)</span></div>
-          <table class="tbl">
-            <thead><tr><th>Fornecedor</th><th>Vencimento</th><th style="text-align:right">Valor</th><th>Status</th></tr></thead>
-            <tbody id="cf-saidas-body"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div id="cf-sem-dados" style="display:none" class="coming-soon" style="min-height:200px">
-        <div style="font-size:36px;opacity:.3">💸</div>
-        <h2 style="font-size:16px">Carregue os arquivos C/R e C/P</h2>
-        <p>Vá em <strong>Contas a Receber</strong> e <strong>Contas a Pagar</strong>, carregue os arquivos do VBS, e o fluxo de caixa será calculado automaticamente.</p>
+  <!-- TABLES -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    <div class="table-card">
+      <div class="table-header"><span class="table-title">Entradas (CR a Receber)</span></div>
+      <div style="overflow-x:auto;max-height:300px;overflow-y:auto">
+        <table class="tbl"><thead><tr><th>Cliente</th><th>Vencimento</th><th style="text-align:right">Valor</th><th>Status</th></tr></thead>
+        <tbody id="cf-vbs-cr-tbody"><tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text3)">Clique em Gerar Fluxo</td></tr></tbody>
+        </table>
       </div>
     </div>
-    <div class="tab-panel" id="fin-clientes">
+    <div class="table-card">
+      <div class="table-header"><span class="table-title">Saídas (CP a Pagar)</span></div>
+      <div style="overflow-x:auto;max-height:300px;overflow-y:auto">
+        <table class="tbl"><thead><tr><th>Fornecedor</th><th>Vencimento</th><th style="text-align:right">Valor</th><th>Status</th></tr></thead>
+        <tbody id="cf-vbs-cp-tbody"><tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text3)">Clique em Gerar Fluxo</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tab-panel" id="fin-clientes">
 
       <!-- Filtros independentes da aba Clientes -->
       <div class="filters" style="margin-bottom:16px">
@@ -2592,19 +2616,63 @@ async function loadCRVbs(){
   var ate=toApiDate(document.getElementById('cr-date-ate').value);
   var sit=document.getElementById('cr-sit').value;
   var ab=sit!=='recebido'?'S':'N',rc=sit!=='aberto'?'S':'N';
-  document.getElementById('cr-tbody-vbs').innerHTML='<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text3)"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></td></tr>';
+  document.getElementById('cr-tbody-vbs').innerHTML='<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text3)"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></td></tr>';
   try{
     var r=await fetch(API+'/api/contas-receber?situacao_aberto='+ab+'&situacao_recebido='+rc+'&duplicatas_canceladas=N&baixas_canceladas=N&linha_rateio_sem_ratear=N&valores_negativos_nc=S&apresenta_encontro=N&data_emissao_de='+de+'&data_emissao_ate='+ate);
     var j=await r.json();if(!j.ok)throw new Error(j.error||'Erro VBS');
     var rows=j.data.Retorno||[];
+    window._crRows = rows;
     document.getElementById('cr-meta-vbs').textContent=rows.length+' registros';
-    var a60=0,a31=0,a1=0,av=0,tot=0;
-    rows.forEach(function(x){var v=parseFloat(x.Valor_Aberto_CR||0);tot+=v;var d=daysAgo(x.Data_Vencimento_CR);if(d!==null&&v>0){if(d>60)a60+=v;else if(d>30)a31+=v;else if(d>0)a1+=v;else av+=v;}});
+    var a60=0,a31=0,a1=0,av=0,tot=0,totFee=0,totRep=0,totCusto=0;
+    var cliMap={},tipoMap={'Fee/Receita':0,'Repasse':0,'Custo Direto':0};
+    rows.forEach(function(x){
+      var v=parseFloat(x.Valor_Aberto_CR||0);
+      var fee=parseFloat(x.Valor_Receita_CR||0);
+      var rep=parseFloat(x.Valor_Custo_CR||0);
+      tot+=v;totFee+=fee;totRep+=rep;totCusto+=(v-fee-rep);
+      tipoMap['Fee/Receita']+=fee;
+      tipoMap['Repasse']+=Math.abs(rep);
+      tipoMap['Custo Direto']+=Math.max(0,v-fee-Math.abs(rep));
+      var d=daysAgo(x.Data_Vencimento_CR);
+      if(d!==null&&v>0){if(d>60)a60+=v;else if(d>30)a31+=v;else if(d>0)a1+=v;else av+=v;}
+      var cli=x.Nome_Cliente_CR||'';
+      if(cli){if(!cliMap[cli])cliMap[cli]=0;cliMap[cli]+=v;}
+    });
     ['cr-a60','cr-a31','cr-a1','cr-av','cr-tot'].forEach(function(id,i){var el=document.getElementById(id);if(el)el.textContent=fmtVbs([a60,a31,a1,av,tot][i]);});
-    if(!rows.length){document.getElementById('cr-tbody-vbs').innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text3)">Nenhum registro</td></tr>';return;}
-    document.getElementById('cr-tbody-vbs').innerHTML=rows.map(function(x){var d=daysAgo(x.Data_Vencimento_CR);var ds=d!==null?(d>0?'<span style="color:var(--neg)">'+d+'d</span>':d===0?'hoje':'<span style="color:var(--pos)">'+Math.abs(d)+'d</span>'):'---';return '<tr><td>'+(x.Nome_Cliente_CR||'---')+'</td><td>'+(x.Numero_Nota_CR||'---')+'</td><td>'+fmtDateVbs(x.Data_Emissao_Nota_CR)+'</td><td>'+fmtDateVbs(x.Data_Vencimento_CR)+'</td><td>'+ds+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Documento_CR)+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Aberto_CR)+'</td><td>'+badgeVbs(x.Situacao_CR)+'</td></tr>';}).join('');
-  }catch(e){document.getElementById('cr-tbody-vbs').innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--neg)">'+e.message+'</td></tr>';}
+
+    // Render table with Fee and Repasse columns
+    if(!rows.length){document.getElementById('cr-tbody-vbs').innerHTML='<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text3)">Nenhum registro</td></tr>';return;}
+    document.getElementById('cr-tbody-vbs').innerHTML=rows.map(function(x){
+      var d=daysAgo(x.Data_Vencimento_CR);
+      var ds=d!==null?(d>0?'<span style="color:var(--neg)">'+d+'d</span>':d===0?'hoje':'<span style="color:var(--pos)">'+Math.abs(d)+'d</span>'):'---';
+      return '<tr><td>'+(x.Nome_Cliente_CR||'---')+'</td><td>'+(x.Numero_Nota_CR||'---')+'</td><td>'+fmtDateVbs(x.Data_Emissao_Nota_CR)+'</td><td>'+fmtDateVbs(x.Data_Vencimento_CR)+'</td><td>'+ds+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Documento_CR)+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Aberto_CR)+'</td><td style="text-align:right;color:var(--pos)">'+fmtVbs(x.Valor_Receita_CR)+'</td><td style="text-align:right;color:var(--amber)">'+fmtVbs(x.Valor_Custo_CR)+'</td><td>'+badgeVbs(x.Situacao_CR)+'</td></tr>';
+    }).join('');
+
+    // Charts
+    // 1. Top clients bar
+    var topCli=Object.entries(cliMap).sort(function(a,b){return b[1]-a[1];}).slice(0,8);
+    var c1=document.getElementById('chartCRTopCli');
+    if(window.chartCRTopCliInst)window.chartCRTopCliInst.destroy();
+    window.chartCRTopCliInst=new Chart(c1,{type:'bar',indexAxis:'y',data:{labels:topCli.map(function(c){return c[0].substring(0,20);}),datasets:[{data:topCli.map(function(c){return c[1];}),backgroundColor:'rgba(96,165,250,0.4)',borderColor:'rgba(96,165,250,0.8)',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#555',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#888',font:{size:9}},grid:{display:false}}}}});
+
+    // 2. Tipo pagamento doughnut
+    var c2=document.getElementById('chartCRTipo');
+    if(window.chartCRTipoInst)window.chartCRTipoInst.destroy();
+    window.chartCRTipoInst=new Chart(c2,{type:'doughnut',data:{labels:Object.keys(tipoMap),datasets:[{data:Object.values(tipoMap),backgroundColor:['rgba(110,231,183,0.7)','rgba(251,191,36,0.7)','rgba(96,165,250,0.7)'],borderColor:'#111',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'bottom',labels:{color:'#888',font:{size:10},boxWidth:10}}}}});
+
+    // 3. Aging bar
+    var c3=document.getElementById('chartCRaging');
+    if(window.chartCRAgingInst)window.chartCRAgingInst.destroy();
+    window.chartCRAgingInst=new Chart(c3,{type:'bar',data:{labels:['+60d','31-60d','1-30d','A Vencer'],datasets:[{data:[a60,a31,a1,av],backgroundColor:['rgba(248,113,113,0.7)','rgba(251,191,36,0.7)','rgba(251,191,36,0.4)','rgba(110,231,183,0.7)'],borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#888',font:{size:9}},grid:{display:false}},y:{ticks:{color:'#555',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}},grid:{color:'rgba(255,255,255,0.04)'}}}}});
+
+    // Runway
+    var runway=document.getElementById('cr-runway');
+    if(runway){var cpTotal=window._cpTotal||0;var mediaCP=cpTotal>0?cpTotal/1:0;var r=mediaCP>0?Math.round((tot+0)/mediaCP*10)/10:null;runway.innerHTML=r?'<span style="color:var(--pos);font-weight:700;font-size:14px">Runway: '+r+' meses</span><br><span style="font-size:10px;color:var(--text3)">CR aberto ÷ média CP</span>':'<span style="color:var(--text3)">Carregue CR e CP para calcular Runway</span>';}
+
+  }catch(e){document.getElementById('cr-tbody-vbs').innerHTML='<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--neg)">'+e.message+'</td></tr>';}
 }
+
+
 function filterCRTable(){var q=document.getElementById('cr-q').value.toLowerCase();document.getElementById('cr-tbody-vbs').querySelectorAll('tr').forEach(function(r){r.style.display=r.textContent.toLowerCase().includes(q)?'':'none';});}
 
 async function loadCPVbs(){
@@ -2614,17 +2682,52 @@ async function loadCPVbs(){
   var ab=sit!=='pago'?'S':'N',pg=sit!=='aberto'?'S':'N';
   document.getElementById('cp-tbody-vbs').innerHTML='<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text3)"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></td></tr>';
   try{
-    var r=await fetch(API+'/api/contas-pagar?situacao_aberto='+ab+'&situacao_pago='+pg+'&apresenta_cancelado=N&apresenta_baixa_cancelada=N&apresenta_encontro=N&criar_rateio=N&calcula_nc=S&data_emissao_de='+de+'&data_emissao_ate='+ate);
+    var r=await fetch(API+'/api/contas-pagar?situacao_aberto='+ab+'&situacao_pago='+pg+'&duplicatas_canceladas=N&baixas_canceladas=N&apresenta_cancelado=N&apresenta_baixa_cancelada=N&apresenta_encontro=N&criar_rateio=N&calcula_nc=N&data_vencimento_de='+de+'&data_vencimento_ate='+ate);
     var j=await r.json();if(!j.ok)throw new Error(j.error||'Erro VBS');
     var rows=j.data.Retorno||[];
+    window._cpRows = rows;
+    window._cpTotal = rows.reduce(function(s,x){return s+parseFloat(x.Valor_Aberto_CP||0);},0);
     document.getElementById('cp-meta-vbs').textContent=rows.length+' registros';
     var a60=0,a31=0,a1=0,av=0,tot=0;
-    rows.forEach(function(x){var v=parseFloat(x.Valor_Aberto_CP||0);tot+=v;var d=daysAgo(x.Data_Vencimento_CP);if(d!==null&&v>0){if(d>60)a60+=v;else if(d>30)a31+=v;else if(d>0)a1+=v;else av+=v;}});
+    var tipoMap={}, fornMap={};
+    rows.forEach(function(x){
+      var v=parseFloat(x.Valor_Aberto_CP||0);
+      tot+=v;
+      var d=daysAgo(x.Data_Vencimento_CP);
+      if(d!==null&&v>0){if(d>60)a60+=v;else if(d>30)a31+=v;else if(d>0)a1+=v;else av+=v;}
+      var tipo=(x.Descricao_Servico_CP||x.Tipo_Documento_CP||'Outros').substring(0,30);
+      if(!tipoMap[tipo])tipoMap[tipo]=0;tipoMap[tipo]+=Math.abs(v);
+      var forn=(x.Nome_Terceiro_CP||'').substring(0,25);
+      if(forn){if(!fornMap[forn])fornMap[forn]=0;fornMap[forn]+=Math.abs(v);}
+    });
     ['cp-a60','cp-a31','cp-a1','cp-av','cp-tot'].forEach(function(id,i){var el=document.getElementById(id);if(el)el.textContent=fmtVbs([a60,a31,a1,av,tot][i]);});
     if(!rows.length){document.getElementById('cp-tbody-vbs').innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text3)">Nenhum registro</td></tr>';return;}
-    document.getElementById('cp-tbody-vbs').innerHTML=rows.map(function(x){var d=daysAgo(x.Data_Vencimento_CP);var ds=d!==null?(d>0?'<span style="color:var(--neg)">'+d+'d</span>':d===0?'hoje':'<span style="color:var(--pos)">'+Math.abs(d)+'d</span>'):'---';return '<tr><td>'+(x.Nome_Terceiro_CP||'---')+'</td><td>'+(x.Nome_Fantasia_Cliente_CP||'---')+'</td><td>'+(x.Numero_Doc_NF_Terceiro_CP||'---')+'</td><td>'+fmtDateVbs(x.Data_Vencimento_CP)+'</td><td>'+ds+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Documento_CP)+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Aberto_CP)+'</td><td>'+badgeVbs(x.Situacao_CP)+'</td></tr>';}).join('');
+
+    // Table with Tipo Despesa
+    document.getElementById('cp-tbody-vbs').innerHTML=rows.map(function(x){
+      var d=daysAgo(x.Data_Vencimento_CP);
+      var ds=d!==null?(d>0?'<span style="color:var(--neg)">'+d+'d</span>':d===0?'hoje':'<span style="color:var(--pos)">'+Math.abs(d)+'d</span>'):'---';
+      var tipo=(x.Descricao_Servico_CP||x.Tipo_Documento_CP||'—').substring(0,25);
+      return '<tr><td>'+(x.Nome_Terceiro_CP||'---')+'</td><td style="font-size:11px;color:var(--text3)">'+tipo+'</td><td>'+(x.Numero_Doc_NF_Terceiro_CP||'---')+'</td><td>'+fmtDateVbs(x.Data_Vencimento_CP)+'</td><td>'+ds+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Documento_CP)+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Aberto_CP)+'</td><td>'+badgeVbs(x.Situacao_CP)+'</td></tr>';
+    }).join('');
+
+    // Chart tipo despesa doughnut
+    var topTipos=Object.entries(tipoMap).sort(function(a,b){return b[1]-a[1];}).slice(0,8);
+    var c1=document.getElementById('chartCPTipo');
+    if(window.chartCPTipoInst)window.chartCPTipoInst.destroy();
+    var colors=['rgba(248,113,113,0.7)','rgba(251,191,36,0.7)','rgba(96,165,250,0.7)','rgba(110,231,183,0.7)','rgba(167,139,250,0.7)','rgba(249,168,212,0.7)','rgba(134,239,172,0.7)','rgba(253,224,71,0.7)'];
+    window.chartCPTipoInst=new Chart(c1,{type:'doughnut',data:{labels:topTipos.map(function(t){return t[0];}),datasets:[{data:topTipos.map(function(t){return t[1];}),backgroundColor:colors,borderColor:'#111',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'45%',plugins:{legend:{position:'right',labels:{color:'#888',font:{size:9},boxWidth:10}}}}});
+
+    // Chart top fornecedores
+    var topForn=Object.entries(fornMap).sort(function(a,b){return b[1]-a[1];}).slice(0,8);
+    var c2=document.getElementById('chartCPFornec');
+    if(window.chartCPFornecInst)window.chartCPFornecInst.destroy();
+    window.chartCPFornecInst=new Chart(c2,{type:'bar',indexAxis:'y',data:{labels:topForn.map(function(f){return f[0];}),datasets:[{data:topForn.map(function(f){return f[1];}),backgroundColor:'rgba(248,113,113,0.4)',borderColor:'rgba(248,113,113,0.8)',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#555',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#888',font:{size:9}},grid:{display:false}}}}});
+
   }catch(e){document.getElementById('cp-tbody-vbs').innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--neg)">'+e.message+'</td></tr>';}
 }
+
+
 function filterCPTable(){var q=document.getElementById('cp-q').value.toLowerCase();document.getElementById('cp-tbody-vbs').querySelectorAll('tr').forEach(function(r){r.style.display=r.textContent.toLowerCase().includes(q)?'':'none';});}
 
 // ── JURÍDICO ──────────────────────────────────────────
@@ -4427,44 +4530,10 @@ function fmtDateVbs(d){if(!d)return '---';try{return new Date(d).toLocaleDateStr
 function badgeVbs(sit){if(!sit)return '<span class="badge badge-gray">---</span>';var s=sit.toLowerCase();if(s.includes('baixado')||s.includes('pago')||s.includes('recebido'))return '<span class="badge badge-green">'+sit+'</span>';if(s.includes('parcial'))return '<span class="badge badge-blue">'+sit+'</span>';return '<span class="badge badge-amber">'+sit+'</span>';}
 function initVbsDates(){var now=new Date(),y=now.getFullYear(),m=String(now.getMonth()+1).padStart(2,'0');var last=new Date(y,now.getMonth()+1,0).getDate();var f=y+'-'+m+'-01',l=y+'-'+m+'-'+String(last).padStart(2,'0');['cr-date-de','cp-date-de'].forEach(function(id){var e=document.getElementById(id);if(e&&!e.value)e.value=f;});['cr-date-ate','cp-date-ate'].forEach(function(id){var e=document.getElementById(id);if(e&&!e.value)e.value=l;});}
 
-async function loadCRVbs(){
-  var de=toApiDate(document.getElementById('cr-date-de').value);
-  var ate=toApiDate(document.getElementById('cr-date-ate').value);
-  var sit=document.getElementById('cr-sit').value;
-  var ab=sit!=='recebido'?'S':'N',rc=sit!=='aberto'?'S':'N';
-  document.getElementById('cr-tbody-vbs').innerHTML='<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text3)"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></td></tr>';
-  try{
-    var r=await fetch(API+'/api/contas-receber?situacao_aberto='+ab+'&situacao_recebido='+rc+'&duplicatas_canceladas=N&baixas_canceladas=N&linha_rateio_sem_ratear=N&valores_negativos_nc=S&apresenta_encontro=N&data_emissao_de='+de+'&data_emissao_ate='+ate);
-    var j=await r.json();if(!j.ok)throw new Error(j.error||'Erro VBS');
-    var rows=j.data.Retorno||[];
-    document.getElementById('cr-meta-vbs').textContent=rows.length+' registros';
-    var a60=0,a31=0,a1=0,av=0,tot=0;
-    rows.forEach(function(x){var v=parseFloat(x.Valor_Aberto_CR||0);tot+=v;var d=daysAgo(x.Data_Vencimento_CR);if(d!==null&&v>0){if(d>60)a60+=v;else if(d>30)a31+=v;else if(d>0)a1+=v;else av+=v;}});
-    ['cr-a60','cr-a31','cr-a1','cr-av','cr-tot'].forEach(function(id,i){var el=document.getElementById(id);if(el)el.textContent=fmtVbs([a60,a31,a1,av,tot][i]);});
-    if(!rows.length){document.getElementById('cr-tbody-vbs').innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text3)">Nenhum registro</td></tr>';return;}
-    document.getElementById('cr-tbody-vbs').innerHTML=rows.map(function(x){var d=daysAgo(x.Data_Vencimento_CR);var ds=d!==null?(d>0?'<span style="color:var(--neg)">'+d+'d</span>':d===0?'hoje':'<span style="color:var(--pos)">'+Math.abs(d)+'d</span>'):'---';return '<tr><td>'+(x.Nome_Cliente_CR||'---')+'</td><td>'+(x.Numero_Nota_CR||'---')+'</td><td>'+fmtDateVbs(x.Data_Emissao_Nota_CR)+'</td><td>'+fmtDateVbs(x.Data_Vencimento_CR)+'</td><td>'+ds+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Documento_CR)+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Aberto_CR)+'</td><td>'+badgeVbs(x.Situacao_CR)+'</td></tr>';}).join('');
-  }catch(e){document.getElementById('cr-tbody-vbs').innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--neg)">'+e.message+'</td></tr>';}
-}
+async 
 function filterCRTable(){var q=document.getElementById('cr-q').value.toLowerCase();document.getElementById('cr-tbody-vbs').querySelectorAll('tr').forEach(function(r){r.style.display=r.textContent.toLowerCase().includes(q)?'':'none';});}
 
-async function loadCPVbs(){
-  var de=toApiDate(document.getElementById('cp-date-de').value);
-  var ate=toApiDate(document.getElementById('cp-date-ate').value);
-  var sit=document.getElementById('cp-sit').value;
-  var ab=sit!=='pago'?'S':'N',pg=sit!=='aberto'?'S':'N';
-  document.getElementById('cp-tbody-vbs').innerHTML='<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text3)"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></td></tr>';
-  try{
-    var r=await fetch(API+'/api/contas-pagar?situacao_aberto='+ab+'&situacao_pago='+pg+'&apresenta_cancelado=N&apresenta_baixa_cancelada=N&apresenta_encontro=N&criar_rateio=N&calcula_nc=S&data_emissao_de='+de+'&data_emissao_ate='+ate);
-    var j=await r.json();if(!j.ok)throw new Error(j.error||'Erro VBS');
-    var rows=j.data.Retorno||[];
-    document.getElementById('cp-meta-vbs').textContent=rows.length+' registros';
-    var a60=0,a31=0,a1=0,av=0,tot=0;
-    rows.forEach(function(x){var v=parseFloat(x.Valor_Aberto_CP||0);tot+=v;var d=daysAgo(x.Data_Vencimento_CP);if(d!==null&&v>0){if(d>60)a60+=v;else if(d>30)a31+=v;else if(d>0)a1+=v;else av+=v;}});
-    ['cp-a60','cp-a31','cp-a1','cp-av','cp-tot'].forEach(function(id,i){var el=document.getElementById(id);if(el)el.textContent=fmtVbs([a60,a31,a1,av,tot][i]);});
-    if(!rows.length){document.getElementById('cp-tbody-vbs').innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text3)">Nenhum registro</td></tr>';return;}
-    document.getElementById('cp-tbody-vbs').innerHTML=rows.map(function(x){var d=daysAgo(x.Data_Vencimento_CP);var ds=d!==null?(d>0?'<span style="color:var(--neg)">'+d+'d</span>':d===0?'hoje':'<span style="color:var(--pos)">'+Math.abs(d)+'d</span>'):'---';return '<tr><td>'+(x.Nome_Terceiro_CP||'---')+'</td><td>'+(x.Nome_Fantasia_Cliente_CP||'---')+'</td><td>'+(x.Numero_Doc_NF_Terceiro_CP||'---')+'</td><td>'+fmtDateVbs(x.Data_Vencimento_CP)+'</td><td>'+ds+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Documento_CP)+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Aberto_CP)+'</td><td>'+badgeVbs(x.Situacao_CP)+'</td></tr>';}).join('');
-  }catch(e){document.getElementById('cp-tbody-vbs').innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--neg)">'+e.message+'</td></tr>';}
-}
+async 
 function filterCPTable(){var q=document.getElementById('cp-q').value.toLowerCase();document.getElementById('cp-tbody-vbs').querySelectorAll('tr').forEach(function(r){r.style.display=r.textContent.toLowerCase().includes(q)?'':'none';});}
 
 // ── JURÍDICO ──────────────────────────────────────────
@@ -4727,6 +4796,59 @@ function dreRender() {
         '<div style="font-size:10px;color:var(--text3);margin-top:4px">crescimento</div>'+
       '</div></div>';
   }
+}
+
+function buildCashflowVbs(){
+  var crRows=window._crRows||[], cpRows=window._cpRows||[];
+  var saldo=parseFloat(document.getElementById('cf-saldo-inicial').value)||0;
+  if(!crRows.length&&!cpRows.length){alert('Busque CR e CP primeiro!');return;}
+
+  var totRec=crRows.reduce(function(s,x){return s+parseFloat(x.Valor_Aberto_CR||0);},0);
+  var totPag=cpRows.reduce(function(s,x){return s+Math.abs(parseFloat(x.Valor_Aberto_CP||0));},0);
+  var saldoProj=saldo+totRec-totPag;
+  var mediaPag=totPag>0?totPag/Math.max(1,cpRows.length/30):0;
+  var runway=mediaPag>0?Math.round((saldo+totRec)/mediaPag*30)/30:null;
+
+  document.getElementById('cfv-rec').textContent=fmtVbs(totRec);
+  document.getElementById('cfv-pag').textContent=fmtVbs(totPag);
+  document.getElementById('cfv-saldo').textContent=fmtVbs(saldoProj);
+  document.getElementById('cfv-saldo').className='kpi-value '+(saldoProj>=0?'pos':'neg');
+  document.getElementById('cfv-runway').textContent=runway?runway.toFixed(1)+' meses':'—';
+
+  // Group by month
+  var byMonth={};
+  crRows.forEach(function(x){
+    var dt=x.Data_Vencimento_CR?x.Data_Vencimento_CR.substring(0,7):'Sem data';
+    if(!byMonth[dt])byMonth[dt]={rec:0,pag:0};
+    byMonth[dt].rec+=parseFloat(x.Valor_Aberto_CR||0);
+  });
+  cpRows.forEach(function(x){
+    var dt=x.Data_Vencimento_CP?x.Data_Vencimento_CP.substring(0,7):'Sem data';
+    if(!byMonth[dt])byMonth[dt]={rec:0,pag:0};
+    byMonth[dt].pag+=Math.abs(parseFloat(x.Valor_Aberto_CP||0));
+  });
+  var meses=Object.keys(byMonth).sort();
+
+  // Saldo acumulado
+  var saldoAcum=saldo, saldos=[];
+  meses.forEach(function(m){saldoAcum+=byMonth[m].rec-byMonth[m].pag;saldos.push(saldoAcum);});
+
+  // Chart entradas vs saídas
+  var c1=document.getElementById('chartCFVbs');
+  if(window.chartCFVbsInst)window.chartCFVbsInst.destroy();
+  window.chartCFVbsInst=new Chart(c1,{type:'bar',data:{labels:meses,datasets:[{label:'Entradas (CR)',data:meses.map(function(m){return byMonth[m].rec;}),backgroundColor:'rgba(110,231,183,0.5)',borderRadius:3},{label:'Saídas (CP)',data:meses.map(function(m){return -byMonth[m].pag;}),backgroundColor:'rgba(248,113,113,0.5)',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#888',font:{size:10}}}},scales:{x:{grid:{display:false},ticks:{color:'#666',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#666',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}}}}}});
+
+  // Chart saldo acumulado
+  var c2=document.getElementById('chartCFSaldo');
+  if(window.chartCFSaldoInst)window.chartCFSaldoInst.destroy();
+  window.chartCFSaldoInst=new Chart(c2,{type:'line',data:{labels:meses,datasets:[{label:'Saldo',data:saldos,borderColor:'rgba(96,165,250,0.8)',backgroundColor:'rgba(96,165,250,0.1)',fill:true,tension:0.3,pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#666',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#666',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}}}}}});
+
+  // Tables
+  var crSorted=crRows.slice().sort(function(a,b){return parseFloat(b.Valor_Aberto_CR||0)-parseFloat(a.Valor_Aberto_CR||0);}).slice(0,20);
+  document.getElementById('cf-vbs-cr-tbody').innerHTML=crSorted.map(function(x){return '<tr><td>'+(x.Nome_Cliente_CR||'—')+'</td><td>'+fmtDateVbs(x.Data_Vencimento_CR)+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Aberto_CR)+'</td><td>'+badgeVbs(x.Situacao_CR)+'</td></tr>';}).join('');
+
+  var cpSorted=cpRows.slice().sort(function(a,b){return Math.abs(parseFloat(b.Valor_Aberto_CP||0))-Math.abs(parseFloat(a.Valor_Aberto_CP||0));}).slice(0,20);
+  document.getElementById('cf-vbs-cp-tbody').innerHTML=cpSorted.map(function(x){return '<tr><td>'+(x.Nome_Terceiro_CP||'—')+'</td><td>'+fmtDateVbs(x.Data_Vencimento_CP)+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Aberto_CP)+'</td><td>'+badgeVbs(x.Situacao_CP)+'</td></tr>';}).join('');
 }
 </script>
 </body>
