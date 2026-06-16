@@ -316,16 +316,33 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
 
 <div class="tab-panel" id="fin-cr">
 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
-<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">
-<span style="font-size:10px;color:var(--text3);align-self:center">ATALHO:</span>
-<button class="btn" onclick="crSetFiltroMes('2026','01')" style="font-size:10px;padding:3px 8px">Jan</button>
-<button class="btn" onclick="crSetFiltroMes('2026','02')" style="font-size:10px;padding:3px 8px">Fev</button>
-<button class="btn" onclick="crSetFiltroMes('2026','03')" style="font-size:10px;padding:3px 8px">Mar</button>
-<button class="btn" onclick="crSetFiltroMes('2026','04')" style="font-size:10px;padding:3px 8px">Abr</button>
-<button class="btn" onclick="crSetFiltroMes('2026','05')" style="font-size:10px;padding:3px 8px">Mai</button>
-<button class="btn" onclick="crSetFiltroMes('2026','06')" style="font-size:10px;padding:3px 8px">Jun</button>
-<button class="btn btn-primary" onclick="crSetFiltroAno('2026')" style="font-size:10px;padding:3px 8px">2026 completo</button>
-<button class="btn" onclick="crSetFiltroAno('2025')" style="font-size:10px;padding:3px 8px">2025 completo</button>
+<div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:8px">
+  <div>
+    <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Ano</label>
+    <select id="cr-sel-ano" onchange="crAplicarFiltro()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
+      <option value="2026">2026</option>
+      <option value="2025">2025</option>
+      <option value="2024">2024</option>
+    </select>
+  </div>
+  <div>
+    <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Mês</label>
+    <select id="cr-sel-mes" onchange="crAplicarFiltro()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
+      <option value="00">Todos os meses</option>
+      <option value="01">Janeiro</option>
+      <option value="02">Fevereiro</option>
+      <option value="03">Março</option>
+      <option value="04">Abril</option>
+      <option value="05">Maio</option>
+      <option value="06">Junho</option>
+      <option value="07">Julho</option>
+      <option value="08">Agosto</option>
+      <option value="09">Setembro</option>
+      <option value="10">Outubro</option>
+      <option value="11">Novembro</option>
+      <option value="12">Dezembro</option>
+    </select>
+  </div>
 </div>
 <span style="font-size:10px;color:var(--text3)">DE</span><input type="date" id="cr-date-de" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;outline:none">
 <span style="font-size:10px;color:var(--text3)">ATÉ</span><input type="date" id="cr-date-ate" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;outline:none">
@@ -362,16 +379,33 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
 </div>
 <div class="tab-panel" id="fin-cp">
 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
-<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">
-<span style="font-size:10px;color:var(--text3);align-self:center">ATALHO:</span>
-<button class="btn" onclick="cpSetFiltroMes('2026','01')" style="font-size:10px;padding:3px 8px">Jan</button>
-<button class="btn" onclick="cpSetFiltroMes('2026','02')" style="font-size:10px;padding:3px 8px">Fev</button>
-<button class="btn" onclick="cpSetFiltroMes('2026','03')" style="font-size:10px;padding:3px 8px">Mar</button>
-<button class="btn" onclick="cpSetFiltroMes('2026','04')" style="font-size:10px;padding:3px 8px">Abr</button>
-<button class="btn" onclick="cpSetFiltroMes('2026','05')" style="font-size:10px;padding:3px 8px">Mai</button>
-<button class="btn" onclick="cpSetFiltroMes('2026','06')" style="font-size:10px;padding:3px 8px">Jun</button>
-<button class="btn btn-primary" onclick="cpSetFiltroAno('2026')" style="font-size:10px;padding:3px 8px">2026 completo</button>
-<button class="btn" onclick="cpSetFiltroAno('2025')" style="font-size:10px;padding:3px 8px">2025 completo</button>
+<div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:8px">
+  <div>
+    <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Ano</label>
+    <select id="cp-sel-ano" onchange="cpAplicarFiltro()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
+      <option value="2026">2026</option>
+      <option value="2025">2025</option>
+      <option value="2024">2024</option>
+    </select>
+  </div>
+  <div>
+    <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Mês</label>
+    <select id="cp-sel-mes" onchange="cpAplicarFiltro()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
+      <option value="00">Todos os meses</option>
+      <option value="01">Janeiro</option>
+      <option value="02">Fevereiro</option>
+      <option value="03">Março</option>
+      <option value="04">Abril</option>
+      <option value="05">Maio</option>
+      <option value="06">Junho</option>
+      <option value="07">Julho</option>
+      <option value="08">Agosto</option>
+      <option value="09">Setembro</option>
+      <option value="10">Outubro</option>
+      <option value="11">Novembro</option>
+      <option value="12">Dezembro</option>
+    </select>
+  </div>
 </div>
 <span style="font-size:10px;color:var(--text3)">DE</span><input type="date" id="cp-date-de" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;outline:none">
 <span style="font-size:10px;color:var(--text3)">ATÉ</span><input type="date" id="cp-date-ate" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;outline:none">
@@ -3093,6 +3127,33 @@ function crSetFiltroAno(ano){
 function cpSetFiltroAno(ano){
   document.getElementById('cp-date-de').value=ano+'-01-01';
   document.getElementById('cp-date-ate').value=ano+'-12-31';
+  loadCPVbs();
+}
+
+function crAplicarFiltro(){
+  var ano=document.getElementById('cr-sel-ano').value;
+  var mes=document.getElementById('cr-sel-mes').value;
+  if(mes==='00'){
+    document.getElementById('cr-date-de').value=ano+'-01-01';
+    document.getElementById('cr-date-ate').value=ano+'-12-31';
+  } else {
+    var last=new Date(parseInt(ano),parseInt(mes),0).getDate();
+    document.getElementById('cr-date-de').value=ano+'-'+mes+'-01';
+    document.getElementById('cr-date-ate').value=ano+'-'+mes+'-'+last;
+  }
+  loadCRVbs();
+}
+function cpAplicarFiltro(){
+  var ano=document.getElementById('cp-sel-ano').value;
+  var mes=document.getElementById('cp-sel-mes').value;
+  if(mes==='00'){
+    document.getElementById('cp-date-de').value=ano+'-01-01';
+    document.getElementById('cp-date-ate').value=ano+'-12-31';
+  } else {
+    var last=new Date(parseInt(ano),parseInt(mes),0).getDate();
+    document.getElementById('cp-date-de').value=ano+'-'+mes+'-01';
+    document.getElementById('cp-date-ate').value=ano+'-'+mes+'-'+last;
+  }
   loadCPVbs();
 }
 </script>
