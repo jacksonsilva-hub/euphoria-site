@@ -324,15 +324,15 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
   <div class="chart-card" style="padding:14px">
     <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Top Clientes em Aberto</div>
-    <canvas id="chartCRTopCli" height="160"></canvas>
+    <div style="position:relative;height:160px"><canvas id="chartCRTopCli"></canvas></div>
   </div>
   <div class="chart-card" style="padding:14px">
     <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Tipo de Pagamento</div>
-    <canvas id="chartCRTipo" height="160"></canvas>
+    <div style="position:relative;height:160px"><canvas id="chartCRTipo"></canvas></div>
   </div>
   <div class="chart-card" style="padding:14px">
     <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Aging por Faixa</div>
-    <canvas id="chartCRaging" height="160"></canvas>
+    <div style="position:relative;height:160px"><canvas id="chartCRaging"></canvas></div>
     <div id="cr-runway" style="margin-top:10px;padding:8px;background:var(--bg3);border-radius:6px;text-align:center;font-size:11px;color:var(--text3)">Runway: —</div>
   </div>
 </div>
@@ -359,11 +359,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
   <div class="chart-card" style="padding:14px">
     <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Por Tipo de Despesa</div>
-    <canvas id="chartCPTipo" height="200"></canvas>
+    <div style="position:relative;height:200px"><canvas id="chartCPTipo"></canvas></div>
   </div>
   <div class="chart-card" style="padding:14px">
     <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Maiores Fornecedores</div>
-    <canvas id="chartCPFornec" height="200"></canvas>
+    <div style="position:relative;height:200px"><canvas id="chartCPFornec"></canvas></div>
   </div>
 </div>
 <div class="table-card"><div class="table-header"><span class="table-title">Títulos a Pagar</span><span class="table-meta" id="cp-meta-vbs">0 registros</span></div>
@@ -395,11 +395,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
   <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:16px">
     <div class="chart-card" style="padding:14px">
       <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Entradas vs Saídas por Mês</div>
-      <canvas id="chartCFVbs" height="200"></canvas>
+      <div style="position:relative;height:220px"><canvas id="chartCFVbs"></canvas></div>
     </div>
     <div class="chart-card" style="padding:14px">
       <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Saldo Acumulado</div>
-      <canvas id="chartCFSaldo" height="200"></canvas>
+      <div style="position:relative;height:220px"><canvas id="chartCFSaldo"></canvas></div>
     </div>
   </div>
 
