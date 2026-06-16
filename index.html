@@ -445,15 +445,22 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       <div class="chart-title" style="margin:0">Fluxo de Caixa</div>
       <div style="font-size:11px;color:var(--text3);margin-top:2px">Baseado em CR e CP carregados • Busque CR e CP primeiro</div>
     </div>
-    <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
-      <label style="font-size:10px;color:var(--text3)">SALDO INICIAL (R$)</label>
-      <input type="number" id="cf-saldo-inicial" placeholder="0" value="0" style="width:120px;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;outline:none">
-      <button class="btn btn-primary" onclick="buildCashflowVbs()" style="padding:6px 14px;font-size:11px">Gerar Fluxo</button>
+    <div style="margin-left:auto;display:flex;gap:12px;align-items:flex-end">
+      <div>
+        <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Data Referência</label>
+        <input type="date" id="cf-data-ref" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;outline:none">
+      </div>
+      <div>
+        <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Saldo Bancário (R$)</label>
+        <input type="number" id="cf-saldo-inicial" placeholder="0" value="0" style="width:140px;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;outline:none">
+      </div>
+      <button class="btn btn-primary" onclick="buildCashflowVbs()" style="padding:7px 16px;font-size:11px">Gerar Fluxo</button>
     </div>
   </div>
 
   <!-- KPIs -->
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px" id="cf-vbs-kpis">
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px" id="cf-vbs-kpis">
+    <div class="kpi-card"><div class="kpi-label">Saldo Bancário</div><div class="kpi-value" id="cfv-saldo-banco">—</div><div class="kpi-sub" id="cfv-data-ref-lbl">informe a data</div></div>
     <div class="kpi-card"><div class="kpi-label">Total a Receber</div><div class="kpi-value" id="cfv-rec">—</div><div class="kpi-sub">CR em aberto</div></div>
     <div class="kpi-card"><div class="kpi-label">Total a Pagar</div><div class="kpi-value neg" id="cfv-pag">—</div><div class="kpi-sub">CP em aberto</div></div>
     <div class="kpi-card"><div class="kpi-label">Saldo Projetado</div><div class="kpi-value" id="cfv-saldo">—</div><div class="kpi-sub">CR - CP</div></div>
@@ -3068,6 +3075,7 @@ function buildCashflowVbs(){
     alert('Busque Contas a Receber e Contas a Pagar primeiro, depois clique em Gerar Fluxo!');
     return;
   }
+  var dataRef=document.getElementById('cf-data-ref').value;
   var totRec=crRows.reduce(function(s,x){return s+parseFloat(x.Valor_Aberto_CR||0);},0);
   var totPag=cpRows.reduce(function(s,x){return s+Math.abs(parseFloat(x.Valor_Aberto_CP||0));},0);
   var saldoProj=saldo+totRec-totPag;
@@ -3075,6 +3083,10 @@ function buildCashflowVbs(){
   var runway=mediaPagMes>0?((saldo+totRec)/mediaPagMes).toFixed(1):null;
 
   // Update KPIs
+  var elSB=document.getElementById('cfv-saldo-banco');
+  if(elSB){elSB.textContent=fmtVbs(saldo);elSB.className='kpi-value '+(saldo>=0?'pos':'neg');}
+  var elDR=document.getElementById('cfv-data-ref-lbl');
+  if(elDR)elDR.textContent=dataRef?'Ref: '+new Date(dataRef+'T12:00:00').toLocaleDateString('pt-BR'):'informe a data';
   var el=document.getElementById('cfv-rec');if(el)el.textContent=fmtVbs(totRec);
   el=document.getElementById('cfv-pag');if(el)el.textContent=fmtVbs(totPag);
   el=document.getElementById('cfv-saldo');
