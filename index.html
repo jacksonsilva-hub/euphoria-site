@@ -2788,7 +2788,7 @@ async function loadCRVbs(){
     document.getElementById('cr-tbody-vbs').innerHTML=rows.map(function(x){
       var d=daysAgo(x.Data_Vencimento_CR);
       var ds=d!==null?(d>0?'<span style="color:var(--neg)">'+d+'d</span>':d===0?'hoje':'<span style="color:var(--pos)">'+Math.abs(d)+'d</span>'):'---';
-      return '<tr><td>'+(x.Nome_Cliente_CR||'---')+'</td><td>'+(x.Numero_Nota_CR||'---')+'</td><td>'+fmtDateVbs(x.Data_Emissao_Nota_CR)+'</td><td>'+fmtDateVbs(x.Data_Vencimento_CR)+'</td><td>'+ds+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Documento_CR)+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Aberto_CR)+'</td><td style="text-align:right;color:var(--pos)">'+fmtVbs(x.Valor_Receita_CR)+'</td><td style="text-align:right;color:var(--amber)">'+fmtVbs(x.Valor_Custo_CR)+'</td><td>'+badgeVbs(x.Situacao_CR)+'</td></tr>';
+      return '<tr><td>'+(x.Nome_Cliente_CR||'---')+'</td><td>'+(x.Numero_Nota_NFE_CR||x.Numero_Nota_CR||'---')+'</td><td>'+fmtDateVbs(x.Data_Emissao_Nota_CR)+'</td><td>'+fmtDateVbs(x.Data_Vencimento_CR)+'</td><td>'+ds+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Documento_CR)+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Aberto_CR)+'</td><td style="text-align:right;color:var(--pos)">'+fmtVbs(x.Valor_Receita_CR)+'</td><td style="text-align:right;color:var(--amber)">'+fmtVbs(x.Valor_Custo_CR)+'</td><td>'+badgeVbs(x.Situacao_CR)+'</td></tr>';
     }).join('');
 
     // Charts
@@ -3307,7 +3307,7 @@ function filterCRTableAndCharts(){
   document.getElementById('cr-tbody-vbs').innerHTML=filtered.length?filtered.map(function(x){
     var d=daysAgo(x.Data_Vencimento_CR);
     var ds=d!==null?(d>0?'<span style="color:var(--neg)">'+d+'d</span>':d===0?'hoje':'<span style="color:var(--pos)">'+Math.abs(d)+'d</span>'):'---';
-    return '<tr><td>'+(x.Nome_Cliente_CR||'---')+'</td><td>'+(x.Numero_Nota_CR||'---')+'</td><td>'+fmtDateVbs(x.Data_Emissao_Nota_CR)+'</td><td>'+fmtDateVbs(x.Data_Vencimento_CR)+'</td><td>'+ds+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Documento_CR)+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Aberto_CR)+'</td><td style="text-align:right;color:var(--pos)">'+fmtVbs(x.Valor_Receita_CR)+'</td><td style="text-align:right;color:var(--amber)">'+fmtVbs(x.Valor_Custo_CR)+'</td><td>'+badgeVbs(x.Situacao_CR)+'</td></tr>';
+    return '<tr><td>'+(x.Nome_Cliente_CR||'---')+'</td><td>'+(x.Numero_Nota_NFE_CR||x.Numero_Nota_CR||'---')+'</td><td>'+fmtDateVbs(x.Data_Emissao_Nota_CR)+'</td><td>'+fmtDateVbs(x.Data_Vencimento_CR)+'</td><td>'+ds+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Documento_CR)+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Aberto_CR)+'</td><td style="text-align:right;color:var(--pos)">'+fmtVbs(x.Valor_Receita_CR)+'</td><td style="text-align:right;color:var(--amber)">'+fmtVbs(x.Valor_Custo_CR)+'</td><td>'+badgeVbs(x.Situacao_CR)+'</td></tr>';
   }).join(''):'<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text3)">Nenhum registro</td></tr>';
   // Rebuild charts
   var topCli=Object.entries(cliMap).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
