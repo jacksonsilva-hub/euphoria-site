@@ -263,6 +263,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     <div>
       <div class="chart-title" style="margin:0">DRE — Budget vs Actual</div>
       <div style="font-size:11px;color:var(--text3);margin-top:4px" id="dre-subtitle">Selecione o ano e clique em Carregar</div>
+      <div id="dre-last-update" style="display:none;margin-top:6px;display:flex;align-items:center;gap:8px">
+        <span style="font-size:10px;color:var(--text3)">Última atualização:</span>
+        <span id="dre-last-update-time" style="font-size:10px;font-weight:600;color:var(--pos)">—</span>
+        <span id="dre-update-alert" style="display:none;font-size:10px;background:rgba(251,191,36,0.15);color:var(--amber);padding:2px 8px;border-radius:4px;border:1px solid rgba(251,191,36,0.3)">⚠️ Dados desatualizados</span>
+      </div>
     </div>
     <div style="display:flex;gap:10px;align-items:flex-end">
       <div>
@@ -3506,7 +3511,30 @@ async function dreCarregarVbs(){
     console.error('DRE VBS error:', e);
   } finally {
     if(loading) loading.style.display='none';
+    // Save timestamp
+    var now = new Date();
+    localStorage.setItem('dre_last_update', now.toISOString());
+    dreAtualizarTimestamp();
   }
+}
+
+function dreAtualizarTimestamp(){
+  var ts = localStorage.getItem('dre_last_update');
+  if(!ts) return;
+  var dt = new Date(ts);
+  var now = new Date();
+  var diffH = Math.round((now - dt) / 3600000);
+  var diffM = Math.round((now - dt) / 60000);
+  var timeStr = diffM < 1 ? 'agora mesmo' : diffM < 60 ? diffM+'min atrás' : diffH+'h atrás';
+  var timeLabel = dt.toLocaleDateString('pt-BR')+' às '+dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  var el = document.getElementById('dre-last-update-time');
+  if(el) el.textContent = timeLabel + ' ('+timeStr+')';
+  var lu = document.getElementById('dre-last-update');
+  if(lu) lu.style.display='flex';
+  // Alert if older than 4 hours
+  var alert = document.getElementById('dre-update-alert');
+  if(alert) alert.style.display = diffH >= 4 ? 'inline' : 'none';
+  if(el) el.style.color = diffH >= 4 ? 'var(--amber)' : 'var(--pos)';
 }
 
 function dreRenderVbs(ano){
