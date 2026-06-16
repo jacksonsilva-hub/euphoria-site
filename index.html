@@ -2994,8 +2994,26 @@ var DRE_DATA = {
 };
 var dreMesAtivo='JANEIRO', dreViewAtivo='mensal';
 
-function dreSetMes(mes){ dreMesAtivo=mes; dreRender(); }
-function dreSetView(view){ dreViewAtivo=view; dreRender(); }
+function dreSetMes(mes){
+  dreMesAtivo=mes;
+  if(window.DRE_DATA_VBS){
+    var ano=document.getElementById('dre-sel-ano-vbs')?document.getElementById('dre-sel-ano-vbs').value:'2026';
+    dreRenderVbs(ano);
+  } else {
+    dreRender();
+  }
+}
+function dreSetView(view){
+  dreViewAtivo=view;
+  var vSel=document.getElementById('dre-sel-view');
+  if(vSel)vSel.value=view;
+  if(window.DRE_DATA_VBS){
+    var ano=document.getElementById('dre-sel-ano-vbs')?document.getElementById('dre-sel-ano-vbs').value:'2026';
+    dreRenderVbs(ano);
+  } else {
+    dreRender();
+  }
+}
 
 function dreSign(v){return v>=0?'R$ '+Math.round(v).toLocaleString('pt-BR'):'(R$ '+Math.round(Math.abs(v)).toLocaleString('pt-BR')+')';}
 function drePct(v,base){return base?(v/Math.abs(base)*100).toFixed(1)+'%':'—';}
@@ -3503,6 +3521,11 @@ async function dreCarregarVbs(){
     var mesesComDados = results.filter(function(r){return r.rows.length>0;}).length;
     if(subtitle) subtitle.textContent = ano+' — '+mesesComDados+' meses carregados do VBS';
 
+    // Sync dropdowns
+    var mesSel = document.getElementById('dre-sel-mes');
+    var viewSel = document.getElementById('dre-sel-view');
+    if(mesSel && !mesSel.value) mesSel.value = 'JANEIRO';
+    if(viewSel && !viewSel.value) viewSel.value = 'mensal';
     // Render with VBS data
     dreRenderVbs(ano);
 
@@ -3541,8 +3564,8 @@ function dreRenderVbs(ano){
   var vbs = window.DRE_DATA_VBS || {};
   var mesSel = document.getElementById('dre-sel-mes');
   var viewSel = document.getElementById('dre-sel-view');
-  var mes = mesSel ? mesSel.value : 'JANEIRO';
-  var view = viewSel ? viewSel.value : 'mensal';
+  var mes = (mesSel && mesSel.value) ? mesSel.value : (dreMesAtivo || 'JANEIRO');
+  var view = (viewSel && viewSel.value) ? viewSel.value : (dreViewAtivo || 'mensal');
 
   // Map mes name to number
   var mesMap = {JANEIRO:'01',FEVEREIRO:'02','MARÇO':'03',ABRIL:'04',MAIO:'05',JUNHO:'06',
