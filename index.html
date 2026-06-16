@@ -316,6 +316,17 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
 
 <div class="tab-panel" id="fin-cr">
 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
+<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">
+<span style="font-size:10px;color:var(--text3);align-self:center">ATALHO:</span>
+<button class="btn" onclick="crSetFiltroMes('2026','01')" style="font-size:10px;padding:3px 8px">Jan</button>
+<button class="btn" onclick="crSetFiltroMes('2026','02')" style="font-size:10px;padding:3px 8px">Fev</button>
+<button class="btn" onclick="crSetFiltroMes('2026','03')" style="font-size:10px;padding:3px 8px">Mar</button>
+<button class="btn" onclick="crSetFiltroMes('2026','04')" style="font-size:10px;padding:3px 8px">Abr</button>
+<button class="btn" onclick="crSetFiltroMes('2026','05')" style="font-size:10px;padding:3px 8px">Mai</button>
+<button class="btn" onclick="crSetFiltroMes('2026','06')" style="font-size:10px;padding:3px 8px">Jun</button>
+<button class="btn btn-primary" onclick="crSetFiltroAno('2026')" style="font-size:10px;padding:3px 8px">2026 completo</button>
+<button class="btn" onclick="crSetFiltroAno('2025')" style="font-size:10px;padding:3px 8px">2025 completo</button>
+</div>
 <span style="font-size:10px;color:var(--text3)">DE</span><input type="date" id="cr-date-de" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;outline:none">
 <span style="font-size:10px;color:var(--text3)">ATÉ</span><input type="date" id="cr-date-ate" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;outline:none">
 <select id="cr-sit" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;outline:none"><option value="aberto">Em Aberto</option><option value="recebido">Recebidos</option><option value="todos">Todos</option></select>
@@ -351,6 +362,17 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
 </div>
 <div class="tab-panel" id="fin-cp">
 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
+<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">
+<span style="font-size:10px;color:var(--text3);align-self:center">ATALHO:</span>
+<button class="btn" onclick="cpSetFiltroMes('2026','01')" style="font-size:10px;padding:3px 8px">Jan</button>
+<button class="btn" onclick="cpSetFiltroMes('2026','02')" style="font-size:10px;padding:3px 8px">Fev</button>
+<button class="btn" onclick="cpSetFiltroMes('2026','03')" style="font-size:10px;padding:3px 8px">Mar</button>
+<button class="btn" onclick="cpSetFiltroMes('2026','04')" style="font-size:10px;padding:3px 8px">Abr</button>
+<button class="btn" onclick="cpSetFiltroMes('2026','05')" style="font-size:10px;padding:3px 8px">Mai</button>
+<button class="btn" onclick="cpSetFiltroMes('2026','06')" style="font-size:10px;padding:3px 8px">Jun</button>
+<button class="btn btn-primary" onclick="cpSetFiltroAno('2026')" style="font-size:10px;padding:3px 8px">2026 completo</button>
+<button class="btn" onclick="cpSetFiltroAno('2025')" style="font-size:10px;padding:3px 8px">2025 completo</button>
+</div>
 <span style="font-size:10px;color:var(--text3)">DE</span><input type="date" id="cp-date-de" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;outline:none">
 <span style="font-size:10px;color:var(--text3)">ATÉ</span><input type="date" id="cp-date-ate" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;outline:none">
 <select id="cp-sit" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;outline:none"><option value="aberto">Em Aberto</option><option value="pago">Pagos</option><option value="todos">Todos</option></select>
@@ -2972,6 +2994,106 @@ function dreRender(){
         '<div style="font-size:18px;font-weight:700">'+dreSign(inv30)+'</div>'+
       '</div></div>';
   }
+}
+
+// ── CASHFLOW VBS ─────────────────────────────────────────────────────────────
+function buildCashflowVbs(){
+  var crRows=window._crRows||[], cpRows=window._cpRows||[];
+  var saldo=parseFloat(document.getElementById('cf-saldo-inicial').value)||0;
+  if(!crRows.length&&!cpRows.length){
+    alert('Busque Contas a Receber e Contas a Pagar primeiro, depois clique em Gerar Fluxo!');
+    return;
+  }
+  var totRec=crRows.reduce(function(s,x){return s+parseFloat(x.Valor_Aberto_CR||0);},0);
+  var totPag=cpRows.reduce(function(s,x){return s+Math.abs(parseFloat(x.Valor_Aberto_CP||0));},0);
+  var saldoProj=saldo+totRec-totPag;
+  var mediaPagMes=totPag>0?totPag/6:0;
+  var runway=mediaPagMes>0?((saldo+totRec)/mediaPagMes).toFixed(1):null;
+
+  // Update KPIs
+  var el=document.getElementById('cfv-rec');if(el)el.textContent=fmtVbs(totRec);
+  el=document.getElementById('cfv-pag');if(el)el.textContent=fmtVbs(totPag);
+  el=document.getElementById('cfv-saldo');
+  if(el){el.textContent=fmtVbs(saldoProj);el.className='kpi-value '+(saldoProj>=0?'pos':'neg');}
+  el=document.getElementById('cfv-runway');if(el)el.textContent=runway?runway+' meses':'—';
+
+  // Group by month
+  var byMonth={};
+  crRows.forEach(function(x){
+    var dt=x.Data_Vencimento_CR?x.Data_Vencimento_CR.substring(0,7):'Sem data';
+    if(!byMonth[dt])byMonth[dt]={rec:0,pag:0};
+    byMonth[dt].rec+=parseFloat(x.Valor_Aberto_CR||0);
+  });
+  cpRows.forEach(function(x){
+    var dt=x.Data_Vencimento_CP?x.Data_Vencimento_CP.substring(0,7):'Sem data';
+    if(!byMonth[dt])byMonth[dt]={rec:0,pag:0};
+    byMonth[dt].pag+=Math.abs(parseFloat(x.Valor_Aberto_CP||0));
+  });
+  var meses=Object.keys(byMonth).sort();
+
+  // Saldo acumulado
+  var saldoAcum=saldo, saldos=[];
+  meses.forEach(function(m){saldoAcum+=byMonth[m].rec-byMonth[m].pag;saldos.push(saldoAcum);});
+
+  // Chart entradas vs saídas
+  var c1=document.getElementById('chartCFVbs');
+  if(c1&&c1.getContext('2d')){
+    if(window.chartCFVbsInst){try{window.chartCFVbsInst.destroy();}catch(e){}}
+    window.chartCFVbsInst=new Chart(c1,{type:'bar',data:{labels:meses,datasets:[
+      {label:'Entradas (CR)',data:meses.map(function(m){return byMonth[m].rec;}),backgroundColor:'rgba(110,231,183,0.5)',borderRadius:3},
+      {label:'Saídas (CP)',data:meses.map(function(m){return -byMonth[m].pag;}),backgroundColor:'rgba(248,113,113,0.5)',borderRadius:3}
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#888',font:{size:10}}}},scales:{x:{grid:{display:false},ticks:{color:'#666',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#666',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}}}}}});
+  }
+
+  // Chart saldo acumulado
+  var c2=document.getElementById('chartCFSaldo');
+  if(c2&&c2.getContext('2d')){
+    if(window.chartCFSaldoInst){try{window.chartCFSaldoInst.destroy();}catch(e){}}
+    window.chartCFSaldoInst=new Chart(c2,{type:'line',data:{labels:meses,datasets:[{label:'Saldo',data:saldos,borderColor:'rgba(96,165,250,0.8)',backgroundColor:'rgba(96,165,250,0.1)',fill:true,tension:0.3,pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#666',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#666',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}}}}}});
+  }
+
+  // Tables top 20
+  var crSorted=crRows.slice().sort(function(a,b){return parseFloat(b.Valor_Aberto_CR||0)-parseFloat(a.Valor_Aberto_CR||0);}).slice(0,20);
+  var crTbody=document.getElementById('cf-vbs-cr-tbody');
+  if(crTbody)crTbody.innerHTML=crSorted.map(function(x){
+    return '<tr><td>'+(x.Nome_Cliente_CR||'—')+'</td><td>'+fmtDateVbs(x.Data_Vencimento_CR)+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Aberto_CR)+'</td><td>'+badgeVbs(x.Situacao_CR)+'</td></tr>';
+  }).join('');
+
+  var cpSorted=cpRows.slice().sort(function(a,b){return Math.abs(parseFloat(b.Valor_Aberto_CP||0))-Math.abs(parseFloat(a.Valor_Aberto_CP||0));}).slice(0,20);
+  var cpTbody=document.getElementById('cf-vbs-cp-tbody');
+  if(cpTbody)cpTbody.innerHTML=cpSorted.map(function(x){
+    return '<tr><td>'+(x.Nome_Terceiro_CP||'—')+'</td><td>'+fmtDateVbs(x.Data_Vencimento_CP)+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Aberto_CP)+'</td><td>'+badgeVbs(x.Situacao_CP)+'</td></tr>';
+  }).join('');
+}
+
+// ── FILTROS ANO/MES CR E CP ───────────────────────────────────────────────────
+function crSetFiltroMes(ano, mes){
+  var de = ano+'-'+mes+'-01';
+  var lastDay = new Date(ano, mes, 0).getDate();
+  var ate = ano+'-'+mes+'-'+lastDay;
+  document.getElementById('cr-date-de').value = de;
+  document.getElementById('cr-date-ate').value = ate;
+  loadCRVbs();
+}
+
+function cpSetFiltroMes(ano, mes){
+  var de = ano+'-'+mes+'-01';
+  var lastDay = new Date(ano, mes, 0).getDate();
+  var ate = ano+'-'+mes+'-'+lastDay;
+  document.getElementById('cp-date-de').value = de;
+  document.getElementById('cp-date-ate').value = ate;
+  loadCPVbs();
+}
+
+function crSetFiltroAno(ano){
+  document.getElementById('cr-date-de').value=ano+'-01-01';
+  document.getElementById('cr-date-ate').value=ano+'-12-31';
+  loadCRVbs();
+}
+function cpSetFiltroAno(ano){
+  document.getElementById('cp-date-de').value=ano+'-01-01';
+  document.getElementById('cp-date-ate').value=ano+'-12-31';
+  loadCPVbs();
 }
 </script>
 </body>
