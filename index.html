@@ -264,18 +264,27 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       <div class="chart-title" style="margin:0">DRE — Budget vs Actual 2026</div>
       <div style="font-size:11px;color:var(--text3);margin-top:4px">Pró-labore corrigido: R$ 4.863/mês • Dados Jan–Mai 2026</div>
     </div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-primary" onclick="dreSetView('mensal')" id="dre-btn-mensal">Mensal</button>
-      <button class="btn" onclick="dreSetView('acumulado')" id="dre-btn-acumulado">Acumulado YTD</button>
+    <div style="display:flex;gap:12px;align-items:center">
+      <div>
+        <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Período</label>
+        <select id="dre-sel-mes" onchange="dreSetMes(this.value)" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:7px 12px;border-radius:6px;font-size:12px;outline:none;cursor:pointer">
+          <option value="JANEIRO">Janeiro 2026</option>
+          <option value="FEVEREIRO">Fevereiro 2026</option>
+          <option value="MARÇO">Março 2026</option>
+          <option value="ABRIL">Abril 2026</option>
+          <option value="MAIO">Maio 2026</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Visão</label>
+        <select id="dre-sel-view" onchange="dreSetView(this.value)" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:7px 12px;border-radius:6px;font-size:12px;outline:none;cursor:pointer">
+          <option value="mensal">Mensal</option>
+          <option value="acumulado">Acumulado YTD</option>
+        </select>
+      </div>
     </div>
   </div>
-  <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
-    <button class="btn btn-primary" onclick="dreSetMes('JANEIRO')" id="dre-mes-JANEIRO">Jan</button>
-    <button class="btn" onclick="dreSetMes('FEVEREIRO')" id="dre-mes-FEVEREIRO">Fev</button>
-    <button class="btn" onclick="dreSetMes('MARÇO')" id="dre-mes-MARÇO">Mar</button>
-    <button class="btn" onclick="dreSetMes('ABRIL')" id="dre-mes-ABRIL">Abr</button>
-    <button class="btn" onclick="dreSetMes('MAIO')" id="dre-mes-MAIO">Mai</button>
-  </div>
+
   <div id="dre-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px"></div>
   <div class="table-card" style="margin-bottom:20px">
     <div class="table-header"><span class="table-title" id="dre-table-title">P&L — Janeiro 2026</span></div>
@@ -2829,6 +2838,141 @@ function tiSalvarFicha(tipo){var f={tipo:tipo,data:new Date().toLocaleDateString
 function tiRenderPainel(){var e=document.getElementById('ti-painel-empty'),l=document.getElementById('ti-painel-list');if(!tiFichas.length){if(e)e.style.display='flex';if(l)l.style.display='none';return;}if(e)e.style.display='none';if(l)l.style.display='block';var ins=tiFichas.filter(function(f){return f.tipo==='in';});var outs=tiFichas.filter(function(f){return f.tipo==='out';});var a=document.getElementById('ti-kpi-ativos'),b=document.getElementById('ti-kpi-in'),c=document.getElementById('ti-kpi-out');if(a)a.textContent=ins.length-outs.length;if(b)b.textContent=ins.length;if(c)c.textContent=outs.length;document.getElementById('ti-painel-ct').textContent=tiFichas.length+' fichas';document.getElementById('ti-painel-table').innerHTML=tiFichas.map(function(f,i){return '<tr><td>'+(f.tipo==='in'?'IN':'OUT')+'</td><td>'+f.nome+'</td><td>'+f.depto+'</td><td>'+f.data+'</td><td>'+f.status+'</td><td><button class="btn" style="padding:3px 8px;font-size:10px" onclick="tiMarcarOk('+i+')">OK</button></td></tr>';}).join('');}
 function tiMarcarOk(i){tiFichas[i].status='Concluido';tiRenderPainel();}
 
+
+// ── DRE COMPARATIVO ──────────────────────────────────────────────────────────
+var DRE_DATA = {
+  JANEIRO:   {rb:909975,rl:838921,custos:-646983,gp:191938,opex:-292923,ebitda:-100985,rf:-23725,lucro_antes:-124710,t_pres:130219,t_real:22760,lucro_pres:-254929,lucro_real:-147470,economia:107459,b_rb:1061741,b_gm:934449,b_ebitda:-143190,b_lucro:-358707,cred_piscofins:61412},
+  FEVEREIRO: {rb:805104,rl:739956,custos:-688510,gp:51446,opex:-155292,ebitda:-103846,rf:-15267,lucro_antes:-119113,t_pres:114982,t_real:11363,lucro_pres:-234094,lucro_real:-130476,economia:103618,b_rb:799117,b_gm:693464,b_ebitda:-216157,b_lucro:-403101,cred_piscofins:63109},
+  MARÇO:     {rb:2332961,rl:2169547,custos:-730829,gp:1438718,opex:-86317,ebitda:1352401,rf:-24665,lucro_antes:1327736,t_pres:336979,t_real:619453,lucro_pres:990757,lucro_real:708284,economia:-282473,b_rb:1664594,b_gm:1481616,b_ebitda:495065,b_lucro:213957,cred_piscofins:45777},
+  ABRIL:     {rb:1093455,rl:822332,custos:-726534,gp:95799,opex:-234164,ebitda:-138366,rf:-20186,lucro_antes:-158552,t_pres:156879,t_real:30059,lucro_pres:-315431,lucro_real:-188611,economia:126820,b_rb:1264896,b_gm:1116492,b_ebitda:-220591,b_lucro:-458212,cred_piscofins:71085},
+  MAIO:      {rb:1680983,rl:1559035,custos:-594805,gp:964230,opex:-131347,ebitda:832883,rf:-17863,lucro_antes:815020,t_pres:242247,t_real:373449,lucro_pres:572773,lucro_real:441571,economia:-131203,b_rb:1303038,b_gm:1151334,b_ebitda:174993,b_lucro:-66778,cred_piscofins:57148}
+};
+var dreMesAtivo='JANEIRO', dreViewAtivo='mensal';
+
+function dreSetMes(mes){ dreMesAtivo=mes; dreRender(); }
+function dreSetView(view){ dreViewAtivo=view; dreRender(); }
+
+function dreSign(v){return v>=0?'R$ '+Math.round(v).toLocaleString('pt-BR'):'(R$ '+Math.round(Math.abs(v)).toLocaleString('pt-BR')+')';}
+function drePct(v,base){return base?(v/Math.abs(base)*100).toFixed(1)+'%':'—';}
+
+function dreGetData(){
+  if(dreViewAtivo==='acumulado'){
+    var meses=['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO'];
+    var agg={rb:0,rl:0,custos:0,gp:0,opex:0,ebitda:0,rf:0,lucro_antes:0,t_pres:0,t_real:0,lucro_pres:0,lucro_real:0,economia:0,b_rb:0,b_gm:0,b_ebitda:0,b_lucro:0,cred_piscofins:0};
+    meses.forEach(function(m){Object.keys(agg).forEach(function(k){agg[k]+=(DRE_DATA[m][k]||0);});});
+    return agg;
+  }
+  return DRE_DATA[dreMesAtivo];
+}
+
+function dreRender(){
+  var d=dreGetData();
+  var label=dreViewAtivo==='acumulado'?'Acumulado YTD (Jan–Mai)':dreMesAtivo.charAt(0)+dreMesAtivo.slice(1).toLowerCase()+' 2026';
+  var t=document.getElementById('dre-table-title');
+  if(t) t.textContent='P&L — '+label;
+
+  var sRb=d.rb>=d.b_rb*0.9?'🟢':d.rb>=d.b_rb*0.7?'🟡':'🔴';
+  var sGp=d.gp>=0?'🟢':'🔴';
+  var sEb=d.ebitda>=d.b_ebitda?'🟢':'🔴';
+  var sLc=d.lucro_pres>=0?'🟢':'🔴';
+
+  var ke=document.getElementById('dre-kpis');
+  if(ke) ke.innerHTML=[
+    {label:'Receita Bruta',value:dreSign(d.rb),sub:'Bud: '+dreSign(d.b_rb),flag:sRb},
+    {label:'Gross Profit',value:dreSign(d.gp),sub:drePct(d.gp,d.rl)+' da RL',flag:sGp},
+    {label:'EBITDA',value:dreSign(d.ebitda),sub:'Bud: '+dreSign(d.b_ebitda),flag:sEb},
+    {label:'Lucro Líquido',value:dreSign(d.lucro_pres),sub:'Presumido',flag:sLc}
+  ].map(function(k){return '<div class="kpi-card"><div class="kpi-label">'+k.flag+' '+k.label+'</div><div class="kpi-value" style="font-size:16px">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
+
+  var rows=[
+    {l:'RECEITA BRUTA',a:d.rb,b:d.b_rb,bold:true,exp:false},
+    {l:'  (-) Impostos s/Receita',a:d.rl-d.rb,b:-d.b_rb*0.0965,bold:false,exp:true},
+    {l:'= RECEITA LÍQUIDA',a:d.rl,b:d.b_gm+(d.b_rb*0.0965+38991),bold:true,exp:false},
+    {l:'',a:null},
+    {l:'CUSTOS DIRETOS',section:true},
+    {l:'  Serviços PJ / Freelas / Diretos',a:d.custos,b:-d.b_rb*0.37,bold:false,exp:true},
+    {l:'= GROSS PROFIT',a:d.gp,b:d.b_gm,bold:true,exp:false},
+    {l:'  Margem GP',pct:drePct(d.gp,d.rl),pct_b:drePct(d.b_gm,d.b_rb)},
+    {l:'',a:null},
+    {l:'DESPESAS OPERACIONAIS',section:true},
+    {l:'  Staff + Benefícios + Pró-labore',a:d.opex*0.62,b:-780152,bold:false,exp:true},
+    {l:'  Ocupação + Utilities',a:d.opex*0.15,b:-23182,bold:false,exp:true},
+    {l:'  Comercial + Administrativo',a:d.opex*0.23,b:-102085,bold:false,exp:true},
+    {l:'= EBITDA',a:d.ebitda,b:d.b_ebitda,bold:true,exp:false},
+    {l:'  Margem EBITDA',pct:drePct(d.ebitda,d.rl),pct_b:drePct(d.b_ebitda,d.b_rb)},
+    {l:'',a:null},
+    {l:'  Resultado Financeiro',a:d.rf,b:-102000,bold:false,exp:true},
+    {l:'  IRPJ/CSLL (Presumido)',a:-d.t_pres,b:-(d.b_ebitda-102000)*0.34,bold:false,exp:true},
+    {l:'= LUCRO LÍQUIDO',a:d.lucro_pres,b:d.b_lucro,bold:true,exp:false},
+    {l:'  Margem Líquida',pct:drePct(d.lucro_pres,d.rl),pct_b:drePct(d.b_lucro,d.b_rb)},
+  ];
+
+  var tbody=document.getElementById('dre-tbody');
+  if(tbody) tbody.innerHTML=rows.map(function(r){
+    if(!r.l) return '<tr><td colspan="6" style="padding:3px;border:none"></td></tr>';
+    if(r.section) return '<tr><td colspan="6" style="padding:7px 12px;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);background:var(--bg3);font-weight:600">'+r.l+'</td></tr>';
+    if(r.pct!==undefined) return '<tr style="background:var(--bg3)"><td style="padding:5px 12px;font-size:11px;color:var(--text3)">'+r.l+'</td><td style="text-align:right;font-size:11px;color:var(--text3)">'+r.pct_b+'</td><td style="text-align:right;font-size:11px;color:var(--text3)">'+r.pct+'</td><td colspan="3"></td></tr>';
+    var vr=r.a-r.b, vp=r.b?(vr/Math.abs(r.b)*100).toFixed(1)+'%':'—';
+    var good=r.exp?(r.a>=r.b):(r.a>=r.b);
+    var fw=r.bold?'font-weight:700':'', bg=r.bold?'background:var(--bg3)':'';
+    return '<tr style="'+bg+'"><td style="padding:8px 12px;'+fw+'">'+r.l+'</td>'+
+      '<td style="text-align:right;'+fw+'">'+dreSign(r.b)+'</td>'+
+      '<td style="text-align:right;'+fw+'">'+(r.a<0&&!r.exp?'<span style="color:var(--neg)">':'')+dreSign(r.a)+(r.a<0&&!r.exp?'</span>':'')+'</td>'+
+      '<td style="text-align:right;color:'+(good?'var(--pos)':'var(--neg)')+'">'+dreSign(vr)+'</td>'+
+      '<td style="text-align:right;font-size:11px;color:var(--text3)">'+vp+'</td>'+
+      '<td style="text-align:center">'+(good?'🟢':'🔴')+'</td></tr>';
+  }).join('');
+
+  // Tax simulator
+  var te=document.getElementById('dre-tax-content');
+  if(te){
+    var melhor=d.t_pres<=d.t_real?'PRESUMIDO':'LUCRO REAL';
+    var eco=Math.abs(d.economia);
+    te.innerHTML='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">'+
+      '<div style="background:var(--bg3);border-radius:8px;padding:16px;border:'+(melhor==='PRESUMIDO'?'2px solid var(--pos)':'1px solid var(--border)')+'">'+
+        '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">'+(melhor==='PRESUMIDO'?'✅ ':'')+'LUCRO PRESUMIDO</div>'+
+        '<div style="font-size:11px;color:var(--text3)">Base: 32% × Receita Bruta</div>'+
+        '<div style="font-size:15px;font-weight:700;margin-top:12px;padding-top:8px;border-top:1px solid var(--border)">Total: '+dreSign(-d.t_pres)+'</div>'+
+      '</div>'+
+      '<div style="background:var(--bg3);border-radius:8px;padding:16px;border:'+(melhor==='LUCRO REAL'?'2px solid var(--pos)':'1px solid var(--border)')+'">'+
+        '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">'+(melhor==='LUCRO REAL'?'✅ ':'')+'LUCRO REAL</div>'+
+        '<div style="font-size:11px;color:var(--text3)">Base: Lucro contábil</div>'+
+        '<div style="font-size:11px;color:var(--pos);margin-top:4px">Créditos PIS/COFINS: +'+dreSign(d.cred_piscofins)+'</div>'+
+        '<div style="font-size:15px;font-weight:700;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">Total: '+dreSign(-d.t_real)+'</div>'+
+      '</div>'+
+      '<div style="background:var(--bg3);border-radius:8px;padding:16px;border:2px solid '+(d.economia>0?'var(--pos)':'var(--neg)')+'">'+
+        '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">⚡ RECOMENDAÇÃO</div>'+
+        '<div style="font-size:20px;font-weight:700;color:'+(d.economia>0?'var(--pos)':'var(--neg)')+'">'+melhor+'</div>'+
+        '<div style="font-size:22px;font-weight:700;margin-top:8px;color:'+(d.economia>0?'var(--pos)':'var(--neg)')+'">'+dreSign(eco)+'</div>'+
+        '<div style="font-size:10px;color:var(--text3);margin-top:4px">* Validar com contador</div>'+
+      '</div></div>';
+  }
+
+  // Distribuição
+  var de=document.getElementById('dre-dist-content');
+  if(de){
+    var lucro=d.lucro_pres, base=Math.max(0,lucro);
+    var dist50=base*0.50, res20=base*0.20, inv30=base*0.30, ps=dist50/3;
+    de.innerHTML='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">'+
+      '<div style="background:var(--bg3);border-radius:8px;padding:16px;text-align:center">'+
+        '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Lucro Líquido</div>'+
+        '<div style="font-size:18px;font-weight:700;color:'+(lucro>=0?'var(--pos)':'var(--neg)')+'">'+dreSign(lucro)+'</div>'+
+      '</div>'+
+      '<div style="background:var(--bg3);border-radius:8px;padding:16px;text-align:center;border:1px solid var(--pos)">'+
+        '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">50% Distribuição</div>'+
+        '<div style="font-size:18px;font-weight:700;color:var(--pos)">'+dreSign(dist50)+'</div>'+
+        '<div style="font-size:12px;font-weight:600;color:var(--pos);margin-top:4px">'+dreSign(ps)+' / sócio</div>'+
+      '</div>'+
+      '<div style="background:var(--bg3);border-radius:8px;padding:16px;text-align:center">'+
+        '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">20% Reserva</div>'+
+        '<div style="font-size:18px;font-weight:700">'+dreSign(res20)+'</div>'+
+      '</div>'+
+      '<div style="background:var(--bg3);border-radius:8px;padding:16px;text-align:center">'+
+        '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">30% Reinvestimento</div>'+
+        '<div style="font-size:18px;font-weight:700">'+dreSign(inv30)+'</div>'+
+      '</div></div>';
+  }
+}
 </script>
 </body>
 </html
