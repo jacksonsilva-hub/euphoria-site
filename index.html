@@ -348,7 +348,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
 <span style="font-size:10px;color:var(--text3)">ATÉ</span><input type="date" id="cr-date-ate" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;outline:none">
 <select id="cr-sit" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;outline:none"><option value="aberto">Em Aberto</option><option value="recebido">Recebidos</option><option value="todos">Todos</option></select>
 <button class="btn btn-primary" style="padding:6px 14px;font-size:11px" onclick="loadCRVbs()">Buscar</button>
-<input type="text" id="cr-q" placeholder="filtrar cliente..." style="margin-left:auto;background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;outline:none" oninput="filterCRTable()">
+<select id="cr-q" onchange="filterCRTable()" style="margin-left:auto;background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;outline:none;cursor:pointer;min-width:200px">
+  <option value="">Todos os clientes</option>
+</select>
 </div>
 <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px">
 <div class="aging-card"><div class="aging-label">Vencidos +60d</div><div class="aging-value neg" id="cr-a60">—</div></div>
@@ -411,7 +413,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
 <span style="font-size:10px;color:var(--text3)">ATÉ</span><input type="date" id="cp-date-ate" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;outline:none">
 <select id="cp-sit" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;outline:none"><option value="aberto">Em Aberto</option><option value="pago">Pagos</option><option value="todos">Todos</option></select>
 <button class="btn btn-primary" style="padding:6px 14px;font-size:11px" onclick="loadCPVbs()">Buscar</button>
-<input type="text" id="cp-q" placeholder="filtrar fornecedor..." style="margin-left:auto;background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;outline:none" oninput="filterCPTable()">
+<select id="cp-q" onchange="filterCPTable()" style="margin-left:auto;background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;outline:none;cursor:pointer;min-width:200px">
+  <option value="">Todos os fornecedores</option>
+</select>
 </div>
 <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px">
 <div class="aging-card"><div class="aging-label">Vencidos +60d</div><div class="aging-value neg" id="cp-a60">—</div></div>
@@ -460,11 +464,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
   <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:16px">
     <div class="chart-card" style="padding:14px">
       <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Entradas vs Saídas por Mês</div>
-      <canvas id="chartCFVbs" height="200"></canvas>
+      <div style="position:relative;height:220px"><canvas id="chartCFVbs"></canvas></div>
     </div>
     <div class="chart-card" style="padding:14px">
       <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Saldo Acumulado</div>
-      <canvas id="chartCFSaldo" height="200"></canvas>
+      <div style="position:relative;height:220px"><canvas id="chartCFSaldo"></canvas></div>
     </div>
   </div>
 
@@ -2688,6 +2692,7 @@ async function loadCRVbs(){
     var rows=j.data.Retorno||[];
     window._crRows = rows;
     document.getElementById('cr-meta-vbs').textContent=rows.length+' registros';
+    populateCRDropdown(rows);
     var a60=0,a31=0,a1=0,av=0,tot=0,totFee=0,totRep=0,totCusto=0;
     var cliMap={},tipoMap={'Fee/Receita':0,'Repasse':0,'Custo Direto':0};
     rows.forEach(function(x){
@@ -2738,7 +2743,19 @@ async function loadCRVbs(){
 }
 
 
-function filterCRTable(){var q=document.getElementById('cr-q').value.toLowerCase();document.getElementById('cr-tbody-vbs').querySelectorAll('tr').forEach(function(r){r.style.display=r.textContent.toLowerCase().includes(q)?'':'none';});}
+function filterCRTable(){
+  var q=document.getElementById('cr-q').value.toLowerCase();
+  document.getElementById('cr-tbody-vbs').querySelectorAll('tr').forEach(function(r){
+    r.style.display=(!q||r.textContent.toLowerCase().includes(q))?'':'none';
+  });
+}
+function populateCRDropdown(rows){
+  var sel=document.getElementById('cr-q');
+  if(!sel||sel.tagName!=='SELECT')return;
+  var clientes=Array.from(new Set(rows.map(function(x){return x.Nome_Cliente_CR||'';}).filter(Boolean))).sort();
+  sel.innerHTML='<option value="">Todos os clientes ('+rows.length+')</option>'+
+    clientes.map(function(c){return '<option value="'+c.toLowerCase()+'">'+c+'</option>';}).join('');
+}
 
 async function loadCPVbs(){
   var de=toApiDate(document.getElementById('cp-date-de').value);
@@ -2753,6 +2770,7 @@ async function loadCPVbs(){
     window._cpRows = rows;
     window._cpTotal = rows.reduce(function(s,x){return s+parseFloat(x.Valor_Aberto_CP||0);},0);
     document.getElementById('cp-meta-vbs').textContent=rows.length+' registros';
+    populateCPDropdown(rows);
     var a60=0,a31=0,a1=0,av=0,tot=0;
     var tipoMap={}, fornMap={};
     rows.forEach(function(x){
@@ -2797,7 +2815,19 @@ async function loadCPVbs(){
 }
 
 
-function filterCPTable(){var q=document.getElementById('cp-q').value.toLowerCase();document.getElementById('cp-tbody-vbs').querySelectorAll('tr').forEach(function(r){r.style.display=r.textContent.toLowerCase().includes(q)?'':'none';});}
+function filterCPTable(){
+  var q=document.getElementById('cp-q').value.toLowerCase();
+  document.getElementById('cp-tbody-vbs').querySelectorAll('tr').forEach(function(r){
+    r.style.display=(!q||r.textContent.toLowerCase().includes(q))?'':'none';
+  });
+}
+function populateCPDropdown(rows){
+  var sel=document.getElementById('cp-q');
+  if(!sel||sel.tagName!=='SELECT')return;
+  var fornecs=Array.from(new Set(rows.map(function(x){return x.Nome_Terceiro_CP||'';}).filter(Boolean))).sort();
+  sel.innerHTML='<option value="">Todos os fornecedores ('+rows.length+')</option>'+
+    fornecs.map(function(f){return '<option value="'+f.toLowerCase()+'">'+f+'</option>';}).join('');
+}
 
 // ── JURÍDICO ──────────────────────────────────────────
 var jurContratos=[];var jurTipoAtual=null;var jurDocAtual=null;
