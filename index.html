@@ -2652,18 +2652,18 @@ async function loadCRVbs(){
     // 1. Top clients bar
     var topCli=Object.entries(cliMap).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
     var c1=document.getElementById('chartCRTopCli');
-    if(window.chartCRTopCliInst)window.chartCRTopCliInst.destroy();
-    window.chartCRTopCliInst=new Chart(c1,{type:'bar',indexAxis:'y',data:{labels:topCli.map(function(c){return c[0].substring(0,20);}),datasets:[{data:topCli.map(function(c){return c[1];}),backgroundColor:'rgba(96,165,250,0.4)',borderColor:'rgba(96,165,250,0.8)',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:true,aspectRatio:1.5,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#555',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#888',font:{size:9}},grid:{display:false}}}}});
+    if(window.chartCRTopCliInst){try{window.chartCRTopCliInst.destroy();}catch(e){}}
+    if(c1&&c1.getContext('2d'))window.chartCRTopCliInst=new Chart(c1,{type:'bar',indexAxis:'y',data:{labels:topCli.map(function(c){return c[0].substring(0,20);}),datasets:[{data:topCli.map(function(c){return c[1];}),backgroundColor:'rgba(96,165,250,0.4)',borderColor:'rgba(96,165,250,0.8)',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:true,aspectRatio:1.5,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#555',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#888',font:{size:9}},grid:{display:false}}}}});
 
     // 2. Tipo pagamento doughnut
     var c2=document.getElementById('chartCRTipo');
-    if(window.chartCRTipoInst)window.chartCRTipoInst.destroy();
-    window.chartCRTipoInst=new Chart(c2,{type:'doughnut',data:{labels:Object.keys(tipoMap),datasets:[{data:Object.values(tipoMap),backgroundColor:['rgba(110,231,183,0.7)','rgba(251,191,36,0.7)','rgba(96,165,250,0.7)'],borderColor:'#111',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'bottom',labels:{color:'#888',font:{size:10},boxWidth:10}}}}});
+    if(window.chartCRTipoInst){try{window.chartCRTipoInst.destroy();}catch(e){}}
+    if(c2&&c2.getContext('2d'))window.chartCRTipoInst=new Chart(c2,{type:'doughnut',data:{labels:Object.keys(tipoMap),datasets:[{data:Object.values(tipoMap),backgroundColor:['rgba(110,231,183,0.7)','rgba(251,191,36,0.7)','rgba(96,165,250,0.7)'],borderColor:'#111',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'bottom',labels:{color:'#888',font:{size:10},boxWidth:10}}}}});
 
     // 3. Aging bar
     var c3=document.getElementById('chartCRaging');
-    if(window.chartCRAgingInst)window.chartCRAgingInst.destroy();
-    window.chartCRAgingInst=new Chart(c3,{type:'bar',data:{labels:['+60d','31-60d','1-30d','A Vencer'],datasets:[{data:[a60,a31,a1,av],backgroundColor:['rgba(248,113,113,0.7)','rgba(251,191,36,0.7)','rgba(251,191,36,0.4)','rgba(110,231,183,0.7)'],borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#888',font:{size:9}},grid:{display:false}},y:{ticks:{color:'#555',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}},grid:{color:'rgba(255,255,255,0.04)'}}}}});
+    if(window.chartCRAgingInst){try{window.chartCRAgingInst.destroy();}catch(e){}}
+    if(c3&&c3.getContext('2d'))window.chartCRAgingInst=new Chart(c3,{type:'bar',data:{labels:['+60d','31-60d','1-30d','A Vencer'],datasets:[{data:[a60,a31,a1,av],backgroundColor:['rgba(248,113,113,0.7)','rgba(251,191,36,0.7)','rgba(251,191,36,0.4)','rgba(110,231,183,0.7)'],borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#888',font:{size:9}},grid:{display:false}},y:{ticks:{color:'#555',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}},grid:{color:'rgba(255,255,255,0.04)'}}}}});
 
     // Runway
     var runway=document.getElementById('cr-runway');
@@ -2721,8 +2721,8 @@ async function loadCPVbs(){
     // Chart top fornecedores
     var topForn=Object.entries(fornMap).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
     var c2=document.getElementById('chartCPFornec');
-    if(window.chartCPFornecInst)window.chartCPFornecInst.destroy();
-    window.chartCPFornecInst=new Chart(c2,{type:'bar',indexAxis:'y',data:{labels:topForn.map(function(f){return f[0];}),datasets:[{data:topForn.map(function(f){return f[1];}),backgroundColor:'rgba(248,113,113,0.4)',borderColor:'rgba(248,113,113,0.8)',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:true,aspectRatio:1.5,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#555',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#888',font:{size:9}},grid:{display:false}}}}});
+    if(window.chartCPFornecInst){try{window.chartCPFornecInst.destroy();}catch(e){}}
+    if(c2&&c2.getContext('2d'))window.chartCPFornecInst=new Chart(c2,{type:'bar',indexAxis:'y',data:{labels:topForn.map(function(f){return f[0];}),datasets:[{data:topForn.map(function(f){return f[1];}),backgroundColor:'rgba(248,113,113,0.4)',borderColor:'rgba(248,113,113,0.8)',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:true,aspectRatio:1.5,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#555',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#888',font:{size:9}},grid:{display:false}}}}});
 
   }catch(e){document.getElementById('cp-tbody-vbs').innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--neg)">'+e.message+'</td></tr>';}
 }
