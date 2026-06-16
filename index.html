@@ -2695,7 +2695,9 @@ async function loadCPVbs(){
       tot+=v;
       var d=daysAgo(x.Data_Vencimento_CP);
       if(d!==null&&v>0){if(d>60)a60+=v;else if(d>30)a31+=v;else if(d>0)a1+=v;else av+=v;}
-      var tipo=String(x.Descricao_Servico_CP||x.Tipo_Documento_CP||'Outros').substring(0,30);
+      var _tipoCod=String(x.Tipo_Documento_CP||'');var _tipoDes=String(x.Tipo_Documento2_CP||'');
+      var _tipoMap={'10-NACIONAL':'Serviços/Fornecedores','10-INTERNACIONAL':'Serviços Exterior','10-SUBSIDIARIO':'Subsidiário','20-NACIONAL':'Desp. Operacionais','20-FUNCIONARIO':'Reembolso Func.'};
+      var tipo=_tipoMap[_tipoCod+'-'+_tipoDes]||(_tipoDes||_tipoCod||'Outros');
       if(!tipoMap[tipo])tipoMap[tipo]=0;tipoMap[tipo]+=Math.abs(v);
       var forn=(x.Nome_Terceiro_CP||'').substring(0,25);
       if(forn){if(!fornMap[forn])fornMap[forn]=0;fornMap[forn]+=Math.abs(v);}
@@ -2707,7 +2709,9 @@ async function loadCPVbs(){
     document.getElementById('cp-tbody-vbs').innerHTML=rows.map(function(x){
       var d=daysAgo(x.Data_Vencimento_CP);
       var ds=d!==null?(d>0?'<span style="color:var(--neg)">'+d+'d</span>':d===0?'hoje':'<span style="color:var(--pos)">'+Math.abs(d)+'d</span>'):'---';
-      var tipo=String(x.Descricao_Servico_CP||x.Tipo_Documento_CP||'—').substring(0,25);
+      var _tc=String(x.Tipo_Documento_CP||'');var _td=String(x.Tipo_Documento2_CP||'');
+      var _tm={'10-NACIONAL':'Serviços/Fornecedores','10-INTERNACIONAL':'Serviços Exterior','10-SUBSIDIARIO':'Subsidiário','20-NACIONAL':'Desp. Operacionais','20-FUNCIONARIO':'Reembolso Func.'};
+      var tipo=_tm[_tc+'-'+_td]||(_td||_tc||'—');
       return '<tr><td>'+(x.Nome_Terceiro_CP||'---')+'</td><td style="font-size:11px;color:var(--text3)">'+tipo+'</td><td>'+(x.Numero_Doc_NF_Terceiro_CP||'---')+'</td><td>'+fmtDateVbs(x.Data_Vencimento_CP)+'</td><td>'+ds+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Documento_CP)+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Aberto_CP)+'</td><td>'+badgeVbs(x.Situacao_CP)+'</td></tr>';
     }).join('');
 
