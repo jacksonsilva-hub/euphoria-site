@@ -261,8 +261,20 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     <div class="tab-panel" id="fin-dre">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
     <div>
-      <div class="chart-title" style="margin:0">DRE — Budget vs Actual 2026</div>
-      <div style="font-size:11px;color:var(--text3);margin-top:4px">Pró-labore corrigido: R$ 4.863/mês • Dados Jan–Mai 2026</div>
+      <div class="chart-title" style="margin:0">DRE — Budget vs Actual</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:4px" id="dre-subtitle">Selecione o ano e clique em Carregar</div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:flex-end">
+      <div>
+        <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Ano</label>
+        <select id="dre-sel-ano-vbs" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:7px 12px;border-radius:6px;font-size:12px;outline:none;cursor:pointer">
+          <option value="2026">2026</option>
+          <option value="2025">2025</option>
+          <option value="2024">2024</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="dreCarregarVbs()" style="padding:7px 16px;font-size:12px">↺ Carregar do VBS</button>
+      <div id="dre-loading" style="display:none;font-size:11px;color:var(--text3);align-self:center">Carregando...</div>
     </div>
     <div style="display:flex;gap:12px;align-items:center">
       <div>
@@ -3428,6 +3440,171 @@ function buildCashflowVbs(){
   var view=document.getElementById('cf-sel-view')?document.getElementById('cf-sel-view').value:'mensal';
   if(view==='quarter') cfBuildQuarter(filtered.cr, filtered.cp);
   else cfBuildMensal(filtered.cr, filtered.cp);
+}
+
+// ── DRE AUTOMÁTICA VBS ────────────────────────────────────────────────────────
+var MESES_NUM = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+var MESES_NOME = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+async function dreCarregarVbs(){
+  var ano = document.getElementById('dre-sel-ano-vbs').value;
+  var loading = document.getElementById('dre-loading');
+  var subtitle = document.getElementById('dre-subtitle');
+  if(loading) loading.style.display='inline';
+  if(subtitle) subtitle.textContent='Carregando dados do VBS...';
+
+  try {
+    // Fetch all months in parallel
+    var promises = MESES_NUM.map(function(m){
+      var de = ano+m+'01';
+      var lastDay = new Date(parseInt(ano), parseInt(m), 0).getDate();
+      var ate = ano+m+String(lastDay).padStart(2,'0');
+      return fetch(API+'/api/faturamento?data_de='+de+'&data_ate='+ate+'&intervalo_data=2&tipo_faturamento=1&valor=2')
+        .then(function(r){return r.json();})
+        .then(function(j){return {mes:m, rows:j.ok?(j.data.Retorno||[]):[]}; })
+        .catch(function(){return {mes:m, rows:[]};});
+    });
+
+    var results = await Promise.all(promises);
+
+    // Aggregate by month
+    var dreVbs = {};
+    results.forEach(function(res){
+      var agg = {
+        rb:0, fee:0, midia:0, producao:0, ci:0, bv_midia:0, bv_prod:0,
+        rl:0, iss:0, pis:0, cofins:0, impostos:0
+      };
+      res.rows.forEach(function(x){
+        agg.rb      += parseFloat(x.Valor_faturamento_total||0);
+        agg.fee     += parseFloat(x.Valor_faturamento_fee||0);
+        agg.midia   += parseFloat(x.Valor_faturamento_midia||0);
+        agg.producao+= parseFloat(x.Valor_faturamento_producao||0);
+        agg.ci      += parseFloat(x.Valor_faturamento_ci||0);
+        agg.bv_midia+= parseFloat(x.Valor_receita_bv_midia||0);
+        agg.bv_prod += parseFloat(x.Valor_receita_bv_producao||0);
+        agg.rl      += parseFloat(x.Valor_receita_total||0);
+        agg.iss     += parseFloat(x.Valor_ISS||0);
+        agg.pis     += parseFloat(x.Valor_PIS||0);
+        agg.cofins  += parseFloat(x.Valor_cofins||0);
+      });
+      agg.impostos = agg.iss + agg.pis + agg.cofins;
+      dreVbs[res.mes] = agg;
+    });
+
+    // Build DRE_DATA_VBS merging with existing budget
+    window.DRE_DATA_VBS = dreVbs;
+
+    // Update subtitle
+    var mesesComDados = results.filter(function(r){return r.rows.length>0;}).length;
+    if(subtitle) subtitle.textContent = ano+' — '+mesesComDados+' meses carregados do VBS';
+
+    // Render with VBS data
+    dreRenderVbs(ano);
+
+  } catch(e) {
+    if(subtitle) subtitle.textContent = 'Erro: '+e.message;
+    console.error('DRE VBS error:', e);
+  } finally {
+    if(loading) loading.style.display='none';
+  }
+}
+
+function dreRenderVbs(ano){
+  var vbs = window.DRE_DATA_VBS || {};
+  var mesSel = document.getElementById('dre-sel-mes');
+  var viewSel = document.getElementById('dre-sel-view');
+  var mes = mesSel ? mesSel.value : 'JANEIRO';
+  var view = viewSel ? viewSel.value : 'mensal';
+
+  // Map mes name to number
+  var mesMap = {JANEIRO:'01',FEVEREIRO:'02','MARÇO':'03',ABRIL:'04',MAIO:'05',JUNHO:'06',
+                JULHO:'07',AGOSTO:'08',SETEMBRO:'09',OUTUBRO:'10',NOVEMBRO:'11',DEZEMBRO:'12'};
+
+  var getData = function(m){
+    var num = mesMap[m] || m;
+    return vbs[num] || {rb:0,fee:0,midia:0,producao:0,rl:0,impostos:0,bv_midia:0,bv_prod:0};
+  };
+
+  var d, label;
+  if(view==='acumulado'){
+    // Sum all months with data
+    var agg = {rb:0,fee:0,midia:0,producao:0,rl:0,impostos:0,bv_midia:0,bv_prod:0};
+    Object.values(vbs).forEach(function(m){
+      Object.keys(agg).forEach(function(k){ agg[k]+=(m[k]||0); });
+    });
+    d = agg;
+    label = 'Acumulado '+ano;
+  } else {
+    d = getData(mes);
+    label = mes.charAt(0)+mes.slice(1).toLowerCase()+' '+ano;
+  }
+
+  // Get budget from existing DRE_DATA
+  var bud = DRE_DATA[mes] || {rb:0,rl:0,gp:0,ebitda:0,b_rb:0,b_gm:0,b_ebitda:0,b_lucro:0};
+
+  // Update title
+  var t = document.getElementById('dre-table-title');
+  if(t) t.textContent = 'DRE VBS — '+label;
+
+  // KPIs
+  var ke = document.getElementById('dre-kpis');
+  if(ke){
+    var gp = d.rl - 0; // without OPEX from VBS yet
+    var varRb = d.rb - bud.b_rb;
+    var pct = function(v,b){return b?(v/Math.abs(b)*100).toFixed(1)+'%':'—';};
+    ke.innerHTML = [
+      {label:'Receita Bruta VBS',  value:dreSign(d.rb),    sub:'Fee+Mídia+Prod',      flag: d.rb>0?'🟢':'⚪'},
+      {label:'Fee Líquido',        value:dreSign(d.fee),   sub:'honorários emitidos', flag:'💰'},
+      {label:'Receita Líquida',    value:dreSign(d.rl),    sub:'após BV e ajustes',   flag:'📊'},
+      {label:'Impostos',           value:dreSign(d.impostos), sub:'ISS+PIS+COFINS',   flag:'🏛️'},
+    ].map(function(k){
+      return '<div class="kpi-card"><div class="kpi-label">'+k.flag+' '+k.label+'</div>'+
+             '<div class="kpi-value" style="font-size:16px">'+k.value+'</div>'+
+             '<div class="kpi-sub">'+k.sub+'</div></div>';
+    }).join('');
+  }
+
+  // Table
+  var tbody = document.getElementById('dre-tbody');
+  if(!tbody) return;
+
+  var rows = [
+    {l:'RECEITA BRUTA (Gross Billings)', a:d.rb,       b:bud.b_rb,   bold:true, exp:false},
+    {l:'  Fee / Honorários',             a:d.fee,      b:bud.b_rb*0.8, bold:false,exp:false},
+    {l:'  Mídia (repasse)',              a:d.midia,    b:0,           bold:false,exp:false, info:true},
+    {l:'  Produção (repasse)',           a:d.producao, b:0,           bold:false,exp:false, info:true},
+    {l:'  BV / Rebate',                 a:d.bv_midia+d.bv_prod, b:0, bold:false,exp:false},
+    {l:'',a:null},
+    {l:'(-) Impostos (ISS+PIS+COFINS)',  a:-d.impostos,b:-bud.b_rb*0.096, bold:false,exp:true},
+    {l:'= RECEITA LÍQUIDA',             a:d.rl,       b:bud.b_gm,   bold:true, exp:false},
+    {l:'  Margem RL',                   pct:pct(d.rl,d.rb), pct_b:pct(bud.b_gm,bud.b_rb)},
+    {l:'',a:null},
+    {l:'CUSTOS DIRETOS',section:true},
+    {l:'  Serviços PJ / Freelas',       a:0,          b:-bud.b_rb*0.37, bold:false,exp:true, vbs_pending:true},
+    {l:'= GROSS PROFIT',                a:d.rl,       b:bud.b_gm,   bold:true, exp:false, note:'* sem OPEX VBS ainda'},
+    {l:'',a:null},
+    {l:'OPEX',section:true},
+    {l:'  Staff + Benefícios',          a:0,          b:-780152,     bold:false,exp:true, vbs_pending:true},
+    {l:'  Ocupação + Utilities',        a:0,          b:-23182,      bold:false,exp:true, vbs_pending:true},
+    {l:'= EBITDA',                      a:0,          b:bud.b_ebitda,bold:true, exp:false, vbs_pending:true},
+  ];
+
+  tbody.innerHTML = rows.map(function(r){
+    if(!r.l) return '<tr><td colspan="6" style="padding:3px;border:none"></td></tr>';
+    if(r.section) return '<tr><td colspan="6" style="padding:7px 12px;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);background:var(--bg3);font-weight:600">'+r.l+'</td></tr>';
+    if(r.pct!==undefined) return '<tr style="background:var(--bg3)"><td style="padding:5px 12px;font-size:11px;color:var(--text3)">'+r.l+'</td><td style="text-align:right;font-size:11px;color:var(--text3)">'+r.pct_b+'</td><td style="text-align:right;font-size:11px;color:var(--text3)">'+r.pct+'</td><td colspan="3"></td></tr>';
+    var fw=r.bold?'font-weight:700':'', bg=r.bold?'background:var(--bg3)':'';
+    var actVal = r.vbs_pending ? '<span style="color:var(--text3);font-size:11px">aguardando CP</span>' : dreSign(r.a);
+    var budVal = r.b ? dreSign(r.b) : '—';
+    var vr = r.b&&!r.vbs_pending ? r.a-r.b : null;
+    var infoStyle = r.info ? 'color:var(--text3);font-style:italic' : '';
+    return '<tr style="'+bg+'"><td style="padding:8px 12px;'+fw+';'+infoStyle+'">'+r.l+(r.note?'<span style="font-size:10px;color:var(--text3)"> '+r.note+'</span>':'')+'</td>'+
+      '<td style="text-align:right;'+fw+'">'+budVal+'</td>'+
+      '<td style="text-align:right;'+fw+'">'+actVal+'</td>'+
+      '<td style="text-align:right;color:'+(vr!==null?(vr>=0?'var(--pos)':'var(--neg)'):'var(--text3)')+'">'+(!r.vbs_pending&&vr!==null?dreSign(vr):'—')+'</td>'+
+      '<td style="text-align:right;font-size:11px;color:var(--text3)">'+(!r.vbs_pending&&vr!==null&&r.b?(vr/Math.abs(r.b)*100).toFixed(1)+'%':'—')+'</td>'+
+      '<td style="text-align:center">'+(!r.vbs_pending&&vr!==null?(vr>=0&&!r.exp?'🟢':'🔴'):'⚪')+'</td></tr>';
+  }).join('');
 }
 </script>
 </body>
