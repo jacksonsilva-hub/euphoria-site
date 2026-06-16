@@ -5,15 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Euphoria OS</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-<script>
-if(typeof Chart !== 'undefined'){
-  Chart.defaults.color = '#888';
-  Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
-  Chart.defaults.backgroundColor = 'transparent';
-  Chart.defaults.plugins = Chart.defaults.plugins || {};
-}
-</script>
-
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -86,7 +77,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
 .kpi-sub{font-size:11px;color:var(--text3);margin-top:4px}
 .kpi-sub.pos{color:var(--pos)}.kpi-sub.neg{color:var(--neg)}
 .charts-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
-.chart-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px 20px;overflow:hidden}
+.chart-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px 20px}
 .chart-title{font-size:11px;color:var(--text2);margin-bottom:14px;display:flex;align-items:center;gap:8px}
 .chart-title span{font-size:10px;color:var(--text3)}
 .chart-full{grid-column:1/-1}
@@ -330,19 +321,19 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
 <div class="aging-card"><div class="aging-label">Total Aberto</div><div class="aging-value pos" id="cr-tot">—</div></div>
 </div>
 <!-- CHARTS ROW -->
-<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
-  <div class="chart-card" style="padding:14px">
-    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Top Clientes em Aberto</div>
-    <canvas id="chartCRTopCli" height="160"></canvas>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;height:200px">
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;overflow:hidden">
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px;flex-shrink:0">Top Clientes em Aberto</div>
+    <div style="position:relative;flex:1;min-height:0"><canvas id="chartCRTopCli"></canvas></div>
   </div>
-  <div class="chart-card" style="padding:14px">
-    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Tipo de Pagamento</div>
-    <canvas id="chartCRTipo" height="160"></canvas>
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;overflow:hidden">
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px;flex-shrink:0">Tipo de Pagamento</div>
+    <div style="position:relative;flex:1;min-height:0"><canvas id="chartCRTipo"></canvas></div>
   </div>
-  <div class="chart-card" style="padding:14px">
-    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Aging por Faixa</div>
-    <canvas id="chartCRaging" height="160"></canvas>
-    <div id="cr-runway" style="margin-top:10px;padding:8px;background:var(--bg3);border-radius:6px;text-align:center;font-size:11px;color:var(--text3)">Runway: —</div>
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;overflow:hidden">
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px;flex-shrink:0">Aging por Faixa</div>
+    <div style="position:relative;flex:1;min-height:0"><canvas id="chartCRaging"></canvas></div>
+    <div id="cr-runway" style="margin-top:6px;padding:5px;background:var(--bg3);border-radius:5px;text-align:center;font-size:10px;color:var(--text3);flex-shrink:0">Runway: —</div>
   </div>
 </div>
 <div class="table-card"><div class="table-header"><span class="table-title">Títulos a Receber</span><span class="table-meta" id="cr-meta-vbs">0 registros</span></div>
@@ -365,14 +356,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
 <div class="aging-card"><div class="aging-label">Total Aberto</div><div class="aging-value neg" id="cp-tot">—</div></div>
 </div>
 <!-- CP CHARTS -->
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-  <div class="chart-card" style="padding:14px">
-    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Por Tipo de Despesa</div>
-    <canvas id="chartCPTipo" height="200"></canvas>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;height:240px">
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;overflow:hidden">
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px;flex-shrink:0">Por Tipo de Despesa</div>
+    <div style="position:relative;flex:1;min-height:0"><canvas id="chartCPTipo"></canvas></div>
   </div>
-  <div class="chart-card" style="padding:14px">
-    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Maiores Fornecedores</div>
-    <canvas id="chartCPFornec" height="200"></canvas>
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;overflow:hidden">
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px;flex-shrink:0">Maiores Fornecedores</div>
+    <div style="position:relative;flex:1;min-height:0"><canvas id="chartCPFornec"></canvas></div>
   </div>
 </div>
 <div class="table-card"><div class="table-header"><span class="table-title">Títulos a Pagar</span><span class="table-meta" id="cp-meta-vbs">0 registros</span></div>
@@ -2704,7 +2695,7 @@ async function loadCPVbs(){
       tot+=v;
       var d=daysAgo(x.Data_Vencimento_CP);
       if(d!==null&&v>0){if(d>60)a60+=v;else if(d>30)a31+=v;else if(d>0)a1+=v;else av+=v;}
-      var tipo=(x.Descricao_Servico_CP||x.Tipo_Documento_CP||'Outros').substring(0,30);
+      var tipo=String(x.Descricao_Servico_CP||x.Tipo_Documento_CP||'Outros').substring(0,30);
       if(!tipoMap[tipo])tipoMap[tipo]=0;tipoMap[tipo]+=Math.abs(v);
       var forn=(x.Nome_Terceiro_CP||'').substring(0,25);
       if(forn){if(!fornMap[forn])fornMap[forn]=0;fornMap[forn]+=Math.abs(v);}
@@ -2716,7 +2707,7 @@ async function loadCPVbs(){
     document.getElementById('cp-tbody-vbs').innerHTML=rows.map(function(x){
       var d=daysAgo(x.Data_Vencimento_CP);
       var ds=d!==null?(d>0?'<span style="color:var(--neg)">'+d+'d</span>':d===0?'hoje':'<span style="color:var(--pos)">'+Math.abs(d)+'d</span>'):'---';
-      var tipo=(x.Descricao_Servico_CP||x.Tipo_Documento_CP||'—').substring(0,25);
+      var tipo=String(x.Descricao_Servico_CP||x.Tipo_Documento_CP||'—').substring(0,25);
       return '<tr><td>'+(x.Nome_Terceiro_CP||'---')+'</td><td style="font-size:11px;color:var(--text3)">'+tipo+'</td><td>'+(x.Numero_Doc_NF_Terceiro_CP||'---')+'</td><td>'+fmtDateVbs(x.Data_Vencimento_CP)+'</td><td>'+ds+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Documento_CP)+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Aberto_CP)+'</td><td>'+badgeVbs(x.Situacao_CP)+'</td></tr>';
     }).join('');
 
