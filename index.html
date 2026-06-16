@@ -2750,8 +2750,12 @@ function badgeVbs(sit){
 function initVbsDates(){var now=new Date(),y=now.getFullYear(),m=String(now.getMonth()+1).padStart(2,'0');var last=new Date(y,now.getMonth()+1,0).getDate();var f=y+'-'+m+'-01',l=y+'-'+m+'-'+String(last).padStart(2,'0');['cr-date-de','cp-date-de'].forEach(function(id){var e=document.getElementById(id);if(e&&!e.value)e.value=f;});['cr-date-ate','cp-date-ate'].forEach(function(id){var e=document.getElementById(id);if(e&&!e.value)e.value=l;});}
 
 async function loadCRVbs(){
-  var de=toApiDate(document.getElementById('cr-date-de').value);
-  var ate=toApiDate(document.getElementById('cr-date-ate').value);
+  var deRaw=document.getElementById('cr-date-de').value;
+  var ateRaw=document.getElementById('cr-date-ate').value;
+  if(!deRaw){var y=new Date().getFullYear();deRaw=y+'-01-01';}
+  if(!ateRaw){var y=new Date().getFullYear();ateRaw=y+'-12-31';}
+  var de=toApiDate(deRaw);
+  var ate=toApiDate(ateRaw);
   var sit=document.getElementById('cr-sit').value;
   var ab=sit!=='recebido'?'S':'N',rc=sit!=='aberto'?'S':'N';
   document.getElementById('cr-tbody-vbs').innerHTML='<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text3)"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></td></tr>';
@@ -2822,8 +2826,13 @@ function populateCRDropdown(rows){
 }
 
 async function loadCPVbs(){
-  var de=toApiDate(document.getElementById('cp-date-de').value);
-  var ate=toApiDate(document.getElementById('cp-date-ate').value);
+  var deRaw=document.getElementById('cp-date-de').value;
+  var ateRaw=document.getElementById('cp-date-ate').value;
+  // Default: current year if empty
+  if(!deRaw){var y=new Date().getFullYear();deRaw=y+'-01-01';}
+  if(!ateRaw){var y=new Date().getFullYear();ateRaw=y+'-12-31';}
+  var de=toApiDate(deRaw);
+  var ate=toApiDate(ateRaw);
   var sit=document.getElementById('cp-sit').value;
   var ab=sit!=='pago'?'S':'N',pg=sit!=='aberto'?'S':'N';
   document.getElementById('cp-tbody-vbs').innerHTML='<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text3)"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></td></tr>';
