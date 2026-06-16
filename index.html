@@ -3248,30 +3248,34 @@ function filterCRTableAndCharts(){
   var q=document.getElementById('cr-q').value.toLowerCase();
   var allRows=window._crRows||[];
   var filtered=q?allRows.filter(function(x){return (x.Nome_Cliente_CR||'').toLowerCase().includes(q);}):allRows;
-  // Rebuild table
-  if(!filtered.length){
-    document.getElementById('cr-tbody-vbs').innerHTML='<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text3)">Nenhum registro</td></tr>';
-  } else {
-    document.getElementById('cr-tbody-vbs').innerHTML=filtered.map(function(x){
-      var d=daysAgo(x.Data_Vencimento_CR);
-      var ds=d!==null?(d>0?'<span style="color:var(--neg)">'+d+'d</span>':d===0?'hoje':'<span style="color:var(--pos)">'+Math.abs(d)+'d</span>'):'---';
-      return '<tr><td>'+(x.Nome_Cliente_CR||'---')+'</td><td>'+(x.Numero_Nota_CR||'---')+'</td><td>'+fmtDateVbs(x.Data_Emissao_Nota_CR)+'</td><td>'+fmtDateVbs(x.Data_Vencimento_CR)+'</td><td>'+ds+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Documento_CR)+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Aberto_CR)+'</td><td style="text-align:right;color:var(--pos)">'+fmtVbs(x.Valor_Receita_CR)+'</td><td style="text-align:right;color:var(--amber)">'+fmtVbs(x.Valor_Custo_CR)+'</td><td>'+badgeVbs(x.Situacao_CR)+'</td></tr>';
-    }).join('');
-  }
-  // Rebuild charts with filtered data
-  var cliMap={},tipoMap={'Fee/Receita':0,'Repasse':0,'Custo Direto':0},a60=0,a31=0,a1=0,av=0;
+  // Recalculate KPIs from filtered rows
+  var a60=0,a31=0,a1=0,av=0,tot=0;
+  var cliMap={},tipoMap={'Fee/Receita':0,'Repasse':0,'Custo Direto':0};
   filtered.forEach(function(x){
     var v=parseFloat(x.Valor_Aberto_CR||0);
     var fee=parseFloat(x.Valor_Receita_CR||0);
     var rep=parseFloat(x.Valor_Custo_CR||0);
+    tot+=v;
     tipoMap['Fee/Receita']+=fee;
     tipoMap['Repasse']+=Math.abs(rep);
     tipoMap['Custo Direto']+=Math.max(0,v-fee-Math.abs(rep));
     var cli=x.Nome_Cliente_CR||'';
     if(cli){if(!cliMap[cli])cliMap[cli]=0;cliMap[cli]+=v;}
-    var dd=daysAgo(x.Data_Vencimento_CR);
-    if(dd!==null&&v>0){if(dd>60)a60+=v;else if(dd>30)a31+=v;else if(dd>0)a1+=v;else av+=v;}
+    var d=daysAgo(x.Data_Vencimento_CR);
+    if(d!==null&&v>0){if(d>60)a60+=v;else if(d>30)a31+=v;else if(d>0)a1+=v;else av+=v;}
   });
+  // Update KPIs
+  ['cr-a60','cr-a31','cr-a1','cr-av','cr-tot'].forEach(function(id,i){
+    var el=document.getElementById(id);if(el)el.textContent=fmtVbs([a60,a31,a1,av,tot][i]);
+  });
+  document.getElementById('cr-meta-vbs').textContent=filtered.length+' registros';
+  // Rebuild table
+  document.getElementById('cr-tbody-vbs').innerHTML=filtered.length?filtered.map(function(x){
+    var d=daysAgo(x.Data_Vencimento_CR);
+    var ds=d!==null?(d>0?'<span style="color:var(--neg)">'+d+'d</span>':d===0?'hoje':'<span style="color:var(--pos)">'+Math.abs(d)+'d</span>'):'---';
+    return '<tr><td>'+(x.Nome_Cliente_CR||'---')+'</td><td>'+(x.Numero_Nota_CR||'---')+'</td><td>'+fmtDateVbs(x.Data_Emissao_Nota_CR)+'</td><td>'+fmtDateVbs(x.Data_Vencimento_CR)+'</td><td>'+ds+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Documento_CR)+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Aberto_CR)+'</td><td style="text-align:right;color:var(--pos)">'+fmtVbs(x.Valor_Receita_CR)+'</td><td style="text-align:right;color:var(--amber)">'+fmtVbs(x.Valor_Custo_CR)+'</td><td>'+badgeVbs(x.Situacao_CR)+'</td></tr>';
+  }).join(''):'<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text3)">Nenhum registro</td></tr>';
+  // Rebuild charts
   var topCli=Object.entries(cliMap).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
   var c1=document.getElementById('chartCRTopCli');
   if(c1&&c1.getContext('2d')){
@@ -3288,47 +3292,17 @@ function filterCRTableAndCharts(){
     if(window.chartCRAgingInst){try{window.chartCRAgingInst.destroy();}catch(e){}}
     window.chartCRAgingInst=new Chart(c3,{type:'bar',data:{labels:['+60d','31-60d','1-30d','A Vencer'],datasets:[{data:[a60,a31,a1,av],backgroundColor:['rgba(248,113,113,0.7)','rgba(251,191,36,0.7)','rgba(251,191,36,0.4)','rgba(110,231,183,0.7)'],borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#888',font:{size:9}},grid:{display:false}},y:{ticks:{color:'#555',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}},grid:{color:'rgba(255,255,255,0.04)'}}}}});
   }
-  document.getElementById('cr-meta-vbs').textContent=filtered.length+' registros';
+  // Runway
+  var runway=document.getElementById('cr-runway');
+  if(runway){
+    var cpTotal=window._cpTotal||0;
+    var r=cpTotal>0?Math.round((tot/cpTotal)*6*10)/10:null;
+    runway.innerHTML=r?'<span style="color:var(--pos);font-weight:700;font-size:13px">Runway: '+r+' meses</span><br><span style="font-size:10px;color:var(--text3)">CR aberto ÷ média CP</span>':'<span style="color:var(--text3)">Carregue CR e CP para calcular Runway</span>';
+  }
 }
-
-// Override filterCRTable to use new function
 function filterCRTable(){ filterCRTableAndCharts(); }
 
-// 3. Add Quarter filter to Cashflow panel
-function buildCashflowByQuarter(){
-  var crRows=window._crRows||[], cpRows=window._cpRows||[];
-  if(!crRows.length&&!cpRows.length){alert('Busque CR e CP primeiro!');return;}
-  var quarters={'Q1':{rec:0,pag:0},'Q2':{rec:0,pag:0},'Q3':{rec:0,pag:0},'Q4':{rec:0,pag:0}};
-  function getQ(dt){
-    if(!dt)return null;
-    var m=parseInt((dt||'').substring(5,7));
-    if(m<=3)return 'Q1';if(m<=6)return 'Q2';if(m<=9)return 'Q3';return 'Q4';
-  }
-  crRows.forEach(function(x){var q=getQ(x.Data_Vencimento_CR);if(q)quarters[q].rec+=parseFloat(x.Valor_Aberto_CR||0);});
-  cpRows.forEach(function(x){var q=getQ(x.Data_Vencimento_CP);if(q)quarters[q].pag+=Math.abs(parseFloat(x.Valor_Aberto_CP||0));});
-  var qs=['Q1','Q2','Q3','Q4'];
-  var c=document.getElementById('chartCFVbs');
-  if(c&&c.getContext('2d')){
-    if(window.chartCFVbsInst){try{window.chartCFVbsInst.destroy();}catch(e){}}
-    window.chartCFVbsInst=new Chart(c,{type:'bar',data:{labels:qs,datasets:[
-      {label:'Entradas (CR)',data:qs.map(function(q){return quarters[q].rec;}),backgroundColor:'rgba(110,231,183,0.6)',borderRadius:4},
-      {label:'Saídas (CP)',data:qs.map(function(q){return -quarters[q].pag;}),backgroundColor:'rgba(248,113,113,0.6)',borderRadius:4}
-    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#888',font:{size:10}}}},scales:{x:{grid:{display:false},ticks:{color:'#888',font:{size:11}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#666',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}}}}}});
-  }
-}
 
-var cfViewAtivo='mensal';
-function cfSetView(view){
-  cfViewAtivo=view;
-  ['mensal','quarter'].forEach(function(v){
-    var b=document.getElementById('cf-btn-'+v);
-    if(b)b.className=v===view?'btn btn-primary':'btn';
-  });
-  if(view==='quarter')buildCashflowByQuarter();
-  else buildCashflowVbs();
-}
-
-// ── filterCPTableAndCharts ────────────────────────────────────────────────────
 function filterCPTableAndCharts(){
   var q=document.getElementById('cp-q').value.toLowerCase();
   var allRows=window._cpRows||[];
