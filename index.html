@@ -324,15 +324,15 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;height:200px">
   <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;overflow:hidden">
     <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px;flex-shrink:0">Top Clientes em Aberto</div>
-    <div style="position:relative;flex:1;min-height:0"><canvas id="chartCRTopCli"></canvas></div>
+    <div style="position:relative;flex:1;min-height:0"><canvas id="chartCRTopCli" style="max-height:100%;max-width:100%"></canvas></div>
   </div>
   <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;overflow:hidden">
     <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px;flex-shrink:0">Tipo de Pagamento</div>
-    <div style="position:relative;flex:1;min-height:0"><canvas id="chartCRTipo"></canvas></div>
+    <div style="position:relative;flex:1;min-height:0"><canvas id="chartCRTipo" style="max-height:100%;max-width:100%"></canvas></div>
   </div>
   <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;overflow:hidden">
     <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px;flex-shrink:0">Aging por Faixa</div>
-    <div style="position:relative;flex:1;min-height:0"><canvas id="chartCRaging"></canvas></div>
+    <div style="position:relative;flex:1;min-height:0"><canvas id="chartCRaging" style="max-height:100%;max-width:100%"></canvas></div>
     <div id="cr-runway" style="margin-top:6px;padding:5px;background:var(--bg3);border-radius:5px;text-align:center;font-size:10px;color:var(--text3);flex-shrink:0">Runway: —</div>
   </div>
 </div>
@@ -359,11 +359,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;height:240px">
   <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;overflow:hidden">
     <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px;flex-shrink:0">Por Tipo de Despesa</div>
-    <div style="position:relative;flex:1;min-height:0"><canvas id="chartCPTipo"></canvas></div>
+    <div style="position:relative;flex:1;min-height:0"><canvas id="chartCPTipo" style="max-height:100%;max-width:100%"></canvas></div>
   </div>
   <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;overflow:hidden">
     <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px;flex-shrink:0">Maiores Fornecedores</div>
-    <div style="position:relative;flex:1;min-height:0"><canvas id="chartCPFornec"></canvas></div>
+    <div style="position:relative;flex:1;min-height:0"><canvas id="chartCPFornec" style="max-height:100%;max-width:100%"></canvas></div>
   </div>
 </div>
 <div class="table-card"><div class="table-header"><span class="table-title">Títulos a Pagar</span><span class="table-meta" id="cp-meta-vbs">0 registros</span></div>
@@ -1613,7 +1613,7 @@ function tsRenderCharts(){
   var c1=document.getElementById('chartTSDepto'); if(chartTSDepto)chartTSDepto.destroy();
   if(Object.keys(deptoMap).length) chartTSDepto=new Chart(c1,{type:'doughnut',data:{labels:Object.keys(deptoMap),datasets:[{data:Object.values(deptoMap),backgroundColor:['#fff','#ccc','#aaa','#888','#666','#444','#ddd'],borderColor:'#111',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{color:'#888',font:{size:10},boxWidth:10}}}}});
   var cliMap={};mesD.forEach(function(r){cliMap[r.cliente]=(cliMap[r.cliente]||0)+r.horas;});
-  var topCli=Object.entries(cliMap).sort(function(a,b){return b[1]-a[1];}).slice(0,8);
+  var topCli=Object.entries(cliMap).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
   var c2=document.getElementById('chartTSCliente'); if(chartTSCli)chartTSCli.destroy();
   if(topCli.length) chartTSCli=new Chart(c2,{type:'bar',indexAxis:'y',data:{labels:topCli.map(function(c){return c[0];}),datasets:[{data:topCli.map(function(c){return c[1];}),backgroundColor:'rgba(255,255,255,0.2)',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',font:{size:10}}},y:{grid:{display:false},ticks:{color:'#999',font:{size:10}}}}}});
 }
@@ -2650,10 +2650,10 @@ async function loadCRVbs(){
 
     // Charts
     // 1. Top clients bar
-    var topCli=Object.entries(cliMap).sort(function(a,b){return b[1]-a[1];}).slice(0,8);
+    var topCli=Object.entries(cliMap).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
     var c1=document.getElementById('chartCRTopCli');
     if(window.chartCRTopCliInst)window.chartCRTopCliInst.destroy();
-    window.chartCRTopCliInst=new Chart(c1,{type:'bar',indexAxis:'y',data:{labels:topCli.map(function(c){return c[0].substring(0,20);}),datasets:[{data:topCli.map(function(c){return c[1];}),backgroundColor:'rgba(96,165,250,0.4)',borderColor:'rgba(96,165,250,0.8)',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#555',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#888',font:{size:9}},grid:{display:false}}}}});
+    window.chartCRTopCliInst=new Chart(c1,{type:'bar',indexAxis:'y',data:{labels:topCli.map(function(c){return c[0].substring(0,20);}),datasets:[{data:topCli.map(function(c){return c[1];}),backgroundColor:'rgba(96,165,250,0.4)',borderColor:'rgba(96,165,250,0.8)',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:true,aspectRatio:1.5,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#555',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#888',font:{size:9}},grid:{display:false}}}}});
 
     // 2. Tipo pagamento doughnut
     var c2=document.getElementById('chartCRTipo');
@@ -2712,17 +2712,17 @@ async function loadCPVbs(){
     }).join('');
 
     // Chart tipo despesa doughnut
-    var topTipos=Object.entries(tipoMap).sort(function(a,b){return b[1]-a[1];}).slice(0,8);
+    var topTipos=Object.entries(tipoMap).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
     var c1=document.getElementById('chartCPTipo');
     if(window.chartCPTipoInst)window.chartCPTipoInst.destroy();
     var colors=['rgba(248,113,113,0.7)','rgba(251,191,36,0.7)','rgba(96,165,250,0.7)','rgba(110,231,183,0.7)','rgba(167,139,250,0.7)','rgba(249,168,212,0.7)','rgba(134,239,172,0.7)','rgba(253,224,71,0.7)'];
     window.chartCPTipoInst=new Chart(c1,{type:'doughnut',data:{labels:topTipos.map(function(t){return t[0];}),datasets:[{data:topTipos.map(function(t){return t[1];}),backgroundColor:colors,borderColor:'#111',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'45%',plugins:{legend:{position:'right',labels:{color:'#888',font:{size:9},boxWidth:10}}}}});
 
     // Chart top fornecedores
-    var topForn=Object.entries(fornMap).sort(function(a,b){return b[1]-a[1];}).slice(0,8);
+    var topForn=Object.entries(fornMap).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
     var c2=document.getElementById('chartCPFornec');
     if(window.chartCPFornecInst)window.chartCPFornecInst.destroy();
-    window.chartCPFornecInst=new Chart(c2,{type:'bar',indexAxis:'y',data:{labels:topForn.map(function(f){return f[0];}),datasets:[{data:topForn.map(function(f){return f[1];}),backgroundColor:'rgba(248,113,113,0.4)',borderColor:'rgba(248,113,113,0.8)',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#555',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#888',font:{size:9}},grid:{display:false}}}}});
+    window.chartCPFornecInst=new Chart(c2,{type:'bar',indexAxis:'y',data:{labels:topForn.map(function(f){return f[0];}),datasets:[{data:topForn.map(function(f){return f[1];}),backgroundColor:'rgba(248,113,113,0.4)',borderColor:'rgba(248,113,113,0.8)',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:true,aspectRatio:1.5,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#555',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#888',font:{size:9}},grid:{display:false}}}}});
 
   }catch(e){document.getElementById('cp-tbody-vbs').innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--neg)">'+e.message+'</td></tr>';}
 }
@@ -3588,7 +3588,7 @@ function tsRenderCharts(){
   var c1=document.getElementById('chartTSDepto'); if(chartTSDepto)chartTSDepto.destroy();
   if(Object.keys(deptoMap).length) chartTSDepto=new Chart(c1,{type:'doughnut',data:{labels:Object.keys(deptoMap),datasets:[{data:Object.values(deptoMap),backgroundColor:['#fff','#ccc','#aaa','#888','#666','#444','#ddd'],borderColor:'#111',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{color:'#888',font:{size:10},boxWidth:10}}}}});
   var cliMap={};mesD.forEach(function(r){cliMap[r.cliente]=(cliMap[r.cliente]||0)+r.horas;});
-  var topCli=Object.entries(cliMap).sort(function(a,b){return b[1]-a[1];}).slice(0,8);
+  var topCli=Object.entries(cliMap).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
   var c2=document.getElementById('chartTSCliente'); if(chartTSCli)chartTSCli.destroy();
   if(topCli.length) chartTSCli=new Chart(c2,{type:'bar',indexAxis:'y',data:{labels:topCli.map(function(c){return c[0];}),datasets:[{data:topCli.map(function(c){return c[1];}),backgroundColor:'rgba(255,255,255,0.2)',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',font:{size:10}}},y:{grid:{display:false},ticks:{color:'#999',font:{size:10}}}}}});
 }
@@ -4850,6 +4850,13 @@ function buildCashflowVbs(){
   var cpSorted=cpRows.slice().sort(function(a,b){return Math.abs(parseFloat(b.Valor_Aberto_CP||0))-Math.abs(parseFloat(a.Valor_Aberto_CP||0));}).slice(0,20);
   document.getElementById('cf-vbs-cp-tbody').innerHTML=cpSorted.map(function(x){return '<tr><td>'+(x.Nome_Terceiro_CP||'—')+'</td><td>'+fmtDateVbs(x.Data_Vencimento_CP)+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Aberto_CP)+'</td><td>'+badgeVbs(x.Situacao_CP)+'</td></tr>';}).join('');
 }
+
+// Chart.js global defaults for dark theme
+try {
+  Chart.defaults.color = '#888888';
+  Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+  Chart.overrides.bar = Chart.overrides.bar || {};
+} catch(e) {}
 </script>
 </body>
 </html>
