@@ -2795,12 +2795,7 @@ async function loadCRVbs(){
 }
 
 
-function filterCRTable(){
-  var q=document.getElementById('cr-q').value.toLowerCase();
-  document.getElementById('cr-tbody-vbs').querySelectorAll('tr').forEach(function(r){
-    r.style.display=(!q||r.textContent.toLowerCase().includes(q))?'':'none';
-  });
-}
+// filterCRTable merged into filterCRTableAndCharts
 function populateCRDropdown(rows){
   var sel=document.getElementById('cr-q');
   if(!sel||sel.tagName!=='SELECT')return;
@@ -2867,12 +2862,7 @@ async function loadCPVbs(){
 }
 
 
-function filterCPTable(){
-  var q=document.getElementById('cp-q').value.toLowerCase();
-  document.getElementById('cp-tbody-vbs').querySelectorAll('tr').forEach(function(r){
-    r.style.display=(!q||r.textContent.toLowerCase().includes(q))?'':'none';
-  });
-}
+// filterCPTable merged into filterCPTableAndCharts
 function populateCPDropdown(rows){
   var sel=document.getElementById('cp-q');
   if(!sel||sel.tagName!=='SELECT')return;
@@ -3300,7 +3290,6 @@ function filterCRTableAndCharts(){
     runway.innerHTML=r?'<span style="color:var(--pos);font-weight:700;font-size:13px">Runway: '+r+' meses</span><br><span style="font-size:10px;color:var(--text3)">CR aberto ÷ média CP</span>':'<span style="color:var(--text3)">Carregue CR e CP para calcular Runway</span>';
   }
 }
-function filterCRTable(){ filterCRTableAndCharts(); }
 
 
 function filterCPTableAndCharts(){
@@ -3348,7 +3337,6 @@ function filterCPTableAndCharts(){
   }
   document.getElementById('cp-meta-vbs').textContent=filtered.length+' registros';
 }
-function filterCPTable(){ filterCPTableAndCharts(); }
 
 // ── CF FILTROS ────────────────────────────────────────────────────────────────
 function cfGetFilteredRows(){
