@@ -3760,7 +3760,11 @@ function sortTable(tbl, col, type){
       var ds=d!==null?(d>0?'<span style="color:var(--neg)">'+d+'d</span>':d===0?'hoje':'<span style="color:var(--pos)">'+Math.abs(d)+'d</span>'):'---';
       var _tc=String(x.Tipo_Documento_CP||''),_td=String(x.Tipo_Documento2_CP||'');
       var tipo=_tipoMapSort[_tc+'-'+_td]||(_td||_tc||'—');
-      return '<tr><td>'+(x.Nome_Terceiro_CP||'---')+'</td><td style="font-size:11px;color:var(--text3)">'+tipo+'</td><td>'+(x.Numero_Doc_NF_Terceiro_CP||'---')+'</td><td>'+fmtDateVbs(x.Data_Vencimento_CP)+'</td><td>'+ds+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Documento_CP)+'</td><td style="text-align:right">'+fmtVbs(
+      return '<tr><td>'+(x.Nome_Terceiro_CP||'---')+'</td><td style="font-size:11px;color:var(--text3)">'+tipo+'</td><td>'+(x.Numero_Doc_NF_Terceiro_CP||'---')+'</td><td>'+fmtDateVbs(x.Data_Vencimento_CP)+'</td><td>'+ds+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Documento_CP)+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Aberto_CP)+'</td><td>'+badgeVbs(x.Situacao_CP)+'</td></tr>';
+    }).join('');
+  }
+}
+
 // ── EXPORT EXCEL ─────────────────────────────────────────────────────────────
 function exportarExcel(tbl){
   var rows = tbl==='cr' ? (window._crRows||[]) : (window._cpRows||[]);
