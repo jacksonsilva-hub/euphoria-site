@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Euphoria OS</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap');
@@ -263,6 +264,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     <div>
       <div class="chart-title" style="margin:0">DRE — Budget vs Actual</div>
       <div style="font-size:11px;color:var(--text3);margin-top:4px" id="dre-subtitle">Selecione o ano e clique em Carregar</div>
+      <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+        <button class="btn" onclick="dreCarregarBudgetSheets()" style="font-size:10px;padding:4px 10px">📊 Budget do Sheets</button>
+        <label style="font-size:10px;color:var(--text3);cursor:pointer;background:var(--bg3);border:1px solid var(--border);padding:4px 10px;border-radius:6px">
+          📤 Upload Budget Excel
+          <input type="file" accept=".xlsx,.xls" onchange="dreUploadBudget(event)" style="display:none">
+        </label>
+        <span id="dre-budget-source" style="font-size:10px;color:var(--text3)"></span>
+      </div>
       <div id="dre-last-update" style="display:none;margin-top:6px;display:flex;align-items:center;gap:8px">
         <span style="font-size:10px;color:var(--text3)">Última atualização:</span>
         <span id="dre-last-update-time" style="font-size:10px;font-weight:600;color:var(--pos)">—</span>
@@ -392,7 +401,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     <div id="cr-runway" style="margin-top:6px;padding:5px;background:var(--bg3);border-radius:5px;text-align:center;font-size:10px;color:var(--text3);flex-shrink:0">Runway: —</div>
   </div>
 </div>
-<div class="table-card"><div class="table-header"><span class="table-title">Títulos a Receber</span><span class="table-meta" id="cr-meta-vbs">0 registros</span></div>
+<div class="table-card"><div class="table-header">
+  <span class="table-title">Títulos a Receber</span>
+  <span class="table-meta" id="cr-meta-vbs">0 registros</span>
+  <button class="btn" onclick="exportarExcel('cr')" style="font-size:10px;padding:4px 10px;margin-left:8px">📥 Excel</button>
+</div>
 <div style="overflow-x:auto"><table class="tbl"><thead><tr>
   <th onclick="sortTable('cr','Nome_Cliente_CR','str')" style="cursor:pointer;user-select:none">Cliente <span id="cr-sort-Nome_Cliente_CR">↕</span></th>
   <th onclick="sortTable('cr','Numero_Nota_NFE_CR','str')" style="cursor:pointer;user-select:none">N Doc. <span id="cr-sort-Numero_Nota_NFE_CR">↕</span></th>
@@ -463,7 +476,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     <div style="position:relative;flex:1;min-height:0"><canvas id="chartCPFornec" style="max-height:100%;max-width:100%"></canvas></div>
   </div>
 </div>
-<div class="table-card"><div class="table-header"><span class="table-title">Títulos a Pagar</span><span class="table-meta" id="cp-meta-vbs">0 registros</span></div>
+<div class="table-card"><div class="table-header"><span class="table-title">Títulos a Pagar</span><span class="table-meta" id="cp-meta-vbs">0 registros</span>
+  <button class="btn" onclick="exportarExcel('cp')" style="font-size:10px;padding:4px 10px;margin-left:8px">📥 Excel</button></div>
 <div style="overflow-x:auto"><table class="tbl"><thead><tr>
   <th onclick="sortTable('cp','Nome_Terceiro_CP','str')" style="cursor:pointer;user-select:none">Fornecedor <span id="cp-sort-Nome_Terceiro_CP">↕</span></th>
   <th onclick="sortTable('cp','_tipo','str')" style="cursor:pointer;user-select:none">Tipo Despesa <span id="cp-sort-_tipo">↕</span></th>
@@ -3745,7 +3759,172 @@ function sortTable(tbl, col, type){
       var ds=d!==null?(d>0?'<span style="color:var(--neg)">'+d+'d</span>':d===0?'hoje':'<span style="color:var(--pos)">'+Math.abs(d)+'d</span>'):'---';
       var _tc=String(x.Tipo_Documento_CP||''),_td=String(x.Tipo_Documento2_CP||'');
       var tipo=_tipoMapSort[_tc+'-'+_td]||(_td||_tc||'—');
-      return '<tr><td>'+(x.Nome_Terceiro_CP||'---')+'</td><td style="font-size:11px;color:var(--text3)">'+tipo+'</td><td>'+(x.Numero_Doc_NF_Terceiro_CP||'---')+'</td><td>'+fmtDateVbs(x.Data_Vencimento_CP)+'</td><td>'+ds+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Documento_CP)+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Aberto_CP)+'</td><td>'+badgeVbs(x.Situacao_CP)+'</td></tr>';
+      return '<tr><td>'+(x.Nome_Terceiro_CP||'---')+'</td><td style="font-size:11px;color:var(--text3)">'+tipo+'</td><td>'+(x.Numero_Doc_NF_Terceiro_CP||'---')+'</td><td>'+fmtDateVbs(x.Data_Vencimento_CP)+'</td><td>'+ds+'</td><td style="text-align:right">'+fmtVbs(x.Valor_Documento_CP)+'</td><td style="text-align:right">'+fmtVbs(
+// ── EXPORT EXCEL ─────────────────────────────────────────────────────────────
+function exportarExcel(tbl){
+  var rows = tbl==='cr' ? (window._crRows||[]) : (window._cpRows||[]);
+  if(!rows.length){alert('Busque os dados primeiro!');return;}
+
+  var headers, getRow;
+  if(tbl==='cr'){
+    headers = ['Cliente','NFE','Emissão','Vencimento','Dias','Vlr. Documento','Em Aberto','Fee/Receita','Repasse','Status'];
+    getRow = function(x){
+      var d=daysAgo(x.Data_Vencimento_CR);
+      return [
+        x.Nome_Cliente_CR||'',
+        x.Numero_Nota_NFE_CR||x.Numero_Nota_CR||'',
+        fmtDateVbs(x.Data_Emissao_Nota_CR),
+        fmtDateVbs(x.Data_Vencimento_CR),
+        d!==null?d:'',
+        parseFloat(x.Valor_Documento_CR||0),
+        parseFloat(x.Valor_Aberto_CR||0),
+        parseFloat(x.Valor_Receita_CR||0),
+        parseFloat(x.Valor_Custo_CR||0),
+        x.Situacao_CR||''
+      ];
+    };
+  } else {
+    var tipoM={'10-NACIONAL':'Serviços/Fornecedores','10-INTERNACIONAL':'Serviços Exterior','10-SUBSIDIARIO':'Subsidiário','20-NACIONAL':'Desp. Operacionais','20-FUNCIONARIO':'Reembolso Func.'};
+    headers = ['Fornecedor','Tipo Despesa','N Doc.','Vencimento','Dias','Vlr. Documento','Saldo','Status'];
+    getRow = function(x){
+      var d=daysAgo(x.Data_Vencimento_CP);
+      var _tc=String(x.Tipo_Documento_CP||''),_td=String(x.Tipo_Documento2_CP||'');
+      return [
+        x.Nome_Terceiro_CP||'',
+        tipoM[_tc+'-'+_td]||(_td||_tc||''),
+        x.Numero_Doc_NF_Terceiro_CP||'',
+        fmtDateVbs(x.Data_Vencimento_CP),
+        d!==null?d:'',
+        parseFloat(x.Valor_Documento_CP||0),
+        parseFloat(x.Valor_Aberto_CP||0),
+        x.Situacao_CP||''
+      ];
+    };
+  }
+
+  // Build CSV
+  var csv = [headers.join(';')];
+  rows.forEach(function(x){
+    csv.push(getRow(x).map(function(v){
+      return typeof v==='string'?'"'+v.replace(/"/g,'""')+'"':String(v).replace('.',',');
+    }).join(';'));
+  });
+
+  // Download
+  var blob = new Blob(['﻿'+csv.join('
+')], {type:'text/csv;charset=utf-8'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  var nome = tbl==='cr'?'Contas_a_Receber':'Contas_a_Pagar';
+  a.href = url;
+  a.download = nome+'_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── DRE BUDGET DO GOOGLE SHEETS ───────────────────────────────────────────────
+async function dreCarregarBudgetSheets(){
+  var src = document.getElementById('dre-budget-source');
+  if(src) src.textContent = 'Carregando...';
+  try {
+    var res = await fetch(API+'/api/pl');
+    var j = await res.json();
+    if(!j.ok) throw new Error(j.error);
+    var data = j.data;
+
+    // Parse budget from G.pl structure (same as Dashboard P&L)
+    // Build budget by month from sheets data
+    var meses = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
+    var mesNum = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+
+    function getRow(label){
+      if(!data||!data.values)return null;
+      return data.values.find(function(r){return r[0]&&r[0].toString().toUpperCase().includes(label.toUpperCase());});
+    }
+
+    function getVal(row, colIdx){
+      if(!row||row.length<=colIdx)return 0;
+      var v=row[colIdx];
+      if(!v)return 0;
+      return parseFloat(String(v).replace(/[^0-9.\-]/g,''))||0;
+    }
+
+    var revRow  = getRow('REVENUE');
+    var gmRow   = getRow('GROSS MARGIN');
+    var ebitRow = getRow('OPERATING PROFIT');
+    var profRow = getRow('PROFIT/(LOSS) AFTER TAX');
+
+    if(!revRow){throw new Error('Linha REVENUE não encontrada no Sheets');}
+
+    // Build DRE_DATA from sheets (col 1=Jan, 2=Fev, etc)
+    meses.forEach(function(mes, i){
+      var colIdx = i+1;
+      if(!DRE_DATA[mes]) DRE_DATA[mes]={};
+      DRE_DATA[mes].b_rb    = Math.abs(getVal(revRow, colIdx))*1000;
+      DRE_DATA[mes].b_gm    = Math.abs(getVal(gmRow||[], colIdx))*1000;
+      DRE_DATA[mes].b_ebitda= getVal(ebitRow||[], colIdx)*1000;
+      DRE_DATA[mes].b_lucro = getVal(profRow||[], colIdx)*1000;
+    });
+
+    if(src) src.textContent = '✅ Budget carregado do Sheets';
+    dreRender();
+  } catch(e){
+    if(src) src.textContent = '❌ '+e.message;
+    console.error('Budget Sheets error:', e);
+  }
+}
+
+// ── UPLOAD BUDGET EXCEL ───────────────────────────────────────────────────────
+function dreUploadBudget(event){
+  var file = event.target.files[0];
+  if(!file) return;
+  var src = document.getElementById('dre-budget-source');
+  if(src) src.textContent = 'Lendo Excel...';
+
+  var reader = new FileReader();
+  reader.onload = function(e){
+    try {
+      var data = new Uint8Array(e.target.result);
+      var wb = XLSX.read(data, {type:'array'});
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      var json = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+
+      var meses = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
+
+      function findRow(label){
+        return json.find(function(r){return r[0]&&String(r[0]).toUpperCase().includes(label.toUpperCase());});
+      }
+      function getV(row, i){
+        if(!row||row.length<=i)return 0;
+        return parseFloat(String(row[i]).replace(/[^0-9.\-]/g,''))||0;
+      }
+
+      var revRow  = findRow('REVENUE');
+      var gmRow   = findRow('GROSS MARGIN');
+      var ebitRow = findRow('OPERATING PROFIT');
+      var profRow = findRow('PROFIT/(LOSS) AFTER TAX');
+
+      if(!revRow){throw new Error('Linha REVENUE não encontrada');}
+
+      meses.forEach(function(mes, i){
+        var col = i+1;
+        if(!DRE_DATA[mes]) DRE_DATA[mes]={};
+        DRE_DATA[mes].b_rb    = Math.abs(getV(revRow, col))*1000;
+        DRE_DATA[mes].b_gm    = Math.abs(getV(gmRow||[], col))*1000;
+        DRE_DATA[mes].b_ebitda= getV(ebitRow||[], col)*1000;
+        DRE_DATA[mes].b_lucro = getV(profRow||[], col)*1000;
+      });
+
+      if(src) src.textContent = '✅ Budget carregado: '+file.name;
+      dreRender();
+    } catch(err){
+      if(src) src.textContent = '❌ '+err.message;
+      console.error('Upload error:', err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+x.Valor_Aberto_CP)+'</td><td>'+badgeVbs(x.Situacao_CP)+'</td></tr>';
     }).join('');
   }
 }
