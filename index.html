@@ -233,6 +233,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       <div id="dash-loading" class="loading-area"><div><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div><div style="margin-top:12px;font-size:11px">Carregando dados…</div></div>
       <div id="dash-content" style="display:none">
         <div class="filters" style="margin-bottom:16px">
+          <button id="btn-actual-vbs" class="btn btn-primary" onclick="carregarActualVbs()" style="font-size:11px;padding:5px 14px">↺ Actual do VBS</button>
           <select id="sel-ano" onchange="applyFilters()"><option value="2026" selected>2026</option><option value="2025">2025</option><option value="all">2025+2026</option></select>
           <select id="sel-month" onchange="applyFilters()"><option value="all">Todos os meses</option><option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option><option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option><option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option></select>
           <select id="sel-tipo" onchange="applyFilters()">
@@ -3926,6 +3927,78 @@ function dreUploadBudget(event){
 }
 x.Valor_Aberto_CP)+'</td><td>'+badgeVbs(x.Situacao_CP)+'</td></tr>';
     }).join('');
+  }
+}
+
+// ── DASHBOARD ACTUAL DO VBS ───────────────────────────────────────────────────
+async function carregarActualVbs(){
+  var btn = document.getElementById('btn-actual-vbs');
+  if(btn){btn.textContent='Carregando...';btn.disabled=true;}
+  try {
+    var ano = new Date().getFullYear();
+    var mesAtual = new Date().getMonth() + 1;
+
+    // Fetch all months so far this year in parallel
+    var meses = [];
+    for(var m=1; m<=mesAtual; m++) meses.push(String(m).padStart(2,'0'));
+
+    var promises = meses.map(function(m){
+      var lastDay = new Date(ano, parseInt(m), 0).getDate();
+      var de = '01'+m+ano;
+      var ate = String(lastDay).padStart(2,'0')+m+ano;
+      return fetch(API+'/api/faturamento?data_de='+de+'&data_ate='+ate+'&intervalo_data=2&tipo_faturamento=1&valor=2')
+        .then(function(r){return r.json();})
+        .then(function(j){return j.ok?(j.data.Retorno||[]):[];})
+        .catch(function(){return [];});
+    });
+
+    var results = await Promise.all(promises);
+    var allRows = [].concat.apply([], results);
+
+    // Aggregate by client name - match to ALLCLIENTS sheet client names
+    var vbsMap = {};
+    allRows.forEach(function(x){
+      var cli = String(x.Razao_social_cliente||'').trim().toUpperCase();
+      if(!cli) return;
+      if(!vbsMap[cli]) vbsMap[cli] = 0;
+      vbsMap[cli] += parseFloat(x.Valor_receita_total||0);
+    });
+
+    window._vbsActualMap = vbsMap;
+
+    // Inject into G.clientes rows
+    if(G.clientes && G.clientes.length){
+      G.clientes.forEach(function(row){
+        var cli = String(row[0]||'').trim().toUpperCase();
+        // Try exact match first, then partial
+        var val = vbsMap[cli] || 0;
+        if(!val){
+          // Try partial match
+          Object.keys(vbsMap).forEach(function(k){
+            if(k.includes(cli.substring(0,6)) || cli.includes(k.substring(0,6))){
+              val += vbsMap[k];
+            }
+          });
+        }
+        // Inject into row[37] (actual2026 position)
+        while(row.length <= 37) row.push('');
+        row[37] = val > 0 ? String(val) : '';
+      });
+    }
+
+    // Re-render dashboard
+    if(typeof renderAll === 'function') renderAll();
+    if(typeof renderClientesTab === 'function') renderClientesTab();
+
+    var total = Object.values(vbsMap).reduce(function(s,v){return s+v;},0);
+    if(btn){
+      btn.textContent='✅ Actual VBS: R$ '+Math.round(total).toLocaleString('pt-BR');
+      btn.disabled=false;
+      btn.style.color='var(--pos)';
+    }
+  } catch(e){
+    if(btn){btn.textContent='❌ Erro: '+e.message;btn.disabled=false;}
+    console.error('Actual VBS error:', e);
   }
 }
 </script>
