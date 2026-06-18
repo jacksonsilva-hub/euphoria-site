@@ -3964,26 +3964,31 @@ async function carregarActualVbs(){
     });
 
     window._vbsActualMap = vbsMap;
+    window._vbsActual2026 = vbsMap;
 
-    // Inject into G.clientes rows
-    if(G.clientes && G.clientes.length){
-      G.clientes.forEach(function(row){
-        var cli = String(row[0]||'').trim().toUpperCase();
-        // Try exact match first, then partial
-        var val = vbsMap[cli] || 0;
-        if(!val){
-          // Exact match to avoid double-counting
-          Object.keys(vbsMap).forEach(function(k){
-            if(k===cli||k.startsWith(cli.substring(0,8))||cli.startsWith(k.substring(0,8))){
-              val += vbsMap[k];
-            }
-          });
+    // Match VBS client name to dashboard client name
+    function matchVbsCli(cli, map){
+      var val=0, cliUp=cli.toUpperCase();
+      Object.keys(map).forEach(function(k){
+        var kUp=k.toUpperCase();
+        if(kUp===cliUp||kUp.startsWith(cliUp.substring(0,8))||cliUp.startsWith(kUp.substring(0,8))){
+          val+=map[k];
         }
-        // VBS returns full R$, dashboard parseNum expects thousands
-        while(row.length <= 37) row.push('');
-        row[37] = val > 0 ? String(Math.round(val/1000)) : '';
       });
+      return val;
     }
+
+    // Override actual2026 ONLY in aggregated map, not in raw rows
+    // This avoids contaminating actual2025 which reads same row[37]
+    var _origAgg = window.aggregateClients || aggregateClients;
+    window.aggregateClients = function(rows26, rows25){
+      var result = _origAgg(rows26, rows25);
+      Object.keys(result).forEach(function(cli){
+        var val = matchVbsCli(cli, window._vbsActual2026||{});
+        if(val > 0) result[cli].actual2026 = Math.round(val/1000);
+      });
+      return result;
+    };
 
     // Re-render dashboard
     if(typeof renderAll === 'function') renderAll();
