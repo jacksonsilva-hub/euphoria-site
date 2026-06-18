@@ -3972,16 +3972,16 @@ async function carregarActualVbs(){
         // Try exact match first, then partial
         var val = vbsMap[cli] || 0;
         if(!val){
-          // Try partial match
+          // Exact match to avoid double-counting
           Object.keys(vbsMap).forEach(function(k){
-            if(k.includes(cli.substring(0,6)) || cli.includes(k.substring(0,6))){
+            if(k===cli||k.startsWith(cli.substring(0,8))||cli.startsWith(k.substring(0,8))){
               val += vbsMap[k];
             }
           });
         }
-        // Inject into row[37] (actual2026 position)
+        // VBS returns full R$, dashboard parseNum expects thousands
         while(row.length <= 37) row.push('');
-        row[37] = val > 0 ? String(val) : '';
+        row[37] = val > 0 ? String(Math.round(val/1000)) : '';
       });
     }
 
