@@ -4389,4 +4389,18 @@ async function crmDeletar(id){
 
 
 </body>
-</html> 
+</html>   }
+}
+
+async function crmDeletar(id){
+  if(!confirm('Deletar este prospect?')) return;
+  try {
+    var r = await fetch(API+'/api/crm/'+id, {method:'DELETE'});
+    var j = await r.json();
+    if(!j.ok) throw new Error(j.error);
+    crmCarregar();
+  } catch(e){ alert('Erro: '+e.message); }
+}
+</script>
+</body>
+</html>
