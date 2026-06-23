@@ -188,6 +188,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     <div class="sidebar-section-label">Principal</div>
     <div class="nav-item active" onclick="goPage('financeiro')" data-page="financeiro"><span class="nav-icon">💰</span><span class="nav-label">Financeiro</span></div>
     <div class="nav-item" onclick="goPage('growth')" data-page="growth"><span class="nav-icon">📈</span><span class="nav-label">Growth</span></div>
+    <div class="nav-item" onclick="goPage('crm')" data-page="crm"><span class="nav-icon">🎯</span><span class="nav-label">Pipeline CRM</span></div>
     <div class="sidebar-section-label">Operações</div>
     <div class="nav-item" onclick="goPage('timesheet')" data-page="timesheet"><span class="nav-icon">⏱️</span><span class="nav-label">Timesheet</span></div>
     <div class="nav-item" onclick="goPage('projetos')" data-page="projetos"><span class="nav-icon">📋</span><span class="nav-label">Projetos</span></div>
@@ -734,6 +735,92 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
         </div>
       </div>
       <div id="rc-editor"></div>
+    </div>
+  </div>
+
+  <!-- CRM -->
+  <div class="page" id="page-crm">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+      <div>
+        <div style="font-size:20px;font-weight:700">Pipeline CRM</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:4px">Gestao de prospects e oportunidades</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="crm-sel-ano" onchange="crmCarregar()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
+          <option value="2026">2026</option>
+          <option value="2025">2025</option>
+        </select>
+        <button class="btn btn-primary" onclick="crmAbrirModal(null)" style="padding:8px 18px">+ Novo Prospect</button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px">
+      <div class="kpi-card"><div class="kpi-label">Pipeline Total</div><div class="kpi-value" id="crm-k-pipeline">R$ 0</div><div class="kpi-sub">em aberto</div></div>
+      <div class="kpi-card"><div class="kpi-label">Ponderado</div><div class="kpi-value" id="crm-k-ponderado">R$ 0</div><div class="kpi-sub">por probabilidade</div></div>
+      <div class="kpi-card"><div class="kpi-label">Convertido</div><div class="kpi-value pos" id="crm-k-ganho">R$ 0</div><div class="kpi-sub">receita confirmada</div></div>
+      <div class="kpi-card"><div class="kpi-label">Perdido</div><div class="kpi-value neg" id="crm-k-perdido">R$ 0</div><div class="kpi-sub">oportunidades perdidas</div></div>
+      <div class="kpi-card"><div class="kpi-label">Win Rate</div><div class="kpi-value" id="crm-k-winrate">0%</div><div class="kpi-sub">taxa de conversao</div></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+      <select id="crm-sel-view" onchange="crmRenderView()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
+        <option value="kanban">Kanban</option>
+        <option value="tabela">Tabela</option>
+      </select>
+      <select id="crm-sel-status" onchange="crmRenderView()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
+        <option value="">Todos os status</option>
+        <option value="prospect">Prospect</option>
+        <option value="proposta">Proposta Enviada</option>
+        <option value="negociacao">Negociacao</option>
+        <option value="ganho">Ganho</option>
+        <option value="perdido">Perdido</option>
+      </select>
+      <select id="crm-sel-resp" onchange="crmRenderView()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
+        <option value="">Todos responsaveis</option>
+        <option value="Andressa">Andressa</option>
+        <option value="Jackson">Jackson</option>
+      </select>
+      <input type="text" id="crm-search" placeholder="Buscar empresa..." oninput="crmRenderView()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:6px;font-size:11px;outline:none;margin-left:auto;width:200px">
+    </div>
+    <div id="crm-kanban" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px">
+      <div class="chart-card" style="padding:12px;min-height:300px"><div style="font-size:10px;color:#60a5fa;text-transform:uppercase;margin-bottom:10px;font-weight:600">Prospect</div><div id="crm-col-prospect"></div></div>
+      <div class="chart-card" style="padding:12px;min-height:300px"><div style="font-size:10px;color:#fbbf24;text-transform:uppercase;margin-bottom:10px;font-weight:600">Proposta Enviada</div><div id="crm-col-proposta"></div></div>
+      <div class="chart-card" style="padding:12px;min-height:300px"><div style="font-size:10px;color:#f97316;text-transform:uppercase;margin-bottom:10px;font-weight:600">Negociacao</div><div id="crm-col-negociacao"></div></div>
+      <div class="chart-card" style="padding:12px;min-height:300px;border:1px solid rgba(110,231,183,0.3)"><div style="font-size:10px;color:var(--pos);text-transform:uppercase;margin-bottom:10px;font-weight:600">Ganho</div><div id="crm-col-ganho"></div></div>
+      <div class="chart-card" style="padding:12px;min-height:300px;border:1px solid rgba(248,113,113,0.3)"><div style="font-size:10px;color:var(--neg);text-transform:uppercase;margin-bottom:10px;font-weight:600">Perdido</div><div id="crm-col-perdido"></div></div>
+    </div>
+    <div id="crm-tabela" style="display:none">
+      <div class="table-card">
+        <div class="table-header"><span class="table-title">Prospects</span><span class="table-meta" id="crm-meta">0 registros</span></div>
+        <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr><th>Empresa</th><th>Contato</th><th>Status</th><th>Tipo</th><th style="text-align:right">Valor</th><th style="text-align:center">Prob</th><th>Responsavel</th><th>Follow-up</th><th>Acoes</th></tr></thead>
+            <tbody id="crm-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div id="crm-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:28px;width:540px;max-height:90vh;overflow-y:auto">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <div style="font-size:16px;font-weight:700" id="crm-modal-title">Novo Prospect</div>
+          <button onclick="crmFecharModal()" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer">x</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div style="grid-column:1/-1"><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Empresa</label><input id="crm-f-empresa" type="text" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;box-sizing:border-box"></div>
+          <div><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Contato</label><input id="crm-f-contato" type="text" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;box-sizing:border-box"></div>
+          <div><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Email</label><input id="crm-f-email" type="email" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;box-sizing:border-box"></div>
+          <div><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Status</label><select id="crm-f-status" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;cursor:pointer"><option value="prospect">Prospect</option><option value="proposta">Proposta Enviada</option><option value="negociacao">Negociacao</option><option value="ganho">Ganho</option><option value="perdido">Perdido</option></select></div>
+          <div><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Tipo</label><select id="crm-f-tipo" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;cursor:pointer"><option value="fee">Fee Mensal</option><option value="projeto">Projeto</option><option value="midia">Midia</option><option value="misto">Misto</option></select></div>
+          <div><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Valor Potencial (R$)</label><input id="crm-f-valor" type="number" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;box-sizing:border-box"></div>
+          <div><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Probabilidade</label><select id="crm-f-prob" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;cursor:pointer"><option value="25">25% - Inicial</option><option value="50">50% - Em conversa</option><option value="75">75% - Avancado</option><option value="90">90% - Quase fechado</option><option value="100">100% - Ganho</option></select></div>
+          <div><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Responsavel</label><select id="crm-f-resp" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;cursor:pointer"><option value="Andressa">Andressa</option><option value="Jackson">Jackson</option></select></div>
+          <div><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Proximo Follow-up</label><input id="crm-f-followup" type="date" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;box-sizing:border-box"></div>
+          <div style="grid-column:1/-1"><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Observacoes</label><textarea id="crm-f-obs" rows="3" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;resize:vertical;box-sizing:border-box"></textarea></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:20px;justify-content:flex-end">
+          <button class="btn" onclick="crmFecharModal()">Cancelar</button>
+          <button class="btn btn-primary" onclick="crmSalvar()">Salvar</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1513,6 +1600,7 @@ loadData();
 const PAGE_META = {
   financeiro:{title:'Financeiro',sub:'Dashboard & Gestão Financeira'},
   growth:{title:'Growth',sub:'Gerador de Propostas com IA'},
+  crm:{title:'Pipeline CRM',sub:'Novos Negocios e Prospeccao'},
   timesheet:{title:'Timesheet',sub:'Lançamento de Horas'},
   projetos:{title:'Projetos',sub:'Kanban & Acompanhamento'},
   people:{title:'People & Folha',sub:'Pessoas e Rentabilidade'},
@@ -1540,6 +1628,7 @@ function goPage(id) {
   var meta = PAGE_META[id] || {title:id, sub:''};
   document.getElementById('topbar-title').textContent = meta.title;
   document.getElementById('topbar-sub').textContent = meta.sub;
+  if(id==='crm') setTimeout(function(){ if(typeof crmCarregar==='function') crmCarregar(); }, 100);
 }
 
 function toggleSidebar() {
@@ -1574,7 +1663,7 @@ var USERS = [
   {user:'midia',email:'midia@euphoriacreative.com',pass:'midia123',name:'Mídia',role:'operacional',initials:'MD'},
 ];
 var PERMISSIONS = {
-  admin:['financeiro','growth','timesheet','projetos','people','juridico','ti'],
+  admin:['financeiro','growth','crm','timesheet','projetos','people','juridico','ti'],
   gestor:['growth','timesheet','projetos','people'],
   operacional:['timesheet','projetos'],
 };
@@ -4004,6 +4093,179 @@ async function carregarActualVbs(){
     if(btn){btn.textContent='❌ Erro: '+e.message;btn.disabled=false;}
     console.error('Actual VBS error:', e);
   }
+}
+
+// ── CRM ──────────────────────────────────────────────────────────────────────
+var _crmData = [];
+var _crmEditId = null;
+var _crmTipos = {fee:'Fee Mensal',projeto:'Projeto',midia:'Midia',misto:'Misto'};
+var _crmStatus = {prospect:'Prospect',proposta:'Proposta Enviada',negociacao:'Negociacao',ganho:'Ganho',perdido:'Perdido'};
+
+function crmFmt(v){ return 'R$ '+Math.round(v||0).toLocaleString('pt-BR'); }
+
+async function crmCarregar(){
+  var ano = document.getElementById('crm-sel-ano').value;
+  try {
+    var r1 = await fetch(API+'/api/crm');
+    var j1 = await r1.json();
+    _crmData = j1.ok ? (j1.data||[]) : [];
+    var r2 = await fetch(API+'/api/crm/stats?ano='+ano);
+    var j2 = await r2.json();
+    var s = j2.ok ? j2.data : {};
+    var kel = function(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; };
+    kel('crm-k-pipeline', crmFmt(s.pipeline_total||0));
+    kel('crm-k-ponderado', crmFmt(s.pipeline_ponderado||0));
+    kel('crm-k-ganho', crmFmt(s.convertido||0));
+    kel('crm-k-perdido', crmFmt(s.perdido||0));
+    var qtdG=parseInt(s.qtd_ganhos||0), qtdP=parseInt(s.qtd_perdidos||0);
+    kel('crm-k-winrate', (qtdG+qtdP)>0 ? Math.round(qtdG/(qtdG+qtdP)*100)+'%' : '0%');
+    crmRenderView();
+  } catch(e) {
+    console.error('CRM error:', e);
+    crmRenderView();
+  }
+}
+
+function crmFiltrar(){
+  var st = document.getElementById('crm-sel-status').value;
+  var rp = document.getElementById('crm-sel-resp').value;
+  var q = (document.getElementById('crm-search').value||'').toLowerCase();
+  return _crmData.filter(function(p){
+    if(st && p.status!==st) return false;
+    if(rp && p.responsavel!==rp) return false;
+    if(q && !(p.empresa||'').toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function crmRenderView(){
+  var view = document.getElementById('crm-sel-view').value;
+  document.getElementById('crm-kanban').style.display = view==='kanban'?'grid':'none';
+  document.getElementById('crm-tabela').style.display = view==='tabela'?'block':'none';
+  if(view==='kanban') crmRenderKanban();
+  else crmRenderTabela();
+}
+
+function crmCard(p){
+  var vp=parseFloat(p.valor_potencial||0);
+  var vw=Math.round(vp*parseInt(p.probabilidade||25)/100);
+  var fu=p.proximo_followup?new Date(p.proximo_followup).toLocaleDateString('pt-BR'):'';
+  var isV=p.proximo_followup&&new Date(p.proximo_followup)<new Date();
+  var bc=p.status==='ganho'?'var(--pos)':p.status==='perdido'?'var(--neg)':'var(--border)';
+  var r='<div style="background:var(--bg3);border-radius:8px;padding:10px;margin-bottom:8px;cursor:pointer;border-left:3px solid '+bc+'" onclick="crmAbrirModal('+p.id+')">';
+  r+='<div style="font-size:12px;font-weight:600;margin-bottom:4px">'+p.empresa+'</div>';
+  if(p.contato) r+='<div style="font-size:10px;color:var(--text3)">'+p.contato+'</div>';
+  r+='<div style="font-size:11px;color:var(--pos);margin-top:6px;font-weight:600">'+crmFmt(vp)+'</div>';
+  r+='<div style="font-size:10px;color:var(--text3)">Pond: '+crmFmt(vw)+' ('+p.probabilidade+'%)</div>';
+  r+='<div style="display:flex;justify-content:space-between;margin-top:6px">';
+  r+='<span style="font-size:10px;background:var(--bg2);padding:2px 6px;border-radius:4px">'+(_crmTipos[p.tipo]||p.tipo)+'</span>';
+  if(fu) r+='<span style="font-size:10px;color:'+(isV?'var(--neg)':'var(--text3)')+'">'+fu+'</span>';
+  r+='</div>';
+  r+='<div style="font-size:10px;color:var(--text3);margin-top:4px">'+p.responsavel+'</div>';
+  r+='</div>';
+  return r;
+}
+
+function crmRenderKanban(){
+  var data=crmFiltrar();
+  var cols={prospect:[],proposta:[],negociacao:[],ganho:[],perdido:[]};
+  data.forEach(function(p){ if(cols[p.status]) cols[p.status].push(p); });
+  Object.keys(cols).forEach(function(st){
+    var el=document.getElementById('crm-col-'+st);
+    if(el) el.innerHTML=cols[st].length?cols[st].map(crmCard).join(''):'<div style="font-size:11px;color:var(--text3);text-align:center;padding:20px 0">Nenhum</div>';
+  });
+}
+
+function crmRenderTabela(){
+  var data=crmFiltrar();
+  var meta=document.getElementById('crm-meta');
+  if(meta) meta.textContent=data.length+' registros';
+  var tbody=document.getElementById('crm-tbody');
+  if(!tbody) return;
+  tbody.innerHTML=data.length?data.map(function(p){
+    var vp=parseFloat(p.valor_potencial||0);
+    var fu=p.proximo_followup?new Date(p.proximo_followup).toLocaleDateString('pt-BR'):'---';
+    var isV=p.proximo_followup&&new Date(p.proximo_followup)<new Date();
+    return '<tr><td><strong>'+p.empresa+'</strong></td><td>'+(p.contato||'---')+'</td><td>'+(_crmStatus[p.status]||p.status)+'</td><td>'+(_crmTipos[p.tipo]||p.tipo)+'</td><td style="text-align:right;color:var(--pos)">'+crmFmt(vp)+'</td><td style="text-align:center">'+p.probabilidade+'%</td><td>'+p.responsavel+'</td><td style="color:'+(isV?'var(--neg)':'')+'">'+fu+'</td><td><button class="btn" onclick="crmAbrirModal('+p.id+')" style="font-size:10px;padding:3px 8px">Editar</button> <button class="btn" onclick="crmDeletar('+p.id+')" style="font-size:10px;padding:3px 8px;color:var(--neg)">Del</button></td></tr>';
+  }).join(''):'<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text3)">Nenhum prospect</td></tr>';
+}
+
+function crmAbrirModal(id){
+  _crmEditId=id||null;
+  var modal=document.getElementById('crm-modal');
+  var title=document.getElementById('crm-modal-title');
+  var fields=['empresa','contato','email','status','tipo','valor','prob','resp','followup','obs'];
+  var defaults={empresa:'',contato:'',email:'',status:'prospect',tipo:'fee',valor:'',prob:'25',resp:'Andressa',followup:'',obs:''};
+  if(id){
+    var p=_crmData.find(function(x){return x.id==id;});
+    if(!p) return;
+    title.textContent='Editar Prospect';
+    document.getElementById('crm-f-empresa').value=p.empresa||'';
+    document.getElementById('crm-f-contato').value=p.contato||'';
+    document.getElementById('crm-f-email').value=p.email||'';
+    document.getElementById('crm-f-status').value=p.status||'prospect';
+    document.getElementById('crm-f-tipo').value=p.tipo||'fee';
+    document.getElementById('crm-f-valor').value=p.valor_potencial||'';
+    document.getElementById('crm-f-prob').value=p.probabilidade||25;
+    document.getElementById('crm-f-resp').value=p.responsavel||'Andressa';
+    document.getElementById('crm-f-followup').value=p.proximo_followup?p.proximo_followup.substring(0,10):'';
+    document.getElementById('crm-f-obs').value=p.observacoes||'';
+  } else {
+    title.textContent='Novo Prospect';
+    document.getElementById('crm-f-empresa').value='';
+    document.getElementById('crm-f-contato').value='';
+    document.getElementById('crm-f-email').value='';
+    document.getElementById('crm-f-status').value='prospect';
+    document.getElementById('crm-f-tipo').value='fee';
+    document.getElementById('crm-f-valor').value='';
+    document.getElementById('crm-f-prob').value='25';
+    document.getElementById('crm-f-resp').value='Andressa';
+    document.getElementById('crm-f-followup').value='';
+    document.getElementById('crm-f-obs').value='';
+  }
+  modal.style.display='flex';
+}
+
+function crmFecharModal(){
+  document.getElementById('crm-modal').style.display='none';
+  _crmEditId=null;
+}
+
+async function crmSalvar(){
+  var empresa=document.getElementById('crm-f-empresa').value.trim();
+  if(!empresa){alert('Informe o nome da empresa!');return;}
+  var data={
+    empresa:empresa,
+    contato:document.getElementById('crm-f-contato').value,
+    email:document.getElementById('crm-f-email').value,
+    status:document.getElementById('crm-f-status').value,
+    tipo:document.getElementById('crm-f-tipo').value,
+    valor_potencial:parseFloat(document.getElementById('crm-f-valor').value)||0,
+    probabilidade:parseInt(document.getElementById('crm-f-prob').value)||25,
+    responsavel:document.getElementById('crm-f-resp').value,
+    proximo_followup:document.getElementById('crm-f-followup').value||null,
+    observacoes:document.getElementById('crm-f-obs').value,
+    ano:parseInt(document.getElementById('crm-sel-ano').value)
+  };
+  try {
+    var url=_crmEditId?API+'/api/crm/'+_crmEditId:API+'/api/crm';
+    var method=_crmEditId?'PUT':'POST';
+    var r=await fetch(url,{method:method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    var j=await r.json();
+    if(!j.ok) throw new Error(j.error||'Erro ao salvar');
+    crmFecharModal();
+    crmCarregar();
+  } catch(e){alert('Erro: '+e.message);}
+}
+
+async function crmDeletar(id){
+  if(!confirm('Deletar este prospect?')) return;
+  try {
+    var r=await fetch(API+'/api/crm/'+id,{method:'DELETE'});
+    var j=await r.json();
+    if(!j.ok) throw new Error(j.error);
+    crmCarregar();
+  } catch(e){alert('Erro: '+e.message);}
 }
 </script>
 </body>
