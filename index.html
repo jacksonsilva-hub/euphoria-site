@@ -798,6 +798,48 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
         </div>
       </div>
     </div>
+
+    <!-- PAINEL META -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:24px">
+      <div class="chart-card">
+        <div class="chart-title">Painel de Meta — Novos Negocios</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:16px">Budget do Sheets vs Conversoes CRM</div>
+        <div id="crm-meta-painel">
+          <div style="text-align:center;padding:20px;color:var(--text3);font-size:11px">Carregando...</div>
+        </div>
+        <button class="btn" onclick="crmCarregarMeta()" style="font-size:10px;padding:4px 12px;margin-top:12px">Atualizar Meta do Sheets</button>
+      </div>
+      <div class="chart-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div class="chart-title" style="margin:0">Clientes Perdidos</div>
+          <button class="btn btn-primary" onclick="crmAbrirChurn()" style="font-size:10px;padding:4px 12px">+ Adicionar</button>
+        </div>
+        <div id="crm-churn-list">
+          <div style="text-align:center;padding:20px;color:var(--text3);font-size:11px">Nenhum cliente perdido registrado</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL CHURN -->
+    <div id="crm-churn-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:28px;width:480px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <div style="font-size:16px;font-weight:700">Cliente Perdido</div>
+          <button onclick="crmFecharChurn()" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer">x</button>
+        </div>
+        <div style="display:grid;gap:12px">
+          <div><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Cliente</label><input id="churn-f-cliente" type="text" placeholder="Nome do cliente" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;box-sizing:border-box"></div>
+          <div><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Valor Anual Perdido (R$)</label><input id="churn-f-valor" type="number" placeholder="0" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;box-sizing:border-box"></div>
+          <div><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Data de Saida</label><input id="churn-f-data" type="date" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;box-sizing:border-box"></div>
+          <div><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Motivo</label><select id="churn-f-motivo" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;cursor:pointer"><option value="preco">Preco</option><option value="concorrencia">Concorrencia</option><option value="budget">Corte de Budget</option><option value="insatisfacao">Insatisfacao</option><option value="estrategia">Mudanca Estrategica</option><option value="outros">Outros</option></select></div>
+          <div><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Observacoes</label><textarea id="churn-f-obs" rows="2" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;resize:vertical;box-sizing:border-box"></textarea></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:20px;justify-content:flex-end">
+          <button class="btn" onclick="crmFecharChurn()">Cancelar</button>
+          <button class="btn btn-primary" onclick="crmSalvarChurn()">Salvar</button>
+        </div>
+      </div>
+    </div>
     <div id="crm-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center">
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:28px;width:540px;max-height:90vh;overflow-y:auto">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
@@ -4267,6 +4309,161 @@ async function crmDeletar(id){
     crmCarregar();
   } catch(e){alert('Erro: '+e.message);}
 }
+
+// ── CRM CHURN ────────────────────────────────────────────────────────────────
+var _churnData = [];
+var _crmMetaBudget = 0;
+var _crmMotivoLabels = {preco:'Preco',concorrencia:'Concorrencia',budget:'Corte de Budget',insatisfacao:'Insatisfacao',estrategia:'Mudanca Estrategica',outros:'Outros'};
+
+async function crmCarregarChurn(){
+  var ano = document.getElementById('crm-sel-ano').value;
+  try {
+    var r = await fetch(API+'/api/crm/churn?ano='+ano);
+    var j = await r.json();
+    _churnData = j.ok ? (j.data||[]) : [];
+    crmRenderChurn();
+    crmRenderMetaPainel();
+  } catch(e){ console.error('Churn error:', e); }
+}
+
+function crmRenderChurn(){
+  var el = document.getElementById('crm-churn-list');
+  if(!el) return;
+  if(!_churnData.length){
+    el.innerHTML='<div style="text-align:center;padding:20px;color:var(--text3);font-size:11px">Nenhum cliente perdido registrado</div>';
+    return;
+  }
+  var totalPerdido = _churnData.reduce(function(s,c){return s+parseFloat(c.valor_anual||0);},0);
+  el.innerHTML='<div style="margin-bottom:12px;padding:10px;background:var(--bg3);border-radius:8px;display:flex;justify-content:space-between">'
+    +'<span style="font-size:11px;color:var(--text3)">Total perdido no ano</span>'
+    +'<span style="font-size:14px;font-weight:700;color:var(--neg)">'+crmFmt(totalPerdido)+'</span>'
+    +'</div>'
+    +_churnData.map(function(c){
+      var dt=c.data_saida?new Date(c.data_saida).toLocaleDateString('pt-BR'):'---';
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">'
+        +'<div>'
+        +'<div style="font-size:12px;font-weight:600">'+c.cliente+'</div>'
+        +'<div style="font-size:10px;color:var(--text3)">'+(_crmMotivoLabels[c.motivo]||c.motivo||'---')+' | '+dt+'</div>'
+        +'</div>'
+        +'<div style="display:flex;align-items:center;gap:8px">'
+        +'<span style="font-size:12px;font-weight:600;color:var(--neg)">'+crmFmt(c.valor_anual)+'</span>'
+        +'<button class="btn" onclick="crmDeletarChurn('+c.id+')" style="font-size:10px;padding:2px 6px;color:var(--neg)">x</button>'
+        +'</div>'
+        +'</div>';
+    }).join('');
+}
+
+async function crmCarregarMeta(){
+  try {
+    var r = await fetch(API+'/api/pl');
+    var j = await r.json();
+    if(!j.ok) throw new Error(j.error);
+    var data = j.data;
+    if(data && data.values){
+      var revRow = data.values.find(function(r){return r[0]&&String(r[0]).toUpperCase().includes('NOVOS NEGOC');});
+      if(revRow){
+        var total=0;
+        for(var i=1;i<=12;i++){
+          var v=parseFloat(String(revRow[i]||'').replace(/[^0-9.\-]/g,''))||0;
+          total+=v;
+        }
+        _crmMetaBudget = Math.abs(total)*1000;
+      }
+    }
+    crmRenderMetaPainel();
+  } catch(e){
+    console.error('Meta error:', e);
+    crmRenderMetaPainel();
+  }
+}
+
+function crmRenderMetaPainel(){
+  var el = document.getElementById('crm-meta-painel');
+  if(!el) return;
+  var totalPerdido = _churnData.reduce(function(s,c){return s+parseFloat(c.valor_anual||0);},0);
+  var metaAjustada = _crmMetaBudget - totalPerdido;
+  var convertido = _crmData.filter(function(p){return p.status==='ganho';}).reduce(function(s,p){return s+parseFloat(p.valor_potencial||0);},0);
+  var falta = Math.max(0, metaAjustada - convertido);
+  var pct = metaAjustada > 0 ? Math.round(convertido/metaAjustada*100) : 0;
+  var pipeline = _crmData.filter(function(p){return p.status!=='ganho'&&p.status!=='perdido';}).reduce(function(s,p){return s+parseFloat(p.valor_potencial||0);},0);
+
+  function row(label, value, color){
+    return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">'
+      +'<span style="font-size:12px;color:var(--text3)">'+label+'</span>'
+      +'<span style="font-size:13px;font-weight:600;color:'+(color||'var(--text)')+'">'+crmFmt(value)+'</span>'
+      +'</div>';
+  }
+
+  el.innerHTML=row('Meta Budget (Sheets)', _crmMetaBudget, '')
+    +row('(-) Receita Perdida', -totalPerdido, 'var(--neg)')
+    +'<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:2px solid var(--border);margin-bottom:4px">'
+      +'<span style="font-size:12px;font-weight:700">Meta Ajustada</span>'
+      +'<span style="font-size:14px;font-weight:700">'+crmFmt(metaAjustada)+'</span>'
+    +'</div>'
+    +row('Convertido (Ganho CRM)', convertido, 'var(--pos)')
+    +row('Pipeline em aberto', pipeline, '')
+    +row('Falta para meta', falta, falta>0?'var(--amber)':'var(--pos)')
+    +'<div style="margin-top:16px">'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:6px">'
+        +'<span style="font-size:11px;color:var(--text3)">Progresso</span>'
+        +'<span style="font-size:12px;font-weight:700;color:'+(pct>=100?'var(--pos)':pct>=50?'var(--amber)':'var(--neg)')+'">'+pct+'%</span>'
+      +'</div>'
+      +'<div style="background:var(--bg3);border-radius:4px;height:8px;overflow:hidden">'
+        +'<div style="background:'+(pct>=100?'var(--pos)':pct>=50?'var(--amber)':'var(--neg)')+';height:100%;width:'+Math.min(100,pct)+'%;border-radius:4px;transition:width 0.5s"></div>'
+      +'</div>'
+    +'</div>';
+}
+
+function crmAbrirChurn(){
+  document.getElementById('churn-f-cliente').value='';
+  document.getElementById('churn-f-valor').value='';
+  document.getElementById('churn-f-data').value='';
+  document.getElementById('churn-f-motivo').value='preco';
+  document.getElementById('churn-f-obs').value='';
+  document.getElementById('crm-churn-modal').style.display='flex';
+}
+
+function crmFecharChurn(){
+  document.getElementById('crm-churn-modal').style.display='none';
+}
+
+async function crmSalvarChurn(){
+  var cliente=document.getElementById('churn-f-cliente').value.trim();
+  if(!cliente){alert('Informe o nome do cliente!');return;}
+  var data={
+    cliente:cliente,
+    valor_anual:parseFloat(document.getElementById('churn-f-valor').value)||0,
+    data_saida:document.getElementById('churn-f-data').value||null,
+    motivo:document.getElementById('churn-f-motivo').value,
+    observacoes:document.getElementById('churn-f-obs').value,
+    ano:parseInt(document.getElementById('crm-sel-ano').value)
+  };
+  try {
+    var r=await fetch(API+'/api/crm/churn',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    var j=await r.json();
+    if(!j.ok) throw new Error(j.error||'Erro');
+    crmFecharChurn();
+    crmCarregarChurn();
+  } catch(e){alert('Erro: '+e.message);}
+}
+
+async function crmDeletarChurn(id){
+  if(!confirm('Remover este cliente?')) return;
+  try {
+    var r=await fetch(API+'/api/crm/churn/'+id,{method:'DELETE'});
+    var j=await r.json();
+    if(!j.ok) throw new Error(j.error);
+    crmCarregarChurn();
+  } catch(e){alert('Erro: '+e.message);}
+}
+
+// Override crmCarregar to also load churn and meta
+var _origCrmCarregar = crmCarregar;
+crmCarregar = async function(){
+  await _origCrmCarregar();
+  await crmCarregarChurn();
+  await crmCarregarMeta();
+};
 </script>
 </body>
 </html
