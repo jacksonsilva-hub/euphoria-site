@@ -4245,21 +4245,23 @@ function crmFiltrar(){
 }
 
 function crmCardHtml(p){
-  var vp = parseFloat(p.valor_potencial||0);
-  var vw = Math.round(vp * parseInt(p.probabilidade||25) / 100);
-  var followup = p.proximo_followup ? new Date(p.proximo_followup).toLocaleDateString('pt-BR') : '';
-  var isVencido = p.proximo_followup && new Date(p.proximo_followup) < new Date();
-  return '<div style="background:var(--bg3);border-radius:8px;padding:10px;margin-bottom:8px;cursor:pointer;border-left:3px solid '+(p.status==='ganho'?'var(--pos)':p.status==='perdido'?'var(--neg)':'var(--border)')+'" onclick="crmAbrirModal(''+p.id+'')">'+
-    '<div style="font-size:12px;font-weight:600;margin-bottom:4px">'+p.empresa+'</div>'+
-    (p.contato?'<div style="font-size:10px;color:var(--text3)">'+p.contato+'</div>':'')+
-    '<div style="font-size:11px;color:var(--pos);margin-top:6px;font-weight:600">'+crmFmt(vp)+'</div>'+
-    '<div style="font-size:10px;color:var(--text3)">Pond.: '+crmFmt(vw)+' ('+p.probabilidade+'%)</div>'+
-    '<div style="display:flex;justify-content:space-between;margin-top:6px;align-items:center">'+
-      '<span style="font-size:10px;background:var(--bg2);padding:2px 6px;border-radius:4px">'+CRM_TIPO_LABELS[p.tipo]+'</span>'+
-      (followup?'<span style="font-size:10px;color:'+(isVencido?'var(--neg)':'var(--text3)')+'">📅 '+followup+'</span>':'')+
-    '</div>'+
-    '<div style="font-size:10px;color:var(--text3);margin-top:4px">👤 '+p.responsavel+'</div>'+
-  '</div>';
+  var vp=parseFloat(p.valor_potencial||0);
+  var vw=Math.round(vp*parseInt(p.probabilidade||25)/100);
+  var fu=p.proximo_followup?new Date(p.proximo_followup).toLocaleDateString('pt-BR'):'';
+  var isV=p.proximo_followup&&new Date(p.proximo_followup)<new Date();
+  var bc=p.status==='ganho'?'var(--pos)':p.status==='perdido'?'var(--neg)':'var(--border)';
+  var html='<div style="background:var(--bg3);border-radius:8px;padding:10px;margin-bottom:8px;cursor:pointer;border-left:3px solid '+bc+'" onclick="crmAbrirModal(''+p.id+'')">';
+  html+='<div style="font-size:12px;font-weight:600;margin-bottom:4px">'+p.empresa+'</div>';
+  if(p.contato) html+='<div style="font-size:10px;color:var(--text3)">'+p.contato+'</div>';
+  html+='<div style="font-size:11px;color:var(--pos);margin-top:6px;font-weight:600">'+crmFmt(vp)+'</div>';
+  html+='<div style="font-size:10px;color:var(--text3)">Pond.: '+crmFmt(vw)+' ('+p.probabilidade+'%)</div>';
+  html+='<div style="display:flex;justify-content:space-between;margin-top:6px;align-items:center">';
+  html+='<span style="font-size:10px;background:var(--bg2);padding:2px 6px;border-radius:4px">'+CRM_TIPO_LABELS[p.tipo]+'</span>';
+  if(fu) html+='<span style="font-size:10px;color:'+(isV?'var(--neg)':'var(--text3)')+'">'+fu+'</span>';
+  html+='</div>';
+  html+='<div style="font-size:10px;color:var(--text3);margin-top:4px">'+p.responsavel+'</div>';
+  html+='</div>';
+  return html;
 }
 
 function crmRenderKanban(){
