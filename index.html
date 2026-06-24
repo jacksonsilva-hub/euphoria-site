@@ -4164,12 +4164,25 @@ var _crmStatus = {prospect:'Prospect',proposta:'Proposta Enviada',negociacao:'Ne
 
 function crmFmt(v){ return 'R$ '+Math.round(v||0).toLocaleString('pt-BR'); }
 
+// ── CRM localStorage fallback ────────────────────────────────────────────────
+function crmLocalLoad(){
+  try { return JSON.parse(localStorage.getItem('crm_prospects')||'[]'); } catch(e){ return []; }
+}
+function crmLocalSave(data){ localStorage.setItem('crm_prospects', JSON.stringify(data)); }
+function crmLocalNextId(data){ return data.length ? Math.max.apply(null, data.map(function(x){return x.id||0;}))+1 : 1; }
+
 async function crmCarregar(){
   var ano = document.getElementById('crm-sel-ano').value;
   try {
     var r1 = await fetch(API+'/api/crm');
     var j1 = await r1.json();
-    _crmData = j1.ok ? (j1.data||[]) : [];
+    if(j1.ok){
+      _crmData = j1.data||[];
+      // Sync local to server
+      crmLocalSave(_crmData);
+    } else {
+      throw new Error('not connected');
+    }
     var r2 = await fetch(API+'/api/crm/stats?ano='+ano);
     var j2 = await r2.json();
     var s = j2.ok ? j2.data : {};
@@ -4180,11 +4193,30 @@ async function crmCarregar(){
     kel('crm-k-perdido', crmFmt(s.perdido||0));
     var qtdG=parseInt(s.qtd_ganhos||0), qtdP=parseInt(s.qtd_perdidos||0);
     kel('crm-k-winrate', (qtdG+qtdP)>0 ? Math.round(qtdG/(qtdG+qtdP)*100)+'%' : '0%');
-    crmRenderView();
   } catch(e) {
-    console.error('CRM error:', e);
-    crmRenderView();
+    // Fallback to localStorage
+    console.log('CRM: usando localStorage');
+    _crmData = crmLocalLoad();
+    crmRecalcKpis();
   }
+  crmRenderView();
+}
+
+function crmRecalcKpis(){
+  var pipeline=0, ponderado=0, ganho=0, perdido=0, qtdG=0, qtdP=0;
+  _crmData.forEach(function(p){
+    var v=parseFloat(p.valor_potencial||0);
+    var prob=parseInt(p.probabilidade||25);
+    if(p.status==='ganho'){ganho+=v;qtdG++;}
+    else if(p.status==='perdido'){perdido+=v;qtdP++;}
+    else {pipeline+=v; ponderado+=v*prob/100;}
+  });
+  var kel=function(id,v){var el=document.getElementById(id);if(el)el.textContent=v;};
+  kel('crm-k-pipeline',crmFmt(pipeline));
+  kel('crm-k-ponderado',crmFmt(ponderado));
+  kel('crm-k-ganho',crmFmt(ganho));
+  kel('crm-k-perdido',crmFmt(perdido));
+  kel('crm-k-winrate',(qtdG+qtdP)>0?Math.round(qtdG/(qtdG+qtdP)*100)+'%':'0%');
 }
 
 function crmFiltrar(){
@@ -4316,7 +4348,21 @@ async function crmSalvar(){
     if(!j.ok) throw new Error(j.error||'Erro ao salvar');
     crmFecharModal();
     crmCarregar();
-  } catch(e){alert('Erro: '+e.message);}
+  } catch(e){
+    // Fallback localStorage
+    var local=crmLocalLoad();
+    if(_crmEditId){
+      var idx=local.findIndex(function(x){return x.id==_crmEditId;});
+      if(idx!==-1){data.id=_crmEditId;local[idx]=data;}
+    } else {
+      data.id=crmLocalNextId(local);
+      data.data_entrada=new Date().toISOString();
+      local.push(data);
+    }
+    crmLocalSave(local);
+    crmFecharModal();
+    crmCarregar();
+  }
 }
 
 async function crmDeletar(id){
@@ -4326,7 +4372,12 @@ async function crmDeletar(id){
     var j=await r.json();
     if(!j.ok) throw new Error(j.error);
     crmCarregar();
-  } catch(e){alert('Erro: '+e.message);}
+  } catch(e){
+    // Fallback localStorage
+    var local=crmLocalLoad().filter(function(x){return x.id!=id;});
+    crmLocalSave(local);
+    crmCarregar();
+  }
 }
 
 // ── CRM CHURN ────────────────────────────────────────────────────────────────
