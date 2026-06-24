@@ -4196,8 +4196,9 @@ async function crmCarregar(){
     kel('crm-k-winrate', (qtdG+qtdP)>0 ? Math.round(qtdG/(qtdG+qtdP)*100)+'%' : '0%');
   } catch(e) {
     // Fallback to localStorage
-    console.log('CRM: usando localStorage');
-    _crmData = crmLocalLoad();
+    console.log('CRM: usando localStorage (servidor indisponivel)');
+    var localData = crmLocalLoad();
+    _crmData = localData;
     crmRecalcKpis();
   }
   crmRenderView();
@@ -4362,8 +4363,10 @@ async function crmSalvar(){
       local.push(data);
     }
     crmLocalSave(local);
+    _crmData = crmLocalLoad();
     crmFecharModal();
-    crmCarregar();
+    crmRecalcKpis();
+    crmRenderView();
   }
 }
 
