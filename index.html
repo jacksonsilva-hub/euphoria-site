@@ -807,7 +807,16 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
         <div id="crm-meta-painel">
           <div style="text-align:center;padding:20px;color:var(--text3);font-size:11px">Carregando...</div>
         </div>
-        <button class="btn" onclick="crmCarregarMeta()" style="font-size:10px;padding:4px 12px;margin-top:12px">Atualizar Meta do Sheets</button>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+          <div style="flex:1">
+            <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Meta Budget (R$)</label>
+            <input id="crm-meta-input" type="number" placeholder="7764750" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:7px 12px;border-radius:6px;font-size:12px;outline:none;box-sizing:border-box" oninput="crmSalvarMeta()">
+          </div>
+          <div style="align-self:flex-end">
+            <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Ano</label>
+            <div style="font-size:12px;padding:7px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:6px" id="crm-meta-ano-label">2026</div>
+          </div>
+        </div>
       </div>
       <div class="chart-card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
@@ -4353,7 +4362,40 @@ function crmRenderChurn(){
     }).join('');
 }
 
+function crmSalvarMeta(){
+  var ano = document.getElementById('crm-sel-ano').value;
+  var val = parseFloat(document.getElementById('crm-meta-input').value)||0;
+  _crmMetaBudget = val;
+  localStorage.setItem('crm_meta_'+ano, val);
+  crmRenderMetaPainel();
+}
+
 async function crmCarregarMeta(){
+  var ano = document.getElementById('crm-sel-ano').value;
+  var label = document.getElementById('crm-meta-ano-label');
+  if(label) label.textContent = ano;
+
+  // Load from localStorage first
+  var saved = localStorage.getItem('crm_meta_'+ano);
+  if(saved){
+    _crmMetaBudget = parseFloat(saved)||0;
+    var inp = document.getElementById('crm-meta-input');
+    if(inp) inp.value = _crmMetaBudget || '';
+    crmRenderMetaPainel();
+    return;
+  }
+
+  // Default value for 2026
+  if(ano === '2026'){
+    _crmMetaBudget = 7764750;
+    var inp = document.getElementById('crm-meta-input');
+    if(inp) inp.value = 7764750;
+    localStorage.setItem('crm_meta_2026', 7764750);
+    crmRenderMetaPainel();
+    return;
+  }
+
+  // Try to load from Sheets
   try {
     var r = await fetch(API+'/api/pl');
     var j = await r.json();
@@ -4364,10 +4406,13 @@ async function crmCarregarMeta(){
       if(revRow){
         var total=0;
         for(var i=1;i<=12;i++){
-          var v=parseFloat(String(revRow[i]||'').replace(/[^0-9.\-]/g,''))||0;
+          var v=parseFloat(String(revRow[i]||'').replace(/[^0-9,.\-]/g,'').replace(',','.'))||0;
           total+=v;
         }
         _crmMetaBudget = Math.abs(total)*1000;
+        var inp = document.getElementById('crm-meta-input');
+        if(inp) inp.value = _crmMetaBudget;
+        localStorage.setItem('crm_meta_'+ano, _crmMetaBudget);
       }
     }
     crmRenderMetaPainel();
