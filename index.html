@@ -4535,10 +4535,10 @@ function crmCarregarResps(){
 function crmRenderResps(){
   var el = document.getElementById('crm-resp-list');
   if(!el) return;
-  el.innerHTML = _crmResps.map(function(r){
+  el.innerHTML = _crmResps.map(function(r,idx){
     return '<div style="display:flex;align-items:center;gap:4px;background:var(--bg3);padding:4px 10px;border-radius:20px;font-size:11px">'
       +'<span>'+r+'</span>'
-      +'<button onclick="crmRemoverResp(''+r+'')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:0;margin-left:2px">x</button>'
+      +'<button data-idx="'+idx+'" onclick="crmRemoverResp(_crmResps[parseInt(this.dataset.idx)])" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:0;margin-left:2px">x</button>'
       +'</div>';
   }).join('');
 }
