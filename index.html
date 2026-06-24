@@ -777,8 +777,18 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
         <option value="">Todos responsaveis</option>
         <option value="Andressa">Andressa</option>
         <option value="Jackson">Jackson</option>
+        <option value="Caio">Caio</option>
       </select>
       <input type="text" id="crm-search" placeholder="Buscar empresa..." oninput="crmRenderView()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:6px;font-size:11px;outline:none;margin-left:auto;width:200px">
+      <button class="btn" onclick="crmToggleResponsaveis()" style="font-size:10px;padding:6px 10px" title="Gerenciar responsaveis">👥</button>
+    </div>
+    <div id="crm-resp-manager" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:600;margin-bottom:10px;color:var(--text2)">Responsaveis cadastrados</div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <input id="crm-novo-resp" type="text" placeholder="Nome do responsavel" style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:6px;font-size:11px;outline:none" onkeydown="if(event.key==='Enter')crmAdicionarResp()">
+        <button class="btn btn-primary" onclick="crmAdicionarResp()" style="font-size:11px;padding:6px 14px">+ Adicionar</button>
+      </div>
+      <div id="crm-resp-list" style="display:flex;flex-wrap:wrap;gap:6px"></div>
     </div>
     <div id="crm-kanban" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px">
       <div class="chart-card" style="padding:12px;min-height:300px"><div style="font-size:10px;color:#60a5fa;text-transform:uppercase;margin-bottom:10px;font-weight:600">Prospect</div><div id="crm-col-prospect"></div></div>
@@ -863,7 +873,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
           <div><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Tipo</label><select id="crm-f-tipo" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;cursor:pointer"><option value="fee">Fee Mensal</option><option value="projeto">Projeto</option><option value="midia">Midia</option><option value="misto">Misto</option></select></div>
           <div><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Valor Potencial (R$)</label><input id="crm-f-valor" type="number" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;box-sizing:border-box"></div>
           <div><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Probabilidade</label><select id="crm-f-prob" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;cursor:pointer"><option value="25">25% - Inicial</option><option value="50">50% - Em conversa</option><option value="75">75% - Avancado</option><option value="90">90% - Quase fechado</option><option value="100">100% - Ganho</option></select></div>
-          <div><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Responsavel</label><select id="crm-f-resp" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;cursor:pointer"><option value="Andressa">Andressa</option><option value="Jackson">Jackson</option></select></div>
+          <div><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Responsavel</label><select id="crm-f-resp" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;cursor:pointer"><option value="Andressa">Andressa</option><option value="Jackson">Jackson</option><option value="Caio">Caio</option></select></div>
           <div><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Proximo Follow-up</label><input id="crm-f-followup" type="date" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;box-sizing:border-box"></div>
           <div style="grid-column:1/-1"><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Observacoes</label><textarea id="crm-f-obs" rows="3" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;resize:vertical;box-sizing:border-box"></textarea></div>
         </div>
@@ -4508,6 +4518,84 @@ crmCarregar = async function(){
   await _origCrmCarregar();
   await crmCarregarChurn();
   await crmCarregarMeta();
+};
+
+// ── CRM RESPONSAVEIS ─────────────────────────────────────────────────────────
+var _crmResps = ['Andressa','Jackson','Caio'];
+
+function crmCarregarResps(){
+  var saved = localStorage.getItem('crm_responsaveis');
+  if(saved){
+    try { _crmResps = JSON.parse(saved); } catch(e){}
+  }
+  crmRenderResps();
+  crmAtualizarSelects();
+}
+
+function crmRenderResps(){
+  var el = document.getElementById('crm-resp-list');
+  if(!el) return;
+  el.innerHTML = _crmResps.map(function(r){
+    return '<div style="display:flex;align-items:center;gap:4px;background:var(--bg3);padding:4px 10px;border-radius:20px;font-size:11px">'
+      +'<span>'+r+'</span>'
+      +'<button onclick="crmRemoverResp(''+r+'')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:0;margin-left:2px">x</button>'
+      +'</div>';
+  }).join('');
+}
+
+function crmAtualizarSelects(){
+  // Update modal select
+  var sel = document.getElementById('crm-f-resp');
+  if(sel){
+    var current = sel.value;
+    sel.innerHTML = _crmResps.map(function(r){
+      return '<option value="'+r+'"'+(r===current?' selected':'')+'>'+r+'</option>';
+    }).join('');
+  }
+  // Update filter select
+  var fsel = document.getElementById('crm-sel-resp');
+  if(fsel){
+    var fcurrent = fsel.value;
+    fsel.innerHTML = '<option value="">Todos responsaveis</option>'
+      +_crmResps.map(function(r){
+        return '<option value="'+r+'"'+(r===fcurrent?' selected':'')+'>'+r+'</option>';
+      }).join('');
+  }
+}
+
+function crmAdicionarResp(){
+  var inp = document.getElementById('crm-novo-resp');
+  var nome = (inp.value||'').trim();
+  if(!nome) return;
+  if(_crmResps.includes(nome)){alert('Responsavel ja cadastrado!');return;}
+  _crmResps.push(nome);
+  localStorage.setItem('crm_responsaveis', JSON.stringify(_crmResps));
+  inp.value = '';
+  crmRenderResps();
+  crmAtualizarSelects();
+}
+
+function crmRemoverResp(nome){
+  if(_crmResps.length<=1){alert('Mantenha pelo menos 1 responsavel!');return;}
+  if(!confirm('Remover '+nome+'?')) return;
+  _crmResps = _crmResps.filter(function(r){return r!==nome;});
+  localStorage.setItem('crm_responsaveis', JSON.stringify(_crmResps));
+  crmRenderResps();
+  crmAtualizarSelects();
+}
+
+function crmToggleResponsaveis(){
+  var el = document.getElementById('crm-resp-manager');
+  if(!el) return;
+  el.style.display = el.style.display==='none' ? 'block' : 'none';
+  if(el.style.display==='block') crmRenderResps();
+}
+
+// Override crmCarregar to also init responsaveis
+var _origCrmCarregar2 = crmCarregar;
+crmCarregar = async function(){
+  crmCarregarResps();
+  await _origCrmCarregar2();
 };
 </script>
 </body>
