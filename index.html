@@ -4230,6 +4230,7 @@ async function crmCarregar(){
     var localData = crmLocalLoad();
     _crmData = localData;
     crmRecalcKpis();
+    crmRenderMetaPainel();
   }
   crmRenderView();
 }
@@ -4405,6 +4406,7 @@ async function crmSalvar(){
     crmFecharModal();
     crmRecalcKpis();
     crmRenderView();
+    crmRenderMetaPainel();
   }
 }
 
