@@ -4175,6 +4175,7 @@ async function crmCarregar(){
   var ano = document.getElementById('crm-sel-ano').value;
   try {
     var r1 = await fetch(API+'/api/crm');
+    if(!r1.ok) throw new Error('Server '+r1.status);
     var j1 = await r1.json();
     if(j1.ok){
       _crmData = j1.data||[];
@@ -4344,6 +4345,7 @@ async function crmSalvar(){
     var url=_crmEditId?API+'/api/crm/'+_crmEditId:API+'/api/crm';
     var method=_crmEditId?'PUT':'POST';
     var r=await fetch(url,{method:method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    if(!r.ok) throw new Error('Server error '+r.status);
     var j=await r.json();
     if(!j.ok) throw new Error(j.error||'Erro ao salvar');
     crmFecharModal();
@@ -4369,6 +4371,7 @@ async function crmDeletar(id){
   if(!confirm('Deletar este prospect?')) return;
   try {
     var r=await fetch(API+'/api/crm/'+id,{method:'DELETE'});
+    if(!r.ok) throw new Error('Server error '+r.status);
     var j=await r.json();
     if(!j.ok) throw new Error(j.error);
     crmCarregar();
