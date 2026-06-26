@@ -2780,14 +2780,14 @@ async function pplImportarVBS(){
     var existentes=d.map(function(p){return p.nome.trim().toLowerCase();});
     var novos=0;
     ret.forEach(function(f){
-      var nome=String(f.Nome_Funcionario||f.nome||'').trim();
+      var nome=String(f.Nome_Completo_Funcionario||f.Nome_Funcionario||f.nome||'').trim();
       if(!nome)return;
       if(existentes.includes(nome.toLowerCase()))return;
       d.push({
         id:String(Date.now())+Math.random(),
         nome:nome,
-        cargo:f.Cargo||f.cargo||'',
-        depto:f.Departamento||f.departamento||'',
+        cargo:f.Cargo_Funcionario||f.Cargo||f.cargo||'',
+        depto:f.Departamento_Funcionario||f.Departamento||f.departamento||'',
         tipo:(f.Tipo_Contrato||'').toLowerCase().includes('pj')?'pj':'clt',
         lider:'nao',
         gestor:'',
@@ -2796,9 +2796,9 @@ async function pplImportarVBS(){
         beneficios:0,
         horas:160,
         admissao:f.Data_Admissao||f.data_admissao||'',
-        desligamento:'',
+        desligamento:f.Data_Demissao||'',
         motivo_saida:'',
-        status:'ativo'
+        status:f.Data_Demissao?'desligado':'ativo'
       });
       novos++;
     });
