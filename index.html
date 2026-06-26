@@ -977,6 +977,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     <div class="tab-panel active" id="people-equipe">
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
         <button class="btn btn-primary" onclick="pplAbrirModal()">+ Novo Colaborador</button>
+        <button class="btn" onclick="pplImportarVBS()" style="font-size:11px">⬇️ Importar do VBS</button>
         <select id="ppl-f-depto" onchange="pplRenderTable()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
           <option value="">Todos departamentos</option>
           <option>Atendimento</option><option>Criação</option><option>Estratégia</option>
@@ -2591,11 +2592,11 @@ async function pplCarregarUtilization(){
 
   var vbsData=[];
   try {
-    var res=await fetch(API+'/api/timesheet?Conceito_Custo_Hora=G&Periodo_De='+mm+yyyy,{headers:{Authorization:'Basic '+btoa('EuphoriaCons:Euphor1a@2023')}});
+    var res=await fetch(API+'/api/timesheet?conceito_custo_hora=G&periodo_de='+mm+yyyy);
     if(res.ok){
       var j=await res.json();
-      vbsData=(j.Retorno||j.retorno||j.data||j||[]);
-      if(vbsData&&vbsData.Retorno)vbsData=vbsData.Retorno;
+      var ret=j.data||j;
+      vbsData=ret.Retorno||ret.retorno||ret;
       if(!Array.isArray(vbsData))vbsData=[];
     }
   } catch(e){console.warn('VBS utilization error:',e);}
@@ -2685,11 +2686,11 @@ async function pplCarregarProfitability(){
 
   var vbsData=[];
   try {
-    var res=await fetch(API+'/api/timesheet?Conceito_Custo_Hora=G&Periodo_De='+mm+yyyy,{headers:{Authorization:'Basic '+btoa('EuphoriaCons:Euphor1a@2023')}});
+    var res=await fetch(API+'/api/timesheet?conceito_custo_hora=G&periodo_de='+mm+yyyy);
     if(res.ok){
       var j=await res.json();
-      vbsData=(j.Retorno||j.retorno||j.data||j||[]);
-      if(vbsData&&vbsData.Retorno)vbsData=vbsData.Retorno;
+      var ret=j.data||j;
+      vbsData=ret.Retorno||ret.retorno||ret;
       if(!Array.isArray(vbsData))vbsData=[];
     }
   } catch(e){console.warn('VBS profitability error:',e);}
@@ -2765,6 +2766,50 @@ async function pplCarregarProfitability(){
 
 // Compatibility shim for Jurídico and TI modules that use old structure
 function getPplDataLegacy(){return getPplData();}
+
+// ── IMPORTAR FUNCIONÁRIOS DO VBS ─────────────────────
+async function pplImportarVBS(){
+  if(!confirm('Importar funcionários ativos do VBS? Nomes já cadastrados serão ignorados.'))return;
+  try {
+    var res=await fetch(API+'/api/funcionarios?demitidos=2');
+    var j=await res.json();
+    var lista=j.data||j;
+    var ret=lista.Retorno||lista.retorno||lista;
+    if(!Array.isArray(ret)||!ret.length){alert('Nenhum funcionário retornado do VBS.');return;}
+    var d=getPplData();
+    var existentes=d.map(function(p){return p.nome.trim().toLowerCase();});
+    var novos=0;
+    ret.forEach(function(f){
+      var nome=String(f.Nome_Funcionario||f.nome||'').trim();
+      if(!nome)return;
+      if(existentes.includes(nome.toLowerCase()))return;
+      d.push({
+        id:String(Date.now())+Math.random(),
+        nome:nome,
+        cargo:f.Cargo||f.cargo||'',
+        depto:f.Departamento||f.departamento||'',
+        tipo:(f.Tipo_Contrato||'').toLowerCase().includes('pj')?'pj':'clt',
+        lider:'nao',
+        gestor:'',
+        empresa:'euphoria',
+        salario:parseFloat(f.Salario||f.salario||0),
+        beneficios:0,
+        horas:160,
+        admissao:f.Data_Admissao||f.data_admissao||'',
+        desligamento:'',
+        motivo_saida:'',
+        status:'ativo'
+      });
+      novos++;
+    });
+    savePplData(d);
+    pplRenderTable();
+    alert(novos+' colaborador(es) importado(s) do VBS! Complete os campos de gênero, raça e benefícios manualmente.');
+  } catch(e){
+    alert('Erro ao importar do VBS: '+e.message);
+    console.error(e);
+  }
+}
 
 
 // ── JURÍDICO ─────────────────────────────────────────
