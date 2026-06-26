@@ -192,7 +192,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     <div class="sidebar-section-label">Operações</div>
     <div class="nav-item" onclick="goPage('timesheet')" data-page="timesheet"><span class="nav-icon">⏱️</span><span class="nav-label">Timesheet</span></div>
     <div class="nav-item" onclick="goPage('projetos')" data-page="projetos"><span class="nav-icon">📋</span><span class="nav-label">Projetos</span></div>
-    <div class="nav-item" onclick="goPage('people')" data-page="people"><span class="nav-icon">👥</span><span class="nav-label">People & Folha</span></div>
+    <div class="nav-item" onclick="goPage('people')" data-page="people"><span class="nav-icon">👥</span><span class="nav-label">People Analytics</span></div>
     <div class="sidebar-section-label">Suporte</div>
     <div class="nav-item" onclick="goPage('juridico')" data-page="juridico"><span class="nav-icon">⚖️</span><span class="nav-label">Jurídico</span></div>
     <div class="nav-item" onclick="goPage('ti')" data-page="ti"><span class="nav-icon">💻</span><span class="nav-label">TI & Ativos</span></div>
@@ -962,26 +962,247 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     <div id="kanban-board" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:start"></div>
   </div>
 
-  <!-- PEOPLE -->
+  <!-- PEOPLE ANALYTICS -->
   <div class="page" id="page-people">
-    <div class="tab-nav"><button class="tab-btn active" onclick="switchPeopleTab('equipe',event)">Equipe</button><button class="tab-btn" onclick="switchPeopleTab('custo',event)">Custo por Cliente</button></div>
+    <div class="tab-nav">
+      <button class="tab-btn active" onclick="switchPeopleTab('equipe',event)">👤 Equipe</button>
+      <button class="tab-btn" onclick="switchPeopleTab('dei',event)">🌈 DEI</button>
+      <button class="tab-btn" onclick="switchPeopleTab('turnover',event)">📉 Turnover</button>
+      <button class="tab-btn" onclick="switchPeopleTab('orgchart',event)">🌳 Organograma</button>
+      <button class="tab-btn" onclick="switchPeopleTab('utilization',event)">⏱️ Utilization</button>
+      <button class="tab-btn" onclick="switchPeopleTab('profitability',event)">💰 Rentabilidade</button>
+    </div>
+
+    <!-- ── EQUIPE ── -->
     <div class="tab-panel active" id="people-equipe">
-      <div style="display:grid;grid-template-columns:300px 1fr;gap:16px">
-        <div class="chart-card"><div class="chart-title">Cadastrar</div><div style="display:flex;flex-direction:column;gap:10px">
-          <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px">NOME</label><input id="ppl-nome" type="text" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:6px;font-family:var(--font-mono);font-size:12px;outline:none"></div>
-          <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px">CARGO</label><input id="ppl-cargo" type="text" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:6px;font-family:var(--font-mono);font-size:12px;outline:none"></div>
-          <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px">DEPARTAMENTO</label><select id="ppl-depto" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:8px;border-radius:6px;font-family:var(--font-mono);font-size:12px;outline:none"><option value="">Selecione...</option><option>Atendimento</option><option>Criação</option><option>Produção</option><option>Estratégia</option><option>Mídia</option><option>Social</option><option>Conteúdo</option></select></div>
-          <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px">SALÁRIO (R$)</label><input id="ppl-salario" type="number" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:6px;font-family:var(--font-mono);font-size:12px;outline:none"></div>
-          <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px">TIPO</label><select id="ppl-tipo" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:8px;border-radius:6px;font-family:var(--font-mono);font-size:12px;outline:none"><option value="clt">CLT</option><option value="pj">PJ</option></select></div>
-          <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px">CLIENTE PRINCIPAL</label><input id="ppl-cliente" type="text" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:6px;font-family:var(--font-mono);font-size:12px;outline:none"></div>
-          <button class="btn btn-primary" onclick="pplAdicionar()">+ Cadastrar</button>
-        </div></div>
-        <div class="table-card"><div class="table-header"><span class="table-title">Equipe</span><span id="ppl-count" class="table-meta"></span></div><table class="tbl"><thead><tr><th>Nome</th><th>Cargo</th><th>Depto</th><th>Tipo</th><th style="text-align:right">Salário</th><th style="text-align:right">Custo Total</th><th>Cliente</th><th></th></tr></thead><tbody id="ppl-table"></tbody></table></div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="pplAbrirModal()">+ Novo Colaborador</button>
+        <select id="ppl-f-depto" onchange="pplRenderTable()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="">Todos departamentos</option>
+          <option>Atendimento</option><option>Criação</option><option>Estratégia</option>
+          <option>Mídia</option><option>Conteúdo</option><option>Social</option>
+          <option>Financeiro</option><option>People & RH</option><option>TI</option><option>Diretoria</option>
+        </select>
+        <select id="ppl-f-tipo" onchange="pplRenderTable()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="">CLT + PJ</option><option value="clt">Apenas CLT</option><option value="pj">Apenas PJ</option>
+        </select>
+        <select id="ppl-f-status" onchange="pplRenderTable()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="ativo">Ativos</option><option value="desligado">Desligados</option><option value="">Todos</option>
+        </select>
+        <span id="ppl-count" style="font-size:11px;color:var(--text3)"></span>
+      </div>
+      <div id="ppl-kpis-row" class="kpi-grid" style="margin-bottom:16px"></div>
+      <div class="table-card">
+        <div class="table-header"><span class="table-title">Headcount</span><span class="table-meta" id="ppl-table-meta"></span></div>
+        <div style="overflow-x:auto">
+          <table class="tbl" style="min-width:900px">
+            <thead><tr>
+              <th>Nome</th><th>Cargo</th><th>Depto</th><th>Líder</th><th>Gestor</th>
+              <th>Tipo</th><th style="text-align:right">Salário</th><th style="text-align:right">Custo/mês</th>
+              <th style="text-align:right">H/mês</th><th style="text-align:right">R$/h</th>
+              <th>Admissão</th><th>Status</th><th></th>
+            </tr></thead>
+            <tbody id="ppl-table"></tbody>
+          </table>
+        </div>
       </div>
     </div>
-    <div class="tab-panel" id="people-custo">
-      <div class="charts-row"><div class="chart-card"><div class="chart-title">Custo por Departamento</div><div style="position:relative;height:260px"><canvas id="chartPplDepto"></canvas></div></div><div class="chart-card"><div class="chart-title">Headcount por Cliente</div><div style="position:relative;height:260px"><canvas id="chartPplCliente"></canvas></div></div></div>
-      <div class="table-card"><div class="table-header"><span class="table-title">Custo por Cliente</span></div><table class="tbl"><thead><tr><th>Cliente</th><th>Headcount</th><th style="text-align:right">Custo Mensal</th><th style="text-align:right">Custo Anual</th></tr></thead><tbody id="ppl-custo-table"></tbody></table></div>
+
+    <!-- ── DEI ── -->
+    <div class="tab-panel" id="people-dei">
+      <div id="dei-kpis" class="kpi-grid" style="margin-bottom:20px"></div>
+      <div class="charts-row" style="margin-bottom:20px">
+        <div class="chart-card"><div class="chart-title">Distribuição por Gênero</div><div style="position:relative;height:220px"><canvas id="chartDeiGenero"></canvas></div></div>
+        <div class="chart-card"><div class="chart-title">Distribuição por Raça/Etnia</div><div style="position:relative;height:220px"><canvas id="chartDeiRaca"></canvas></div></div>
+      </div>
+      <div class="charts-row">
+        <div class="chart-card"><div class="chart-title">Gap Salarial por Gênero — por Departamento</div>
+          <div id="dei-gap-content" style="font-size:12px;color:var(--text3)">Carregando...</div>
+        </div>
+        <div class="chart-card"><div class="chart-title">Liderança Diversa</div>
+          <div id="dei-lideranca-content"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TURNOVER ── -->
+    <div class="tab-panel" id="people-turnover">
+      <div id="turnover-kpis" class="kpi-grid" style="margin-bottom:20px"></div>
+      <div class="charts-row" style="margin-bottom:20px">
+        <div class="chart-card"><div class="chart-title">Headcount Evolution 2026</div><div style="position:relative;height:220px"><canvas id="chartHeadcount"></canvas></div></div>
+        <div class="chart-card"><div class="chart-title">Motivos de Desligamento</div><div style="position:relative;height:220px"><canvas id="chartMotivos"></canvas></div></div>
+      </div>
+      <div class="charts-row">
+        <div class="chart-card chart-full">
+          <div class="chart-title">Turnover por Departamento</div>
+          <div id="turnover-depto-table"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── ORGANOGRAMA ── -->
+    <div class="tab-panel" id="people-orgchart">
+      <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
+        <select id="org-sel-depto" onchange="pplRenderOrg()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="">Toda a empresa</option>
+          <option>Atendimento</option><option>Criação</option><option>Estratégia</option>
+          <option>Mídia</option><option>Conteúdo</option><option>Financeiro</option><option>Diretoria</option>
+        </select>
+        <span style="font-size:11px;color:var(--text3)">Hierarquia visual por gestor/líder</span>
+      </div>
+      <div id="org-tree" style="overflow-x:auto;padding:16px"></div>
+    </div>
+
+    <!-- ── UTILIZATION ── -->
+    <div class="tab-panel" id="people-utilization">
+      <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
+        <select id="util-sel-periodo" onchange="pplCarregarUtilization()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="012026">Jan 2026</option><option value="022026">Fev 2026</option>
+          <option value="032026">Mar 2026</option><option value="042026">Abr 2026</option>
+          <option value="052026">Mai 2026</option><option value="062026">Jun 2026</option>
+        </select>
+        <button class="btn btn-primary" onclick="pplCarregarUtilization()" style="font-size:11px;padding:5px 14px">↺ Carregar VBS</button>
+        <span id="util-loading" style="font-size:11px;color:var(--text3);display:none">Carregando...</span>
+      </div>
+      <div id="util-kpis" class="kpi-grid" style="margin-bottom:20px"></div>
+      <div class="charts-row" style="margin-bottom:20px">
+        <div class="chart-card"><div class="chart-title">Horas VBS vs Capacidade — por Colaborador</div><div style="position:relative;height:280px"><canvas id="chartUtilPerson"></canvas></div></div>
+        <div class="chart-card"><div class="chart-title">Horas por Cliente (VBS)</div><div style="position:relative;height:280px"><canvas id="chartUtilCliente"></canvas></div></div>
+      </div>
+      <div class="table-card">
+        <div class="table-header"><span class="table-title">Utilization por Colaborador</span></div>
+        <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr><th>Colaborador</th><th>Departamento</th><th style="text-align:right">Capacidade (h)</th><th style="text-align:right">Horas VBS</th><th style="text-align:right">Utilization %</th><th style="text-align:right">Custo/h</th><th style="text-align:right">Receita/h VBS</th><th>Status</th></tr></thead>
+            <tbody id="util-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── RENTABILIDADE ── -->
+    <div class="tab-panel" id="people-profitability">
+      <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
+        <select id="prof-sel-periodo" onchange="pplCarregarProfitability()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="012026">Jan 2026</option><option value="022026">Fev 2026</option>
+          <option value="032026">Mar 2026</option><option value="042026">Abr 2026</option>
+          <option value="052026">Mai 2026</option><option value="062026">Jun 2026</option>
+        </select>
+        <button class="btn btn-primary" onclick="pplCarregarProfitability()" style="font-size:11px;padding:5px 14px">↺ Carregar</button>
+        <span id="prof-loading" style="font-size:11px;color:var(--text3);display:none">Carregando VBS...</span>
+      </div>
+      <div id="prof-kpis" class="kpi-grid" style="margin-bottom:20px"></div>
+      <div class="charts-row" style="margin-bottom:20px">
+        <div class="chart-card"><div class="chart-title">Receita VBS vs Custo de Equipe — por Cliente</div><div style="position:relative;height:260px"><canvas id="chartProfCliente"></canvas></div></div>
+        <div class="chart-card"><div class="chart-title">Margem por Cliente (Receita − Equipe − OVH)</div><div style="position:relative;height:260px"><canvas id="chartProfMargem"></canvas></div></div>
+      </div>
+      <div class="table-card">
+        <div class="table-header"><span class="table-title">Rentabilidade por Cliente</span><span class="table-meta">Receita VBS vs Custo Equipe vs Overhead alocado</span></div>
+        <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr>
+              <th>Cliente</th><th style="text-align:right">Receita VBS</th><th style="text-align:right">Horas</th>
+              <th style="text-align:right">Custo Equipe</th><th style="text-align:right">OVH (15%)</th>
+              <th style="text-align:right">Lucro Bruto</th><th style="text-align:right">Margem</th>
+            </tr></thead>
+            <tbody id="prof-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL CADASTRO COLABORADOR -->
+  <div id="ppl-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center">
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:28px;width:100%;max-width:720px;max-height:90vh;overflow-y:auto">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <div style="font-family:var(--font-head);font-weight:700;font-size:16px" id="ppl-modal-title">Novo Colaborador</div>
+        <button onclick="pplFecharModal()" style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer">✕</button>
+      </div>
+      <input type="hidden" id="ppl-edit-id">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+        <div style="grid-column:1/-1"><label class="jur-lbl">NOME COMPLETO *</label><input id="pm-nome" type="text" class="field-input"></div>
+        <div><label class="jur-lbl">GÊNERO</label>
+          <select id="pm-genero" class="field-input">
+            <option value="">Não informado</option><option>Feminino</option><option>Masculino</option>
+            <option>Não-binário</option><option>Prefiro não dizer</option>
+          </select>
+        </div>
+        <div><label class="jur-lbl">RAÇA/ETNIA</label>
+          <select id="pm-raca" class="field-input">
+            <option value="">Não informado</option><option>Branca</option><option>Preta</option>
+            <option>Parda</option><option>Amarela</option><option>Indígena</option><option>Prefiro não dizer</option>
+          </select>
+        </div>
+        <div><label class="jur-lbl">TIPO *</label>
+          <select id="pm-tipo" class="field-input">
+            <option value="clt">CLT</option><option value="pj">PJ</option>
+          </select>
+        </div>
+        <div><label class="jur-lbl">CARGO *</label><input id="pm-cargo" type="text" class="field-input"></div>
+        <div><label class="jur-lbl">DEPARTAMENTO *</label>
+          <select id="pm-depto" class="field-input">
+            <option value="">Selecione...</option>
+            <option>Atendimento</option><option>Criação</option><option>Estratégia</option>
+            <option>Mídia</option><option>Conteúdo</option><option>Social</option>
+            <option>Financeiro</option><option>People & RH</option><option>TI</option><option>Diretoria</option>
+          </select>
+        </div>
+        <div><label class="jur-lbl">É LÍDER?</label>
+          <select id="pm-lider" class="field-input"><option value="nao">Não</option><option value="sim">Sim</option></select>
+        </div>
+        <div><label class="jur-lbl">GESTOR (reporta a)</label><input id="pm-gestor" type="text" class="field-input" placeholder="Nome do gestor"></div>
+        <div><label class="jur-lbl">EMPRESA</label>
+          <select id="pm-empresa" class="field-input">
+            <option value="euphoria">Euphoria</option><option value="visceral">Visceral</option><option value="unapathy">Unapathy</option>
+          </select>
+        </div>
+        <div><label class="jur-lbl">SALÁRIO/HONORÁRIOS (R$) *</label><input id="pm-salario" type="number" class="field-input" oninput="pplCalcCusto()"></div>
+        <div><label class="jur-lbl">BENEFÍCIOS (R$)</label><input id="pm-beneficios" type="number" class="field-input" placeholder="Flash + plano..." oninput="pplCalcCusto()"></div>
+        <div><label class="jur-lbl">HORAS/MÊS</label><input id="pm-horas" type="number" class="field-input" value="160" oninput="pplCalcCusto()"></div>
+        <div><label class="jur-lbl">DATA ADMISSÃO</label><input id="pm-admissao" type="date" class="field-input"></div>
+        <div><label class="jur-lbl">DATA DESLIGAMENTO</label><input id="pm-desligamento" type="date" class="field-input"></div>
+        <div><label class="jur-lbl">MOTIVO SAÍDA</label>
+          <select id="pm-motivo-saida" class="field-input">
+            <option value="">—</option><option>Iniciativa própria</option><option>Demissão sem justa causa</option>
+            <option>Demissão com justa causa</option><option>Fim de contrato PJ</option>
+            <option>Transferência</option><option>Aposentadoria</option>
+          </select>
+        </div>
+        <div style="grid-column:1/-1;background:var(--bg3);border-radius:8px;padding:10px">
+          <span style="font-size:10px;color:var(--text3)">CUSTO TOTAL ESTIMADO: </span>
+          <span id="pm-custo-preview" style="font-size:14px;font-weight:700;color:var(--pos)">—</span>
+          <span style="font-size:10px;color:var(--text3);margin-left:12px">CUSTO/HORA: </span>
+          <span id="pm-ch-preview" style="font-size:13px;font-weight:600;color:var(--amber)">—</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn" onclick="pplFecharModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="pplSalvarModal()">💾 Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL HISTÓRICO SALARIAL -->
+  <div id="ppl-hist-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:210;align-items:center;justify-content:center">
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:28px;width:100%;max-width:560px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-family:var(--font-head);font-weight:700;font-size:15px">📈 Histórico Salarial — <span id="hist-nome"></span></div>
+        <button onclick="pplFecharHist()" style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+        <div><label class="jur-lbl">DATA</label><input id="hist-data" type="date" class="field-input"></div>
+        <div><label class="jur-lbl">VALOR ANTERIOR (R$)</label><input id="hist-anterior" type="number" class="field-input"></div>
+        <div><label class="jur-lbl">NOVO VALOR (R$)</label><input id="hist-novo" type="number" class="field-input"></div>
+        <div style="grid-column:1/-1"><label class="jur-lbl">MOTIVO</label>
+          <select id="hist-motivo" class="field-input">
+            <option>Dissídio / CCT</option><option>Promoção</option><option>Mérito</option>
+            <option>Enquadramento</option><option>Reajuste de mercado</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="pplSalvarHist()" style="width:100%">+ Adicionar Registro</button>
+      <div id="hist-list" style="margin-top:16px"></div>
     </div>
   </div>
 
@@ -1694,7 +1915,7 @@ const PAGE_META = {
   crm:{title:'Pipeline CRM',sub:'Novos Negocios e Prospeccao'},
   timesheet:{title:'Timesheet',sub:'Lançamento de Horas'},
   projetos:{title:'Projetos',sub:'Kanban & Acompanhamento'},
-  people:{title:'People & Folha',sub:'Pessoas e Rentabilidade'},
+  people:{title:'People Analytics',sub:'DEI • Turnover • Utilization • Rentabilidade'},
   juridico:{title:'Jurídico',sub:'Contratos e Alertas'},
   ti:{title:'TI & Ativos',sub:'Controle e Suporte'},
 };
@@ -1748,8 +1969,6 @@ function switchFinTab(tab, e) {
 // ── AUTH ──────────────────────────────────────────────
 var USERS = [
   {user:'jackson',email:'jackson.silva@euphoriacreative.com',pass:'euphoria2024',name:'Jackson Silva',role:'admin',initials:'JS'},
-  {user:'tiago.santos',email:'tiago.santos@euphoriacreative.com',pass:'Euphoria2024',name:'Tiago Santos',role:'admin',initials:'TS'},
-  {user:'Andressa.Fukunaga',email:'andressa.fukunaga@euphoriacreative.com',pass:'Euphoria2024',name:'Andressa Fukunaga',role:'admin',initials:'AF'},
   {user:'admin',email:'admin@euphoriacreative.com',pass:'euphoria2024',name:'Admin',role:'admin',initials:'AD'},
   {user:'criacao',email:'criacao@euphoriacreative.com',pass:'criacao123',name:'Criação',role:'operacional',initials:'CR'},
   {user:'atendimento',email:'atendimento@euphoriacreative.com',pass:'atend123',name:'Atendimento',role:'operacional',initials:'AT'},
@@ -2008,44 +2227,545 @@ function projRenderKanban(){
   });
 }
 
-// ── PEOPLE ───────────────────────────────────────────
-var chartPplDepto=null,chartPplCli=null;
-function getPplData(){return JSON.parse(localStorage.getItem('euphoria_people')||'[]');}
-function savePplData(d){localStorage.setItem('euphoria_people',JSON.stringify(d));}
+// ── PEOPLE ANALYTICS ─────────────────────────────────
+var _pplCharts = {};
+var _pplHistId = null;
+var _utilCharts = {};
+var _profCharts = {};
+
+function getPplData(){return JSON.parse(localStorage.getItem('euphoria_people_v2')||'[]');}
+function savePplData(d){localStorage.setItem('euphoria_people_v2',JSON.stringify(d));}
+function getPplHist(){return JSON.parse(localStorage.getItem('euphoria_people_hist')||'{}');}
+function savePplHist(d){localStorage.setItem('euphoria_people_hist',JSON.stringify(d));}
+
 function switchPeopleTab(tab,e){
   document.querySelectorAll('#page-people .tab-btn').forEach(function(b){b.classList.remove('active');});
   document.querySelectorAll('#page-people .tab-panel').forEach(function(p){p.classList.remove('active');});
   document.getElementById('people-'+tab).classList.add('active');
   if(e&&e.target)e.target.classList.add('active');
-  if(tab==='custo')pplRenderCusto();
+  if(tab==='equipe')pplRenderTable();
+  if(tab==='dei')pplRenderDEI();
+  if(tab==='turnover')pplRenderTurnover();
+  if(tab==='orgchart')pplRenderOrg();
+  if(tab==='utilization')pplCarregarUtilization();
+  if(tab==='profitability')pplCarregarProfitability();
 }
-function pplCustoTotal(p){return p.tipo==='pj'?p.salario*1.05:p.salario*1.75;}
-function pplAdicionar(){
-  var nome=document.getElementById('ppl-nome').value.trim(), depto=document.getElementById('ppl-depto').value;
+
+function pplCustoTotal(p){
+  var base=parseFloat(p.salario)||0;
+  var bens=parseFloat(p.beneficios)||0;
+  if(p.tipo==='pj') return base+bens;
+  return (base+bens)*1.77; // encargos CLT aproximado
+}
+function pplCustoHora(p){
+  var ct=pplCustoTotal(p);
+  var h=parseFloat(p.horas)||160;
+  return h>0?ct/h:0;
+}
+
+// ── MODAL CADASTRO ────────────────────────────────────
+function pplAbrirModal(id){
+  document.getElementById('ppl-edit-id').value=id||'';
+  document.getElementById('ppl-modal-title').textContent=id?'Editar Colaborador':'Novo Colaborador';
+  var p=id?getPplData().find(function(x){return x.id===id;}):null;
+  var fields=['nome','genero','raca','tipo','cargo','depto','lider','gestor','empresa','salario','beneficios','horas','admissao','desligamento','motivo-saida'];
+  fields.forEach(function(f){
+    var el=document.getElementById('pm-'+f);
+    if(el) el.value=p?(p[f.replace('-saida','_saida')]||p[f]||''):'';
+  });
+  if(!p){document.getElementById('pm-tipo').value='clt';document.getElementById('pm-empresa').value='euphoria';document.getElementById('pm-horas').value=160;document.getElementById('pm-lider').value='nao';}
+  pplCalcCusto();
+  document.getElementById('ppl-modal').style.display='flex';
+}
+function pplFecharModal(){document.getElementById('ppl-modal').style.display='none';}
+function pplCalcCusto(){
+  var sal=parseFloat(document.getElementById('pm-salario').value)||0;
+  var ben=parseFloat(document.getElementById('pm-beneficios').value)||0;
+  var hrs=parseFloat(document.getElementById('pm-horas').value)||160;
+  var tipo=document.getElementById('pm-tipo').value;
+  var ct=tipo==='pj'?(sal+ben):(sal+ben)*1.77;
+  var ch=hrs>0?ct/hrs:0;
+  document.getElementById('pm-custo-preview').textContent='R$ '+Math.round(ct).toLocaleString('pt-BR');
+  document.getElementById('pm-ch-preview').textContent='R$ '+ch.toFixed(2)+'/h';
+}
+function pplSalvarModal(){
+  var nome=document.getElementById('pm-nome').value.trim();
+  var depto=document.getElementById('pm-depto').value;
   if(!nome||!depto){alert('Nome e departamento obrigatórios!');return;}
+  var id=document.getElementById('ppl-edit-id').value;
   var d=getPplData();
-  d.push({id:Date.now(),nome:nome,cargo:document.getElementById('ppl-cargo').value.trim(),depto:depto,salario:parseFloat(document.getElementById('ppl-salario').value)||0,tipo:document.getElementById('ppl-tipo').value,cliente:document.getElementById('ppl-cliente').value.trim()});
-  savePplData(d); pplRenderTable();
+  var obj={
+    id:id||String(Date.now()),
+    nome:nome,
+    genero:document.getElementById('pm-genero').value,
+    raca:document.getElementById('pm-raca').value,
+    tipo:document.getElementById('pm-tipo').value,
+    cargo:document.getElementById('pm-cargo').value.trim(),
+    depto:depto,
+    lider:document.getElementById('pm-lider').value,
+    gestor:document.getElementById('pm-gestor').value.trim(),
+    empresa:document.getElementById('pm-empresa').value,
+    salario:parseFloat(document.getElementById('pm-salario').value)||0,
+    beneficios:parseFloat(document.getElementById('pm-beneficios').value)||0,
+    horas:parseFloat(document.getElementById('pm-horas').value)||160,
+    admissao:document.getElementById('pm-admissao').value,
+    desligamento:document.getElementById('pm-desligamento').value,
+    motivo_saida:document.getElementById('pm-motivo-saida').value,
+    status:document.getElementById('pm-desligamento').value?'desligado':'ativo'
+  };
+  if(id){var idx=d.findIndex(function(x){return x.id===id;});if(idx>=0)d[idx]=obj;else d.push(obj);}
+  else d.push(obj);
+  savePplData(d);
+  pplFecharModal();
+  pplRenderTable();
 }
-function pplRemover(id){savePplData(getPplData().filter(function(x){return x.id!==id;}));pplRenderTable();}
+function pplRemover(id){
+  if(!confirm('Remover colaborador?'))return;
+  savePplData(getPplData().filter(function(x){return x.id!==id;}));
+  pplRenderTable();
+}
+
+// ── TABELA EQUIPE ─────────────────────────────────────
 function pplRenderTable(){
   var d=getPplData();
-  document.getElementById('ppl-count').textContent=d.length+' profissionais';
-  document.getElementById('ppl-table').innerHTML=d.map(function(p){
-    var c=pplCustoTotal(p);
-    return '<tr><td><strong>'+p.nome+'</strong></td><td>'+(p.cargo||'—')+'</td><td><span class="badge badge-blue">'+p.depto+'</span></td><td><span class="badge badge-gray">'+p.tipo.toUpperCase()+'</span></td><td style="text-align:right">R$ '+Math.round(p.salario).toLocaleString('pt-BR')+'</td><td style="text-align:right">R$ '+Math.round(c).toLocaleString('pt-BR')+'</td><td>'+(p.cliente||'—')+'</td><td><button class="btn" style="padding:2px 8px;font-size:10px" onclick="pplRemover('+p.id+')">✕</button></td></tr>';
-  }).join('')||'<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">Nenhum profissional</td></tr>';
+  var fDepto=document.getElementById('ppl-f-depto');
+  var fTipo=document.getElementById('ppl-f-tipo');
+  var fStatus=document.getElementById('ppl-f-status');
+  var fd=fDepto?fDepto.value:'';
+  var ft=fTipo?fTipo.value:'';
+  var fs=fStatus?fStatus.value:'ativo';
+  var filtered=d.filter(function(p){
+    if(fd&&p.depto!==fd)return false;
+    if(ft&&p.tipo!==ft)return false;
+    if(fs&&p.status!==fs)return false;
+    return true;
+  });
+  var totalCusto=filtered.reduce(function(s,p){return s+pplCustoTotal(p);},0);
+  var headcount=filtered.length;
+  var clt=filtered.filter(function(p){return p.tipo==='clt';}).length;
+  var pj=filtered.filter(function(p){return p.tipo==='pj';}).length;
+  var kpis=[
+    {label:'Headcount',value:headcount,sub:'ativos'},
+    {label:'CLT',value:clt,sub:'colaboradores'},
+    {label:'PJ',value:pj,sub:'prestadores'},
+    {label:'Custo Folha/mês',value:'R$ '+Math.round(totalCusto).toLocaleString('pt-BR'),sub:'custo total'},
+  ];
+  var kg=document.getElementById('ppl-kpis-row');
+  if(kg)kg.innerHTML=kpis.map(function(k){return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-value" style="font-size:18px">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
+  var cnt=document.getElementById('ppl-count');
+  if(cnt)cnt.textContent=headcount+' colaboradores';
+  var tbody=document.getElementById('ppl-table');
+  if(!tbody)return;
+  tbody.innerHTML=filtered.map(function(p){
+    var ct=pplCustoTotal(p);
+    var ch=pplCustoHora(p);
+    var stBadge=p.status==='ativo'?'badge-green':'badge-red';
+    var lidBadge=p.lider==='sim'?'<span class="badge badge-amber" style="margin-left:4px">Líder</span>':'';
+    return '<tr>'+
+      '<td><strong>'+p.nome+'</strong>'+lidBadge+'</td>'+
+      '<td style="color:var(--text2)">'+(p.cargo||'—')+'</td>'+
+      '<td><span class="badge badge-blue">'+p.depto+'</span></td>'+
+      '<td style="font-size:11px;color:var(--text3)">'+(p.gestor||'—')+'</td>'+
+      '<td style="font-size:11px;color:var(--text3)">'+(p.empresa||'euphoria')+'</td>'+
+      '<td><span class="badge '+(p.tipo==='clt'?'badge-green':'badge-gray')+'">'+p.tipo.toUpperCase()+'</span></td>'+
+      '<td style="text-align:right">R$ '+Math.round(p.salario).toLocaleString('pt-BR')+'</td>'+
+      '<td style="text-align:right;color:var(--amber)">R$ '+Math.round(ct).toLocaleString('pt-BR')+'</td>'+
+      '<td style="text-align:right">'+Math.round(p.horas||160)+'h</td>'+
+      '<td style="text-align:right;font-size:11px">R$ '+ch.toFixed(0)+'/h</td>'+
+      '<td style="font-size:11px;color:var(--text3)">'+(p.admissao||'—')+'</td>'+
+      '<td><span class="badge '+stBadge+'">'+p.status+'</span></td>'+
+      '<td style="display:flex;gap:4px">'+
+        '<button class="btn" style="padding:2px 7px;font-size:10px" onclick="pplAbrirModal(\''+p.id+'\')">✏️</button>'+
+        '<button class="btn" style="padding:2px 7px;font-size:10px" onclick="pplAbrirHist(\''+p.id+'\')">📈</button>'+
+        '<button class="btn" style="padding:2px 7px;font-size:10px;color:var(--neg)" onclick="pplRemover(\''+p.id+'\')">✕</button>'+
+      '</td>'+
+    '</tr>';
+  }).join('')||'<tr><td colspan="13" style="text-align:center;padding:32px;color:var(--text3)">Nenhum colaborador cadastrado. Clique em "+ Novo Colaborador" para começar.</td></tr>';
 }
-function pplRenderCusto(){
-  var d=getPplData(), deptoMap={}, cliMap={};
-  d.forEach(function(p){var c=pplCustoTotal(p);deptoMap[p.depto]=(deptoMap[p.depto]||0)+c;if(p.cliente){if(!cliMap[p.cliente])cliMap[p.cliente]={headcount:0,custo:0};cliMap[p.cliente].headcount++;cliMap[p.cliente].custo+=c;}});
-  var c1=document.getElementById('chartPplDepto');if(chartPplDepto)chartPplDepto.destroy();
-  if(Object.keys(deptoMap).length)chartPplDepto=new Chart(c1,{type:'doughnut',data:{labels:Object.keys(deptoMap),datasets:[{data:Object.values(deptoMap),backgroundColor:['#fff','#ccc','#aaa','#888','#666','#444','#ddd'],borderColor:'#111',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{color:'#888',font:{size:10},boxWidth:10}}}}});
-  var topCli=Object.entries(cliMap).sort(function(a,b){return b[1].custo-a[1].custo;});
-  var c2=document.getElementById('chartPplCliente');if(chartPplCli)chartPplCli.destroy();
-  if(topCli.length)chartPplCli=new Chart(c2,{type:'bar',data:{labels:topCli.map(function(c){return c[0];}),datasets:[{label:'Custo',data:topCli.map(function(c){return c[1].custo;}),backgroundColor:'rgba(255,255,255,0.2)',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#999',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',font:{size:10},callback:function(v){return fmt(v);}}}}}});
-  document.getElementById('ppl-custo-table').innerHTML=topCli.map(function(e){return '<tr><td><strong>'+e[0]+'</strong></td><td style="text-align:right">'+e[1].headcount+'</td><td style="text-align:right">R$ '+Math.round(e[1].custo).toLocaleString('pt-BR')+'</td><td style="text-align:right">R$ '+Math.round(e[1].custo*12).toLocaleString('pt-BR')+'</td></tr>';}).join('')||'<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--text3)">Nenhum dado</td></tr>';
+
+// ── DEI DASHBOARD ────────────────────────────────────
+var _deiCharts={};
+function pplRenderDEI(){
+  var d=getPplData().filter(function(p){return p.status==='ativo';});
+  var total=d.length||1;
+  var mulheres=d.filter(function(p){return p.genero==='Feminino';}).length;
+  var lideres=d.filter(function(p){return p.lider==='sim';});
+  var liderMulher=lideres.filter(function(p){return p.genero==='Feminino';}).length;
+  var liderNegro=lideres.filter(function(p){return p.raca==='Preta'||p.raca==='Parda';}).length;
+  // salary gap
+  var salM=d.filter(function(p){return p.genero==='Feminino';}).map(function(p){return p.salario||0;});
+  var salH=d.filter(function(p){return p.genero==='Masculino';}).map(function(p){return p.salario||0;});
+  var avgM=salM.length?salM.reduce(function(a,b){return a+b;},0)/salM.length:0;
+  var avgH=salH.length?salH.reduce(function(a,b){return a+b;},0)/salH.length:0;
+  var gap=avgH>0?((avgH-avgM)/avgH*100):0;
+
+  var kpis=[
+    {label:'% Mulheres',value:(mulheres/total*100).toFixed(1)+'%',sub:mulheres+' de '+total},
+    {label:'Líderes Mulheres',value:lideres.length?(liderMulher/lideres.length*100).toFixed(1)+'%':'—',sub:liderMulher+' de '+lideres.length+' líderes'},
+    {label:'Líderes Negros/Pardos',value:lideres.length?(liderNegro/lideres.length*100).toFixed(1)+'%':'—',sub:liderNegro+' de '+lideres.length+' líderes'},
+    {label:'Gap Salarial (H vs M)',value:gap.toFixed(1)+'%',sub:avgH>0?'Homem ganha '+gap.toFixed(1)+'% mais':'Dados insuficientes'},
+  ];
+  document.getElementById('dei-kpis').innerHTML=kpis.map(function(k){return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-value" style="font-size:18px">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
+
+  // Gênero chart
+  var genMap={};d.forEach(function(p){var g=p.genero||'Não informado';genMap[g]=(genMap[g]||0)+1;});
+  var c1=document.getElementById('chartDeiGenero');
+  if(_deiCharts.gen)_deiCharts.gen.destroy();
+  _deiCharts.gen=new Chart(c1,{type:'doughnut',data:{labels:Object.keys(genMap),datasets:[{data:Object.values(genMap),backgroundColor:['#a78bfa','#60a5fa','#34d399','#fbbf24','#f87171'],borderColor:'#111',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{color:'#888',font:{size:11},boxWidth:12}}}}});
+
+  // Raça chart
+  var racMap={};d.forEach(function(p){var r=p.raca||'Não informado';racMap[r]=(racMap[r]||0)+1;});
+  var c2=document.getElementById('chartDeiRaca');
+  if(_deiCharts.raca)_deiCharts.raca.destroy();
+  _deiCharts.raca=new Chart(c2,{type:'doughnut',data:{labels:Object.keys(racMap),datasets:[{data:Object.values(racMap),backgroundColor:['#fff','#fbbf24','#d97706','#f87171','#a78bfa','#888'],borderColor:'#111',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{color:'#888',font:{size:11},boxWidth:12}}}}});
+
+  // Gap salarial por depto
+  var deptos=[...new Set(d.map(function(p){return p.depto;}))];
+  var gapRows=deptos.map(function(dep){
+    var pd=d.filter(function(p){return p.depto===dep;});
+    var m=pd.filter(function(p){return p.genero==='Feminino';});
+    var h=pd.filter(function(p){return p.genero==='Masculino';});
+    var am=m.length?m.reduce(function(s,p){return s+p.salario;},0)/m.length:null;
+    var ah=h.length?h.reduce(function(s,p){return s+p.salario;},0)/h.length:null;
+    var g=am&&ah?((ah-am)/ah*100):null;
+    return {dep,am,ah,g};
+  }).filter(function(r){return r.am&&r.ah;});
+  var gc=document.getElementById('dei-gap-content');
+  gc.innerHTML=gapRows.length?'<table class="tbl"><thead><tr><th>Depto</th><th style="text-align:right">Média Mulher</th><th style="text-align:right">Média Homem</th><th style="text-align:right">Gap</th></tr></thead><tbody>'+
+    gapRows.map(function(r){return '<tr><td>'+r.dep+'</td><td style="text-align:right">R$ '+Math.round(r.am).toLocaleString('pt-BR')+'</td><td style="text-align:right">R$ '+Math.round(r.ah).toLocaleString('pt-BR')+'</td><td style="text-align:right;color:'+(r.g>20?'var(--neg)':r.g>10?'var(--amber)':'var(--pos)')+'">'+r.g.toFixed(1)+'%</td></tr>';}).join('')+
+  '</tbody></table>':'<div style="color:var(--text3);font-size:12px;padding:16px">Dados insuficientes (precisa de homens e mulheres no mesmo depto)</div>';
+
+  // Liderança
+  var lc=document.getElementById('dei-lideranca-content');
+  lc.innerHTML=[
+    {label:'Total de Líderes',value:lideres.length,sub:''},
+    {label:'Líderes Mulheres',value:liderMulher,pct:lideres.length?(liderMulher/lideres.length*100).toFixed(1)+'%':'—'},
+    {label:'Líderes Negros/Pardos',value:liderNegro,pct:lideres.length?(liderNegro/lideres.length*100).toFixed(1)+'%':'—'},
+  ].map(function(r){return '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)"><span style="font-size:12px;color:var(--text2)">'+r.label+'</span><span style="font-size:13px;font-weight:600">'+r.value+(r.pct?' <span style="color:var(--text3);font-size:11px">('+r.pct+')</span>':'')+'</span></div>';}).join('');
 }
+
+// ── TURNOVER ─────────────────────────────────────────
+function pplRenderTurnover(){
+  var d=getPplData();
+  var ativos=d.filter(function(p){return p.status==='ativo';}).length;
+  var desligados=d.filter(function(p){return p.status==='desligado';}).length;
+  var taxa=ativos+desligados>0?(desligados/(ativos+desligados)*100):0;
+  var meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  // Headcount by month (simplified: adds by admissao month, subtracts by desligamento month)
+  var hcMonth=new Array(12).fill(0);
+  d.forEach(function(p){
+    var adm=p.admissao?new Date(p.admissao):null;
+    var des=p.desligamento?new Date(p.desligamento):null;
+    if(adm&&adm.getFullYear()<=2026){
+      for(var m=0;m<12;m++){
+        var inPeriod=adm.getMonth()<=m&&adm.getFullYear()===2026;
+        var desante=des&&(des.getFullYear()<2026||(des.getFullYear()===2026&&des.getMonth()<m));
+        if((inPeriod||adm.getFullYear()<2026)&&!desante)hcMonth[m]++;
+      }
+    }
+  });
+
+  var motMap={};
+  d.filter(function(p){return p.status==='desligado'&&p.motivo_saida;}).forEach(function(p){motMap[p.motivo_saida]=(motMap[p.motivo_saida]||0)+1;});
+
+  var kpis=[
+    {label:'Headcount Atual',value:ativos,sub:'colaboradores ativos'},
+    {label:'Desligados',value:desligados,sub:'no histórico'},
+    {label:'Taxa Turnover',value:taxa.toFixed(1)+'%',sub:'histórico geral'},
+    {label:'Turnover Voluntário',value:d.filter(function(p){return p.motivo_saida==='Iniciativa própria';}).length,sub:'desligamentos'},
+  ];
+  document.getElementById('turnover-kpis').innerHTML=kpis.map(function(k){return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-value" style="font-size:18px">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
+
+  var c1=document.getElementById('chartHeadcount');
+  if(_pplCharts.hc)_pplCharts.hc.destroy();
+  _pplCharts.hc=new Chart(c1,{type:'line',data:{labels:meses,datasets:[{label:'Headcount',data:hcMonth,borderColor:'rgba(255,255,255,0.8)',backgroundColor:'rgba(255,255,255,0.05)',fill:true,tension:0.3,pointRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#666',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',font:{size:10}}}}}});
+
+  var c2=document.getElementById('chartMotivos');
+  if(_pplCharts.mot)_pplCharts.mot.destroy();
+  if(Object.keys(motMap).length)_pplCharts.mot=new Chart(c2,{type:'bar',data:{labels:Object.keys(motMap),datasets:[{data:Object.values(motMap),backgroundColor:'rgba(248,113,113,0.5)',borderRadius:4,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555'}},y:{grid:{display:false},ticks:{color:'#888',font:{size:10}}}}}});
+
+  // Turnover by depto
+  var deptos=[...new Set(d.map(function(p){return p.depto;}))];
+  var rows=deptos.map(function(dep){
+    var pd=d.filter(function(p){return p.depto===dep;});
+    var a=pd.filter(function(p){return p.status==='ativo';}).length;
+    var des=pd.filter(function(p){return p.status==='desligado';}).length;
+    var t=(a+des)>0?(des/(a+des)*100):0;
+    return {dep,a,des,t};
+  }).sort(function(a,b){return b.t-a.t;});
+  document.getElementById('turnover-depto-table').innerHTML='<table class="tbl"><thead><tr><th>Departamento</th><th style="text-align:right">Ativos</th><th style="text-align:right">Desligados</th><th style="text-align:right">Taxa Turnover</th><th>Risco</th></tr></thead><tbody>'+
+    rows.map(function(r){var cl=r.t>30?'badge-red':r.t>15?'badge-amber':'badge-green';return '<tr><td>'+r.dep+'</td><td style="text-align:right">'+r.a+'</td><td style="text-align:right">'+r.des+'</td><td style="text-align:right">'+r.t.toFixed(1)+'%</td><td><span class="badge '+cl+'">'+(r.t>30?'Alto':r.t>15?'Médio':'Baixo')+'</span></td></tr>';}).join('')+
+  '</tbody></table>';
+}
+
+// ── ORGANOGRAMA ──────────────────────────────────────
+function pplRenderOrg(){
+  var d=getPplData().filter(function(p){return p.status==='ativo';});
+  var fd=document.getElementById('org-sel-depto');
+  if(fd&&fd.value) d=d.filter(function(p){return p.depto===fd.value;});
+  var tree=document.getElementById('org-tree');
+  if(!tree)return;
+  if(!d.length){tree.innerHTML='<div style="color:var(--text3);text-align:center;padding:48px">Nenhum colaborador cadastrado.</div>';return;}
+  // Build hierarchy: group by gestor
+  function renderNode(pessoa,all,depth){
+    var reports=all.filter(function(p){return p.gestor&&p.gestor.trim().toLowerCase()===pessoa.nome.trim().toLowerCase()&&p.id!==pessoa.id;});
+    var lbl=pessoa.lider==='sim'?'<span style="font-size:9px;background:rgba(251,191,36,.2);color:var(--amber);padding:1px 5px;border-radius:3px;margin-left:4px">LÍDER</span>':'';
+    var type=pessoa.tipo==='clt'?'<span style="font-size:9px;color:var(--pos)">CLT</span>':'<span style="font-size:9px;color:var(--text3)">PJ</span>';
+    var html='<div style="display:inline-block;vertical-align:top;margin:0 8px 16px">'
+      +'<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;min-width:140px;text-align:center'+(depth===0?';border-color:rgba(255,255,255,.3)':'')+';">'
+        +'<div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:3px">'+pessoa.nome+'</div>'
+        +'<div style="font-size:10px;color:var(--text3)">'+pessoa.cargo+'</div>'
+        +'<div style="font-size:10px;color:var(--text3)">'+pessoa.depto+'</div>'
+        +'<div style="margin-top:4px">'+type+lbl+'</div>'
+      +'</div>';
+    if(reports.length){
+      html+='<div style="display:flex;flex-direction:column;align-items:center">'
+        +'<div style="width:1px;height:16px;background:var(--border)"></div>'
+        +'<div style="display:flex;gap:0;position:relative">';
+      reports.forEach(function(r){html+=renderNode(r,all,depth+1);});
+      html+='</div></div>';
+    }
+    html+='</div>';
+    return html;
+  }
+  // Find roots (no gestor match or gestor not in list)
+  var names=d.map(function(p){return p.nome.trim().toLowerCase();});
+  var roots=d.filter(function(p){return !p.gestor||!names.includes(p.gestor.trim().toLowerCase());});
+  if(!roots.length)roots=[d[0]];
+  tree.innerHTML='<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:16px">'+roots.map(function(r){return renderNode(r,d,0);}).join('')+'</div>';
+}
+
+// ── HISTÓRICO SALARIAL ───────────────────────────────
+function pplAbrirHist(id){
+  _pplHistId=id;
+  var p=getPplData().find(function(x){return x.id===id;});
+  if(!p)return;
+  document.getElementById('hist-nome').textContent=p.nome;
+  document.getElementById('hist-anterior').value=p.salario||'';
+  pplRenderHistList();
+  document.getElementById('ppl-hist-modal').style.display='flex';
+}
+function pplFecharHist(){document.getElementById('ppl-hist-modal').style.display='none';_pplHistId=null;}
+function pplSalvarHist(){
+  var hist=getPplHist();
+  if(!hist[_pplHistId])hist[_pplHistId]=[];
+  hist[_pplHistId].push({
+    data:document.getElementById('hist-data').value,
+    anterior:parseFloat(document.getElementById('hist-anterior').value)||0,
+    novo:parseFloat(document.getElementById('hist-novo').value)||0,
+    motivo:document.getElementById('hist-motivo').value,
+    ts:Date.now()
+  });
+  savePplHist(hist);
+  // Update salario atual
+  var d=getPplData();
+  var idx=d.findIndex(function(x){return x.id===_pplHistId;});
+  var novoVal=parseFloat(document.getElementById('hist-novo').value)||0;
+  if(idx>=0&&novoVal>0){d[idx].salario=novoVal;savePplData(d);}
+  pplRenderHistList();
+}
+function pplRenderHistList(){
+  var hist=getPplHist();
+  var h=hist[_pplHistId]||[];
+  var el=document.getElementById('hist-list');
+  if(!h.length){el.innerHTML='<div style="color:var(--text3);font-size:12px;text-align:center;padding:16px">Sem histórico registrado</div>';return;}
+  el.innerHTML='<table class="tbl"><thead><tr><th>Data</th><th style="text-align:right">Anterior</th><th style="text-align:right">Novo</th><th style="text-align:right">Δ</th><th>Motivo</th></tr></thead><tbody>'
+    +h.slice().reverse().map(function(r){
+      var delta=r.novo-r.anterior;
+      var pct=r.anterior>0?(delta/r.anterior*100).toFixed(1):0;
+      return '<tr><td>'+(r.data||'—')+'</td><td style="text-align:right">R$ '+Math.round(r.anterior).toLocaleString('pt-BR')+'</td><td style="text-align:right">R$ '+Math.round(r.novo).toLocaleString('pt-BR')+'</td><td style="text-align:right;color:'+(delta>=0?'var(--pos)':'var(--neg)')+'">'+pct+'%</td><td style="font-size:11px;color:var(--text3)">'+r.motivo+'</td></tr>';
+    }).join('')+'</tbody></table>';
+}
+
+// ── UTILIZATION ──────────────────────────────────────
+async function pplCarregarUtilization(){
+  var sel=document.getElementById('util-sel-periodo');
+  if(!sel)return;
+  var val=sel.value; // e.g. "012026"
+  var mm=val.substring(0,2), yyyy=val.substring(2,6);
+  var loading=document.getElementById('util-loading');
+  if(loading)loading.style.display='inline';
+
+  var d=getPplData().filter(function(p){return p.status==='ativo';});
+  var totalCapacity=d.reduce(function(s,p){return s+(parseFloat(p.horas)||160);},0);
+
+  var vbsData=[];
+  try {
+    var res=await fetch(API+'/api/timesheet?Conceito_Custo_Hora=G&Periodo_De='+mm+yyyy,{headers:{Authorization:'Basic '+btoa('EuphoriaCons:Euphor1a@2023')}});
+    if(res.ok){
+      var j=await res.json();
+      vbsData=(j.Retorno||j.retorno||j.data||j||[]);
+      if(vbsData&&vbsData.Retorno)vbsData=vbsData.Retorno;
+      if(!Array.isArray(vbsData))vbsData=[];
+    }
+  } catch(e){console.warn('VBS utilization error:',e);}
+  if(loading)loading.style.display='none';
+
+  // Aggregate hours by person and by client
+  var personMap={};
+  var clientMap={};
+  vbsData.forEach(function(r){
+    var name=String(r.Nome_Colaborador||r.colaborador||'');
+    var cli=String(r.Razao_social_cliente||r.cliente||'Não alocado');
+    var h=parseFloat(r.Total_Horas||r.horas||0);
+    if(!personMap[name])personMap[name]={horas:0};
+    personMap[name].horas+=h;
+    if(!clientMap[cli])clientMap[cli]=0;
+    clientMap[cli]+=h;
+  });
+
+  var totalVBS=Object.values(personMap).reduce(function(s,v){return s+v.horas;},0);
+  var utilPct=totalCapacity>0?(totalVBS/totalCapacity*100).toFixed(1):0;
+  var kpis=[
+    {label:'Headcount Ativo',value:d.length,sub:'colaboradores'},
+    {label:'Capacidade Total',value:Math.round(totalCapacity)+'h',sub:'mês'},
+    {label:'Horas VBS',value:Math.round(totalVBS)+'h',sub:'lançadas'},
+    {label:'Utilization',value:utilPct+'%',sub:totalVBS>0?'vs capacidade':'sem dados VBS'},
+  ];
+  document.getElementById('util-kpis').innerHTML=kpis.map(function(k){return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-value" style="font-size:18px">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
+
+  // Chart por pessoa (top 15)
+  var pplSorted=d.slice().sort(function(a,b){
+    var ha=(personMap[a.nome]||{horas:0}).horas;
+    var hb=(personMap[b.nome]||{horas:0}).horas;
+    return hb-ha;
+  }).slice(0,15);
+  var c1=document.getElementById('chartUtilPerson');
+  if(_utilCharts.p)_utilCharts.p.destroy();
+  _utilCharts.p=new Chart(c1,{type:'bar',data:{
+    labels:pplSorted.map(function(p){return p.nome.split(' ')[0];}),
+    datasets:[
+      {label:'Capacidade',data:pplSorted.map(function(p){return p.horas||160;}),backgroundColor:'rgba(255,255,255,0.08)',borderRadius:3},
+      {label:'VBS',data:pplSorted.map(function(p){return Math.round((personMap[p.nome]||{horas:0}).horas);}),backgroundColor:'rgba(96,165,250,0.6)',borderRadius:3},
+    ]
+  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#888',font:{size:10}}}},scales:{x:{grid:{display:false},ticks:{color:'#666',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',font:{size:10}}}}}});
+
+  // Chart por cliente
+  var topCli=Object.entries(clientMap).sort(function(a,b){return b[1]-a[1];}).slice(0,10);
+  var c2=document.getElementById('chartUtilCliente');
+  if(_utilCharts.c)_utilCharts.c.destroy();
+  if(topCli.length)_utilCharts.c=new Chart(c2,{type:'doughnut',data:{labels:topCli.map(function(c){return c[0];}),datasets:[{data:topCli.map(function(c){return Math.round(c[1]);}),backgroundColor:['#fff','#60a5fa','#a78bfa','#34d399','#fbbf24','#f87171','#6ee7b7','#93c5fd','#c4b5fd','#fca5a5'],borderColor:'#111',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#888',font:{size:10},boxWidth:10}}}}});
+
+  // Table
+  var tbody=document.getElementById('util-table');
+  tbody.innerHTML=d.map(function(p){
+    var hVBS=(personMap[p.nome]||{horas:0}).horas;
+    var cap=p.horas||160;
+    var pct=cap>0?(hVBS/cap*100):0;
+    var ch=pplCustoHora(p);
+    var stCl=pct>90?'badge-red':pct>70?'badge-amber':'badge-blue';
+    var stLbl=pct>90?'Overloaded':pct>70?'Alto':'Normal';
+    if(!totalVBS)stCl='badge-gray',stLbl='Sem dados';
+    return '<tr>'+
+      '<td><strong>'+p.nome+'</strong></td>'+
+      '<td><span class="badge badge-blue">'+p.depto+'</span></td>'+
+      '<td style="text-align:right">'+Math.round(cap)+'h</td>'+
+      '<td style="text-align:right">'+Math.round(hVBS)+'h</td>'+
+      '<td style="text-align:right;color:'+(pct>90?'var(--neg)':pct>70?'var(--amber)':'var(--pos)')+'">'+pct.toFixed(1)+'%</td>'+
+      '<td style="text-align:right;font-size:11px">R$ '+ch.toFixed(0)+'/h</td>'+
+      '<td style="text-align:right;font-size:11px">—</td>'+
+      '<td><span class="badge '+stCl+'">'+stLbl+'</span></td>'+
+    '</tr>';
+  }).join('')||'<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">Cadastre colaboradores para ver utilization</td></tr>';
+}
+
+// ── RENTABILIDADE POR CLIENTE ────────────────────────
+async function pplCarregarProfitability(){
+  var sel=document.getElementById('prof-sel-periodo');
+  if(!sel)return;
+  var val=sel.value;
+  var mm=val.substring(0,2), yyyy=val.substring(2,6);
+  var loading=document.getElementById('prof-loading');
+  if(loading)loading.style.display='inline';
+
+  var d=getPplData().filter(function(p){return p.status==='ativo';});
+  var custoTotal=d.reduce(function(s,p){return s+pplCustoTotal(p);},0);
+  var horasTotal=d.reduce(function(s,p){return s+(parseFloat(p.horas)||160);},0);
+  var chMedio=horasTotal>0?custoTotal/horasTotal:0;
+
+  var vbsData=[];
+  try {
+    var res=await fetch(API+'/api/timesheet?Conceito_Custo_Hora=G&Periodo_De='+mm+yyyy,{headers:{Authorization:'Basic '+btoa('EuphoriaCons:Euphor1a@2023')}});
+    if(res.ok){
+      var j=await res.json();
+      vbsData=(j.Retorno||j.retorno||j.data||j||[]);
+      if(vbsData&&vbsData.Retorno)vbsData=vbsData.Retorno;
+      if(!Array.isArray(vbsData))vbsData=[];
+    }
+  } catch(e){console.warn('VBS profitability error:',e);}
+  if(loading)loading.style.display='none';
+
+  // Aggregate by client
+  var cliMap={};
+  vbsData.forEach(function(r){
+    var cli=String(r.Razao_social_cliente||r.cliente||'Não identificado').trim();
+    var h=parseFloat(r.Total_Horas||r.horas||0);
+    var rev=parseFloat(r.Valor_receita||r.receita||0);
+    if(!cliMap[cli])cliMap[cli]={horas:0,receita:0};
+    cliMap[cli].horas+=h;
+    cliMap[cli].receita+=rev;
+  });
+
+  var clients=Object.entries(cliMap).sort(function(a,b){return b[1].receita-a[1].receita;});
+  var OVH_PCT=0.15;
+  var rows=clients.map(function(entry){
+    var cli=entry[0], dat=entry[1];
+    var custoEq=dat.horas*chMedio;
+    var ovh=dat.receita*OVH_PCT;
+    var lucro=dat.receita-custoEq-ovh;
+    var margem=dat.receita>0?(lucro/dat.receita*100):0;
+    return {cli,horas:dat.horas,receita:dat.receita,custoEq,ovh,lucro,margem};
+  });
+
+  var totalRec=rows.reduce(function(s,r){return s+r.receita;},0);
+  var totalCus=rows.reduce(function(s,r){return s+r.custoEq;},0);
+  var totalLuc=rows.reduce(function(s,r){return s+r.lucro;},0);
+  var margemGeral=totalRec>0?(totalLuc/totalRec*100):0;
+  var kpis=[
+    {label:'Receita Total VBS',value:'R$ '+Math.round(totalRec).toLocaleString('pt-BR'),sub:mm+'/'+yyyy},
+    {label:'Custo de Equipe',value:'R$ '+Math.round(totalCus).toLocaleString('pt-BR'),sub:'custo/hora × horas'},
+    {label:'Lucro Bruto',value:'R$ '+Math.round(totalLuc).toLocaleString('pt-BR'),sub:'após equipe + OVH'},
+    {label:'Margem Bruta',value:margemGeral.toFixed(1)+'%',sub:'geral consolidado'},
+  ];
+  document.getElementById('prof-kpis').innerHTML=kpis.map(function(k){return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-value" style="font-size:16px">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
+
+  var top10=rows.slice(0,10);
+  var c1=document.getElementById('chartProfCliente');
+  if(_profCharts.c)_profCharts.c.destroy();
+  if(top10.length)_profCharts.c=new Chart(c1,{type:'bar',data:{
+    labels:top10.map(function(r){return r.cli.split(' ')[0];}),
+    datasets:[
+      {label:'Receita',data:top10.map(function(r){return Math.round(r.receita);}),backgroundColor:'rgba(255,255,255,0.15)',borderRadius:3},
+      {label:'Custo Equipe',data:top10.map(function(r){return Math.round(r.custoEq);}),backgroundColor:'rgba(248,113,113,0.5)',borderRadius:3},
+    ]
+  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#888',font:{size:10}}}},scales:{x:{grid:{display:false},ticks:{color:'#666',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',font:{size:9},callback:function(v){return 'R$ '+Math.round(v/1000)+'k';}}}}}});
+
+  var c2=document.getElementById('chartProfMargem');
+  if(_profCharts.m)_profCharts.m.destroy();
+  if(top10.length)_profCharts.m=new Chart(c2,{type:'bar',data:{
+    labels:top10.map(function(r){return r.cli.split(' ')[0];}),
+    datasets:[{label:'Margem %',data:top10.map(function(r){return parseFloat(r.margem.toFixed(1));}),backgroundColor:top10.map(function(r){return r.margem>40?'rgba(110,231,183,0.6)':r.margem>20?'rgba(251,191,36,0.6)':'rgba(248,113,113,0.6)';}),borderRadius:4,borderSkipped:false}]
+  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#666',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',font:{size:10},callback:function(v){return v+'%';}}}}}});
+
+  var tbody=document.getElementById('prof-table');
+  var fmtR=function(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR');};
+  tbody.innerHTML=rows.map(function(r){
+    var mc=r.margem>40?'var(--pos)':r.margem>20?'var(--amber)':'var(--neg)';
+    return '<tr>'+
+      '<td><strong>'+r.cli+'</strong></td>'+
+      '<td style="text-align:right">'+fmtR(r.receita)+'</td>'+
+      '<td style="text-align:right">'+Math.round(r.horas)+'h</td>'+
+      '<td style="text-align:right;color:var(--neg)">'+fmtR(r.custoEq)+'</td>'+
+      '<td style="text-align:right;color:var(--text3)">'+fmtR(r.ovh)+'</td>'+
+      '<td style="text-align:right;color:'+(r.lucro>=0?'var(--pos)':'var(--neg)')+'">'+fmtR(r.lucro)+'</td>'+
+      '<td style="text-align:right;font-weight:700;color:'+mc+'">'+r.margem.toFixed(1)+'%</td>'+
+    '</tr>';
+  }).join('')||'<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Carregue os dados VBS para ver a rentabilidade</td></tr>';
+}
+
+// Compatibility shim for Jurídico and TI modules that use old structure
+function getPplDataLegacy(){return getPplData();}
+
 
 // ── JURÍDICO ─────────────────────────────────────────
 var jurCurrentAnalysis=null;
@@ -3122,8 +3842,8 @@ function jurLimpar(){document.getElementById('jur-result').style.display='none';
 function jurSelecionarTipo(tipo){jurTipoAtual=tipo;var titulos={cliente:'Contrato Cliente',pj:'Contrato PJ',freela:'Freela/Fornecedor',distrato:'Distrato PJ',aditivo:'Aditivo Contratual',carta:'Carta Proposta'};document.getElementById('jur-form-titulo').textContent=titulos[tipo]||tipo;['form-cliente','form-pj','form-freela','form-distrato','form-aditivo','form-carta'].forEach(function(id){document.getElementById(id).style.display='none';});document.getElementById('jur-tipo-cards').style.display='none';document.getElementById('jur-form-area').style.display='block';document.getElementById('jur-gerar-result').style.display='none';document.getElementById('form-'+tipo).style.display='block';if(tipo==='pj'||tipo==='carta'){jurPopularColab(tipo);}if(tipo==='distrato'){jurPopularDistrato();}if(tipo==='cliente'){jurPopularPropostas();}}
 function jurVoltarTipos(){document.getElementById('jur-tipo-cards').style.display='grid';document.getElementById('jur-form-area').style.display='none';document.getElementById('jur-gerar-result').style.display='none';}
 function jurNovoContrato(){document.getElementById('jur-gerar-result').style.display='none';document.getElementById('jur-form-area').style.display='block';}
-function jurPopularColab(tipo){var people=JSON.parse(localStorage.getItem('euphoria_people')||'[]');var sel=document.getElementById(tipo==='pj'?'pj-colaborador':'carta-colaborador');while(sel.options.length>1)sel.remove(1);people.forEach(function(p){var o=document.createElement('option');o.value=JSON.stringify(p);o.textContent=p.nome+' - '+p.cargo;sel.appendChild(o);});}
-function jurPopularDistrato(){var people=JSON.parse(localStorage.getItem('euphoria_people')||'[]');var sel=document.getElementById('dt-colaborador');while(sel.options.length>1)sel.remove(1);people.forEach(function(p){var o=document.createElement('option');o.value=JSON.stringify(p);o.textContent=p.nome+' - '+p.cargo;sel.appendChild(o);});}
+function jurPopularColab(tipo){var people=JSON.parse(localStorage.getItem('euphoria_people_v2')||'[]');var sel=document.getElementById(tipo==='pj'?'pj-colaborador':'carta-colaborador');while(sel.options.length>1)sel.remove(1);people.forEach(function(p){var o=document.createElement('option');o.value=JSON.stringify(p);o.textContent=p.nome+' - '+p.cargo;sel.appendChild(o);});}
+function jurPopularDistrato(){var people=JSON.parse(localStorage.getItem('euphoria_people_v2')||'[]');var sel=document.getElementById('dt-colaborador');while(sel.options.length>1)sel.remove(1);people.forEach(function(p){var o=document.createElement('option');o.value=JSON.stringify(p);o.textContent=p.nome+' - '+p.cargo;sel.appendChild(o);});}
 function jurPopularPropostas(){var props=JSON.parse(localStorage.getItem('euphoria_propostas')||'[]');var sel=document.getElementById('cc-proposta');if(!sel)return;while(sel.options.length>1)sel.remove(1);props.forEach(function(p,i){var o=document.createElement('option');o.value=i;o.textContent=p.cliente+' - '+p.data;sel.appendChild(o);});}
 function jurPreencherPJ(val){if(!val)return;try{var p=JSON.parse(val);if(p.nome)document.getElementById('pj-nome').value=p.nome;if(p.cargo)document.getElementById('pj-cargo').value=p.cargo;if(p.salario)document.getElementById('pj-honorarios').value=p.salario;}catch(e){}}
 function jurPreencherDistrato(val){if(!val)return;try{var p=JSON.parse(val);if(p.nome)document.getElementById('dt-nome').value=p.empresa||p.nome;if(p.cpf)document.getElementById('dt-doc').value=p.cnpj||p.cpf;if(p.cargo)document.getElementById('dt-cargo').value=p.cargo;if(p.salario)document.getElementById('dt-honorarios').value=p.salario;if(p.inicio)document.getElementById('dt-inicio-original').value=p.inicio;}catch(e){}}
@@ -3164,7 +3884,7 @@ function jurVerDoc(i){var c=jurContratos[i];document.getElementById('jur-doc-tit
 
 // ── TI ────────────────────────────────────────────────
 var tiFichas=[];
-function tiInit(){var people=JSON.parse(localStorage.getItem('euphoria_people')||'[]');var sel=document.getElementById('ti-out-colaborador');if(sel){while(sel.options.length>1)sel.remove(1);people.forEach(function(p){var o=document.createElement('option');o.value=JSON.stringify(p);o.textContent=p.nome+' - '+(p.depto||'');sel.appendChild(o);});}tiRenderPainel();}
+function tiInit(){var people=JSON.parse(localStorage.getItem('euphoria_people_v2')||'[]');var sel=document.getElementById('ti-out-colaborador');if(sel){while(sel.options.length>1)sel.remove(1);people.forEach(function(p){var o=document.createElement('option');o.value=JSON.stringify(p);o.textContent=p.nome+' - '+(p.depto||'');sel.appendChild(o);});}tiRenderPainel();}
 function tiPreencherOut(val){if(!val)return;try{var p=JSON.parse(val);if(p.nome)document.getElementById('ti-out-nome').value=p.nome;if(p.email)document.getElementById('ti-out-email').value=p.email;if(p.tel)document.getElementById('ti-out-tel').value=p.tel;if(p.gestor)document.getElementById('ti-out-gestor').value=p.gestor;}catch(e){}}
 function tiGetAcessos(){var a=[];document.querySelectorAll('#ti-acessos-checks input:checked').forEach(function(cb){a.push(cb.value);});return a.join(', ');}
 function tiGerarEmail(tipo){
@@ -4232,7 +4952,6 @@ async function crmCarregar(){
     var localData = crmLocalLoad();
     _crmData = localData;
     crmRecalcKpis();
-    crmRenderMetaPainel();
   }
   crmRenderView();
 }
@@ -4408,8 +5127,6 @@ async function crmSalvar(){
     crmFecharModal();
     crmRecalcKpis();
     crmRenderView();
-    crmRenderMetaPainel();
-    crmRenderMetaPainel();
   }
 }
 
@@ -4711,10 +5428,5 @@ function crmCalcValor(){
   if(hidEl) hidEl.value = total;
 }
 </script>
-</body>
-</html
-  </div>
-
-
 </body>
 </html>
