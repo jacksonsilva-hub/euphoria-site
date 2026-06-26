@@ -977,7 +977,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     <div class="tab-panel active" id="people-equipe">
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
         <button class="btn btn-primary" onclick="pplAbrirModal()">+ Novo Colaborador</button>
-        <button class="btn" onclick="pplImportarVBS()" style="font-size:11px">⬇️ Importar do VBS</button>
         <select id="ppl-f-depto" onchange="pplRenderTable()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
           <option value="">Todos departamentos</option>
           <option>Atendimento</option><option>Criação</option><option>Estratégia</option>
@@ -2798,7 +2797,14 @@ async function pplImportarVBS(){
         admissao:f.Data_Admissao||f.data_admissao||'',
         desligamento:f.Data_Demissao||'',
         motivo_saida:'',
-        status:f.Data_Demissao?'desligado':'ativo'
+        status:(function(){
+          if(!f.Data_Demissao)return 'ativo';
+          // Data vem DD/MM/YYYY
+          var parts=f.Data_Demissao.split('/');
+          if(parts.length!==3)return 'ativo';
+          var d=new Date(parts[2],parts[1]-1,parts[0]);
+          return d<=new Date()?'desligado':'ativo';
+        })()
       });
       novos++;
     });
