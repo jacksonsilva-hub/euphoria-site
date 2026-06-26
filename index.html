@@ -2605,9 +2605,11 @@ async function pplCarregarUtilization(){
   var personMap={};
   var clientMap={};
   vbsData.forEach(function(r){
-    var name=String(r.Nome_Colaborador||r.colaborador||'');
-    var cli=String(r.Razao_social_cliente||r.cliente||'Não alocado');
-    var h=parseFloat(r.Total_Horas||r.horas||0);
+    var name=String(r.Nome_Completo_Funcionario||r.Nome_Abreviado_Funcionario||'');
+    var cli=String(r.Nome_Campanha||r.Cliente_Horas_Adm||'Interno');
+    if(cli.includes('SEM CAMPANHA')||cli.includes('SEM NOME'))cli=String(r.Cliente_Horas_Adm||'Interno');
+    var h=(parseFloat(r.Apontamento_Minutos||0))/60;
+    if(!name)return;
     if(!personMap[name])personMap[name]={horas:0};
     personMap[name].horas+=h;
     if(!clientMap[cli])clientMap[cli]=0;
@@ -2698,9 +2700,10 @@ async function pplCarregarProfitability(){
   // Aggregate by client
   var cliMap={};
   vbsData.forEach(function(r){
-    var cli=String(r.Razao_social_cliente||r.cliente||'Não identificado').trim();
-    var h=parseFloat(r.Total_Horas||r.horas||0);
-    var rev=parseFloat(r.Valor_receita||r.receita||0);
+    var cli=String(r.Nome_Campanha||r.Cliente_Horas_Adm||'Não identificado').trim();
+    if(cli.includes('SEM CAMPANHA')||cli.includes('SEM NOME'))cli=String(r.Cliente_Horas_Adm||'Interno');
+    var h=(parseFloat(r.Apontamento_Minutos||0))/60;
+    var rev=parseFloat(r.Valor_Custo||0);
     if(!cliMap[cli])cliMap[cli]={horas:0,receita:0};
     cliMap[cli].horas+=h;
     cliMap[cli].receita+=rev;
