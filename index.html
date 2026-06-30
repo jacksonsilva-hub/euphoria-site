@@ -2048,7 +2048,7 @@ function doLogin() {
   var found = null;
   for (var i=0; i<USERS.length; i++) {
     var u = USERS[i];
-    if ((u.user===user || (u.email && u.email.toLowerCase()===raw)) && u.pass===pass) { found=u; break; }
+    if ((u.user.toLowerCase()===user || (u.email && u.email.toLowerCase()===raw)) && u.pass===pass) { found=u; break; }
   }
   var errEl = document.getElementById('login-error');
   if (!found) {
