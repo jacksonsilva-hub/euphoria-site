@@ -3053,7 +3053,7 @@ function getPplDataLegacy(){return getPplData();}
 async function pplImportarVBS(){
   if(!confirm('Importar funcionários ativos do VBS? Nomes já cadastrados serão ignorados.'))return;
   try {
-    var res=await fetch(API+'/api/funcionarios?demitidos=2');
+    var res=await fetch(API+'/api/funcionarios?demitidos=0');
     var j=await res.json();
     var lista=j.data||j;
     var ret=lista.Retorno||lista.retorno||lista;
