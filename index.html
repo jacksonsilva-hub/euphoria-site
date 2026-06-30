@@ -966,6 +966,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
   <div class="page" id="page-people">
     <div class="tab-nav">
       <button class="tab-btn active" onclick="switchPeopleTab('equipe',event)">👤 Equipe</button>
+      <button class="tab-btn" onclick="switchPeopleTab('customensal',event)">💵 Custo Mensal</button>
       <button class="tab-btn" onclick="switchPeopleTab('dei',event)">🌈 DEI</button>
       <button class="tab-btn" onclick="switchPeopleTab('turnover',event)">📉 Turnover</button>
       <button class="tab-btn" onclick="switchPeopleTab('orgchart',event)">🌳 Organograma</button>
@@ -977,7 +978,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     <div class="tab-panel active" id="people-equipe">
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
         <button class="btn btn-primary" onclick="pplAbrirModal()">+ Novo Colaborador</button>
-        <button class="btn" onclick="pplImportarVBS()" style="font-size:11px">⬇️ Importar do VBS</button>
         <select id="ppl-f-depto" onchange="pplRenderTable()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
           <option value="">Todos departamentos</option>
           <option>Atendimento</option><option>Criação</option><option>Estratégia</option>
@@ -994,7 +994,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       </div>
       <div id="ppl-kpis-row" class="kpi-grid" style="margin-bottom:16px"></div>
       <div class="table-card">
-        <div class="table-header"><span class="table-title">Headcount</span><span class="table-meta" id="ppl-table-meta"></span></div>
+        <div class="table-header"><span class="table-title">Headcount</span><span class="table-meta" id="ppl-table-meta">→ role a tabela para o lado para ver editar/histórico</span></div>
         <div style="overflow-x:auto">
           <table class="tbl" style="min-width:900px">
             <thead><tr>
@@ -1005,6 +1005,52 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
             </tr></thead>
             <tbody id="ppl-table"></tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── CUSTO MENSAL ── -->
+    <div class="tab-panel" id="people-customensal">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+        <select id="cm-ano" onchange="pplRenderCustoMensal()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="2026">2026</option><option value="2025">2025</option><option value="2027">2027</option>
+        </select>
+        <button class="tab-btn active" id="cm-view-mensal" onclick="pplCmView('mensal')" style="padding:5px 14px;font-size:11px">Visão Mensal</button>
+        <button class="tab-btn" id="cm-view-anual" onclick="pplCmView('anual')" style="padding:5px 14px;font-size:11px">Visão Anual (Rate Card)</button>
+      </div>
+
+      <div id="cm-kpis" class="kpi-grid" style="margin-bottom:20px"></div>
+
+      <div id="cm-mensal-view">
+        <div class="table-card">
+          <div class="table-header"><span class="table-title">Custo Mensal por Colaborador</span><span class="table-meta">Considera reajustes do histórico salarial</span></div>
+          <div style="overflow-x:auto">
+            <table class="tbl" style="min-width:1100px">
+              <thead><tr id="cm-table-head"></tr></thead>
+              <tbody id="cm-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="cm-anual-view" style="display:none">
+        <div class="charts-row" style="margin-bottom:20px">
+          <div class="chart-card chart-full"><div class="chart-title">Custo Médio Mensal por Colaborador (Rate Card Anual)</div><div style="position:relative;height:320px"><canvas id="chartCmAnual"></canvas></div></div>
+        </div>
+        <div class="table-card">
+          <div class="table-header"><span class="table-title">Resumo Anual — Rate Card</span></div>
+          <div style="overflow-x:auto">
+            <table class="tbl">
+              <thead><tr>
+                <th>Colaborador</th><th>Cargo</th><th>Depto</th><th>Tipo</th>
+                <th style="text-align:right">Custo Total Ano</th>
+                <th style="text-align:right">Média Mensal</th>
+                <th style="text-align:right">Custo/Hora Médio</th>
+                <th style="text-align:right">Meses Ativos</th>
+              </tr></thead>
+              <tbody id="cm-anual-table"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -2245,6 +2291,7 @@ function switchPeopleTab(tab,e){
   document.getElementById('people-'+tab).classList.add('active');
   if(e&&e.target)e.target.classList.add('active');
   if(tab==='equipe')pplRenderTable();
+  if(tab==='customensal')pplRenderCustoMensal();
   if(tab==='dei')pplRenderDEI();
   if(tab==='turnover')pplRenderTurnover();
   if(tab==='orgchart')pplRenderOrg();
@@ -2578,7 +2625,170 @@ function pplRenderHistList(){
     }).join('')+'</tbody></table>';
 }
 
-// ── UTILIZATION ──────────────────────────────────────
+// ── CUSTO MENSAL (histórico + rate card anual) ───────
+var _cmView='mensal';
+var _cmCharts={};
+
+function pplCmView(v){
+  _cmView=v;
+  document.getElementById('cm-view-mensal').classList.toggle('active',v==='mensal');
+  document.getElementById('cm-view-anual').classList.toggle('active',v==='anual');
+  document.getElementById('cm-mensal-view').style.display=v==='mensal'?'block':'none';
+  document.getElementById('cm-anual-view').style.display=v==='anual'?'block':'none';
+  pplRenderCustoMensal();
+}
+
+// Calcula o salário vigente de uma pessoa em um mês/ano específico,
+// retroagindo pelo histórico de reajustes salariais.
+function pplSalarioNoMes(pessoa, ano, mes){
+  var hist=getPplHist()[pessoa.id]||[];
+  // Ordena histórico por data ascendente
+  var ordenado=hist.slice().filter(function(r){return r.data;}).sort(function(a,b){return new Date(a.data)-new Date(b.data);});
+  var dataRef=new Date(ano, mes, 1);
+  // Salário atual é o cadastrado; histórico mostra de onde veio
+  // Se existe um reajuste com data POSTERIOR ao mês de referência, o salário do mês era o "anterior" daquele reajuste
+  var salarioNoMes=pessoa.salario; // default: salário atual
+  for(var i=ordenado.length-1;i>=0;i--){
+    var dataReajuste=new Date(ordenado[i].data);
+    if(dataReajuste>dataRef){
+      salarioNoMes=ordenado[i].anterior;
+    } else {
+      break;
+    }
+  }
+  return salarioNoMes;
+}
+
+function pplCustoNoMes(pessoa, ano, mes){
+  var sal=pplSalarioNoMes(pessoa, ano, mes);
+  var ben=parseFloat(pessoa.beneficios)||0;
+  if(pessoa.tipo==='pj') return sal+ben;
+  return (sal+ben)*1.77;
+}
+
+function pplPessoaAtivaNoMes(pessoa, ano, mes){
+  var dataRef=new Date(ano, mes, 1);
+  if(pessoa.admissao){
+    var adm=new Date(pessoa.admissao);
+    if(adm>dataRef)return false;
+  }
+  if(pessoa.desligamento){
+    var des=new Date(pessoa.desligamento);
+    var fimMes=new Date(ano, mes+1, 0);
+    if(des<dataRef)return false;
+  }
+  return true;
+}
+
+function pplRenderCustoMensal(){
+  var ano=parseInt(document.getElementById('cm-ano').value)||2026;
+  var d=getPplData();
+  var meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+  // KPIs gerais
+  var custoAnoTotal=0;
+  var mesAtual=new Date().getMonth();
+  var anoAtual=new Date().getFullYear();
+  var custoMesAtual=0;
+  d.forEach(function(p){
+    for(var m=0;m<12;m++){
+      if(pplPessoaAtivaNoMes(p,ano,m)){
+        var c=pplCustoNoMes(p,ano,m);
+        custoAnoTotal+=c;
+        if(ano===anoAtual&&m===mesAtual)custoMesAtual+=c;
+      }
+    }
+  });
+  var kpis=[
+    {label:'Custo Total '+ano,value:'R$ '+Math.round(custoAnoTotal).toLocaleString('pt-BR'),sub:'folha consolidada'},
+    {label:'Média Mensal',value:'R$ '+Math.round(custoAnoTotal/12).toLocaleString('pt-BR'),sub:'base anual / 12'},
+    {label:'Custo Mês Atual',value:'R$ '+Math.round(custoMesAtual).toLocaleString('pt-BR'),sub:meses[mesAtual]+'/'+anoAtual},
+    {label:'Headcount',value:d.filter(function(p){return p.status==='ativo';}).length,sub:'colaboradores ativos'},
+  ];
+  document.getElementById('cm-kpis').innerHTML=kpis.map(function(k){return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-value" style="font-size:16px">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
+
+  if(_cmView==='mensal'){
+    pplRenderCustoMensalTabela(d,ano,meses);
+  } else {
+    pplRenderCustoAnual(d,ano,meses);
+  }
+}
+
+function pplRenderCustoMensalTabela(d,ano,meses){
+  var thead=document.getElementById('cm-table-head');
+  thead.innerHTML='<th>Colaborador</th>'+meses.map(function(m){return '<th style="text-align:right">'+m+'</th>';}).join('')+'<th style="text-align:right;color:var(--amber)">Total Ano</th>';
+
+  var tbody=document.getElementById('cm-table-body');
+  if(!d.length){
+    tbody.innerHTML='<tr><td colspan="14" style="text-align:center;padding:24px;color:var(--text3)">Cadastre colaboradores para ver o custo mensal</td></tr>';
+    return;
+  }
+
+  var totalPorMes=new Array(12).fill(0);
+  var rows=d.map(function(p){
+    var totalAno=0;
+    var cells=meses.map(function(_,m){
+      if(!pplPessoaAtivaNoMes(p,ano,m)){
+        return '<td style="text-align:right;color:var(--text3)">—</td>';
+      }
+      var c=pplCustoNoMes(p,ano,m);
+      totalAno+=c;
+      totalPorMes[m]+=c;
+      return '<td style="text-align:right">R$ '+Math.round(c).toLocaleString('pt-BR')+'</td>';
+    }).join('');
+    return '<tr><td><strong>'+p.nome+'</strong><div style="font-size:9px;color:var(--text3)">'+(p.cargo||'')+'</div></td>'+cells+'<td style="text-align:right;font-weight:700;color:var(--amber)">R$ '+Math.round(totalAno).toLocaleString('pt-BR')+'</td></tr>';
+  }).join('');
+
+  var totalGeral=totalPorMes.reduce(function(s,v){return s+v;},0);
+  var footerRow='<tr style="border-top:2px solid var(--border)"><td><strong>TOTAL</strong></td>'+
+    totalPorMes.map(function(v){return '<td style="text-align:right;font-weight:700">R$ '+Math.round(v).toLocaleString('pt-BR')+'</td>';}).join('')+
+    '<td style="text-align:right;font-weight:700;color:var(--amber)">R$ '+Math.round(totalGeral).toLocaleString('pt-BR')+'</td></tr>';
+
+  tbody.innerHTML=rows+footerRow;
+}
+
+function pplRenderCustoAnual(d,ano,meses){
+  if(!d.length){
+    document.getElementById('cm-anual-table').innerHTML='<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">Cadastre colaboradores para ver o rate card anual</td></tr>';
+    return;
+  }
+
+  var rows=d.map(function(p){
+    var totalAno=0, mesesAtivos=0, totalHoras=0;
+    for(var m=0;m<12;m++){
+      if(pplPessoaAtivaNoMes(p,ano,m)){
+        totalAno+=pplCustoNoMes(p,ano,m);
+        mesesAtivos++;
+        totalHoras+=(parseFloat(p.horas)||160);
+      }
+    }
+    var mediaMensal=mesesAtivos>0?totalAno/mesesAtivos:0;
+    var custoHoraMedio=totalHoras>0?totalAno/totalHoras:0;
+    return {p,totalAno,mediaMensal,custoHoraMedio,mesesAtivos};
+  }).sort(function(a,b){return b.totalAno-a.totalAno;});
+
+  document.getElementById('cm-anual-table').innerHTML=rows.map(function(r){
+    return '<tr>'+
+      '<td><strong>'+r.p.nome+'</strong></td>'+
+      '<td style="color:var(--text2)">'+(r.p.cargo||'—')+'</td>'+
+      '<td><span class="badge badge-blue">'+r.p.depto+'</span></td>'+
+      '<td><span class="badge '+(r.p.tipo==='clt'?'badge-green':'badge-gray')+'">'+r.p.tipo.toUpperCase()+'</span></td>'+
+      '<td style="text-align:right;color:var(--amber)">R$ '+Math.round(r.totalAno).toLocaleString('pt-BR')+'</td>'+
+      '<td style="text-align:right;font-weight:700">R$ '+Math.round(r.mediaMensal).toLocaleString('pt-BR')+'</td>'+
+      '<td style="text-align:right">R$ '+r.custoHoraMedio.toFixed(0)+'/h</td>'+
+      '<td style="text-align:right">'+r.mesesAtivos+'</td>'+
+    '</tr>';
+  }).join('');
+
+  var top15=rows.slice(0,15);
+  var c=document.getElementById('chartCmAnual');
+  if(_cmCharts.anual)_cmCharts.anual.destroy();
+  _cmCharts.anual=new Chart(c,{type:'bar',data:{
+    labels:top15.map(function(r){return r.p.nome.split(' ')[0];}),
+    datasets:[{label:'Média Mensal',data:top15.map(function(r){return Math.round(r.mediaMensal);}),backgroundColor:'rgba(251,191,36,0.5)',borderRadius:3}]
+  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#666',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',font:{size:10},callback:function(v){return 'R$ '+Math.round(v/1000)+'k';}}}}}});
+}
+
 async function pplCarregarUtilization(){
   var sel=document.getElementById('util-sel-periodo');
   if(!sel)return;
@@ -2774,7 +2984,7 @@ function getPplDataLegacy(){return getPplData();}
 async function pplImportarVBS(){
   if(!confirm('Importar funcionários ativos do VBS? Nomes já cadastrados serão ignorados.'))return;
   try {
-    var res=await fetch(API+'/api/funcionarios?demitidos=0');
+    var res=await fetch(API+'/api/funcionarios?demitidos=2');
     var j=await res.json();
     var lista=j.data||j;
     var ret=lista.Retorno||lista.retorno||lista;
@@ -2785,13 +2995,12 @@ async function pplImportarVBS(){
     ret.forEach(function(f){
       var nome=String(f.Nome_Completo_Funcionario||f.Nome_Funcionario||f.nome||'').trim();
       if(!nome)return;
-      if(f.Data_Demissao)return; // só ativos
       if(existentes.includes(nome.toLowerCase()))return;
       d.push({
         id:String(Date.now())+Math.random(),
         nome:nome,
-        cargo:f.Nome_Cargo_Funcionario||f.Cargo_Funcionario||f.Cargo||f.cargo||'',
-        depto:f.Nome_Departamento_Funcionario||f.Departamento_Funcionario||f.Departamento||f.departamento||'',
+        cargo:f.Cargo_Funcionario||f.Cargo||f.cargo||'',
+        depto:f.Departamento_Funcionario||f.Departamento||f.departamento||'',
         tipo:(f.Tipo_Contrato||'').toLowerCase().includes('pj')?'pj':'clt',
         lider:'nao',
         gestor:'',
@@ -2800,9 +3009,16 @@ async function pplImportarVBS(){
         beneficios:0,
         horas:160,
         admissao:f.Data_Admissao||f.data_admissao||'',
-        desligamento:'',
+        desligamento:f.Data_Demissao||'',
         motivo_saida:'',
-        status:'ativo'
+        status:(function(){
+          if(!f.Data_Demissao)return 'ativo';
+          // Data vem DD/MM/YYYY
+          var parts=f.Data_Demissao.split('/');
+          if(parts.length!==3)return 'ativo';
+          var d=new Date(parts[2],parts[1]-1,parts[0]);
+          return d<=new Date()?'desligado':'ativo';
+        })()
       });
       novos++;
     });
