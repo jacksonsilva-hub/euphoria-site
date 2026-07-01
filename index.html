@@ -2748,12 +2748,62 @@ function pplRenderHistList(){
   var h=hist[_pplHistId]||[];
   var el=document.getElementById('hist-list');
   if(!h.length){el.innerHTML='<div style="color:var(--text3);font-size:12px;text-align:center;padding:16px">Sem histórico registrado</div>';return;}
-  el.innerHTML='<table class="tbl"><thead><tr><th>Data</th><th style="text-align:right">Anterior</th><th style="text-align:right">Novo</th><th style="text-align:right">Δ</th><th>Motivo</th></tr></thead><tbody>'
-    +h.slice().reverse().map(function(r){
+  el.innerHTML='<table class="tbl"><thead><tr><th>Data</th><th style="text-align:right">Anterior</th><th style="text-align:right">Novo</th><th style="text-align:right">Δ</th><th>Motivo</th><th></th></tr></thead><tbody>'
+    +h.slice().reverse().map(function(r,i){
+      var realIdx=h.length-1-i; // índice real no array original
       var delta=r.novo-r.anterior;
       var pct=r.anterior>0?(delta/r.anterior*100).toFixed(1):0;
-      return '<tr><td>'+(r.data||'—')+'</td><td style="text-align:right">R$ '+Math.round(r.anterior).toLocaleString('pt-BR')+'</td><td style="text-align:right">R$ '+Math.round(r.novo).toLocaleString('pt-BR')+'</td><td style="text-align:right;color:'+(delta>=0?'var(--pos)':'var(--neg)')+'">'+pct+'%</td><td style="font-size:11px;color:var(--text3)">'+r.motivo+'</td></tr>';
+      return '<tr>'+
+        '<td>'+(r.data||'—')+'</td>'+
+        '<td style="text-align:right">R$ '+Math.round(r.anterior).toLocaleString('pt-BR')+'</td>'+
+        '<td style="text-align:right">R$ '+Math.round(r.novo).toLocaleString('pt-BR')+'</td>'+
+        '<td style="text-align:right;color:'+(delta>=0?'var(--pos)':'var(--neg)')+'">'+pct+'%</td>'+
+        '<td style="font-size:11px;color:var(--text3)">'+r.motivo+'</td>'+
+        '<td style="display:flex;gap:4px">'+
+          '<button class="btn" style="padding:2px 7px;font-size:10px" onclick="pplEditHist('+realIdx+')">✏️</button>'+
+          '<button class="btn" style="padding:2px 7px;font-size:10px;color:var(--neg)" onclick="pplDeleteHist('+realIdx+')">✕</button>'+
+        '</td>'+
+      '</tr>';
     }).join('')+'</tbody></table>';
+}
+
+function pplDeleteHist(idx){
+  if(!confirm('Excluir este registro?'))return;
+  var hist=getPplHist();
+  hist[_pplHistId].splice(idx,1);
+  savePplHist(hist);
+  pplRenderHistList();
+}
+
+function pplEditHist(idx){
+  var hist=getPplHist();
+  var r=hist[_pplHistId][idx];
+  if(!r)return;
+  document.getElementById('hist-data').value=r.data||'';
+  document.getElementById('hist-anterior').value=r.anterior||'';
+  document.getElementById('hist-novo').value=r.novo||'';
+  document.getElementById('hist-motivo').value=r.motivo||'Mérito';
+  // Troca o botão para "Salvar edição"
+  var btn=document.querySelector('#ppl-hist-modal .btn-primary');
+  btn.textContent='💾 Salvar edição';
+  btn.onclick=function(){pplSalvarHistEdicao(idx);};
+}
+
+function pplSalvarHistEdicao(idx){
+  var hist=getPplHist();
+  hist[_pplHistId][idx]={
+    data:document.getElementById('hist-data').value,
+    anterior:parseFloat(document.getElementById('hist-anterior').value)||0,
+    novo:parseFloat(document.getElementById('hist-novo').value)||0,
+    motivo:document.getElementById('hist-motivo').value,
+    ts:Date.now()
+  };
+  savePplHist(hist);
+  // Restaura botão original
+  var btn=document.querySelector('#ppl-hist-modal .btn-primary');
+  btn.textContent='+ Adicionar Registro';
+  btn.onclick=pplSalvarHist;
+  pplRenderHistList();
 }
 
 // ── CUSTO MENSAL (histórico + rate card anual) ───────
