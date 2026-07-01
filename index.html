@@ -1223,7 +1223,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
           </select>
         </div>
         <div style="grid-column:1/-1;background:var(--bg3);border-radius:8px;padding:10px">
-          <span style="font-size:10px;color:var(--text3)">CUSTO MENSAL (SEM 13º/FÉRIAS): </span>
+          <span style="font-size:10px;color:var(--text3)">CUSTO MENSAL (COM PROVISÕES): </span>
           <span id="pm-custo-preview" style="font-size:14px;font-weight:700;color:var(--pos)">—</span>
           <span style="font-size:10px;color:var(--text3);margin-left:12px">CUSTO/HORA: </span>
           <span id="pm-ch-preview" style="font-size:13px;font-weight:600;color:var(--amber)">—</span>
@@ -2315,8 +2315,12 @@ function switchPeopleTab(tab,e){
 function pplCustoTotal(p){
   var base=parseFloat(p.salario)||0;
   var bens=parseFloat(p.beneficios)||0;
-  if(p.tipo==='pj') return base+bens;
-  return (base+bens)*1.77; // encargos CLT aproximado
+  var custo=p.tipo==='pj'?(base+bens):(base+bens)*1.77;
+  // Provisão mensal 13º (1/12 por mês)
+  if(p.recebe13==='sim') custo+=base/12;
+  // Provisão mensal férias 1/3 (1/12 por mês)
+  if(p.recebeferias==='sim') custo+=(base*(1/3))/12;
+  return custo;
 }
 function pplCustoHora(p){
   var ct=pplCustoTotal(p);
@@ -2361,8 +2365,11 @@ function pplCalcCusto(){
   var hrs=parseFloat(document.getElementById('pm-horas').value)||160;
   var tipo=document.getElementById('pm-tipo').value;
   var ct=tipo==='pj'?(sal+ben):(sal+ben)*1.77;
-  var ch=hrs>0?ct/hrs:0;
-  document.getElementById('pm-custo-preview').textContent='R$ '+Math.round(ct).toLocaleString('pt-BR');
+  var prov13=recebe13==='sim'?sal/12:0;
+  var provFerias=recebeFerias==='sim'?(sal*(1/3))/12:0;
+  var ctTotal=ct+prov13+provFerias;
+  var ch=hrs>0?ctTotal/hrs:0;
+  document.getElementById('pm-custo-preview').textContent='R$ '+Math.round(ctTotal).toLocaleString('pt-BR');
   document.getElementById('pm-ch-preview').textContent='R$ '+ch.toFixed(2)+'/h';
 
   var recebe13=document.getElementById('pm-recebe13').value;
