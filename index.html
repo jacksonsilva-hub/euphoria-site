@@ -968,6 +968,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
         <button class="btn btn-primary" onclick="pplAbrirModal()">+ Novo Colaborador</button>
         <button class="btn" onclick="pplImportarVBS()" style="font-size:11px">⬇️ Importar do VBS</button>
+        <button class="btn" onclick="pplExportExcel()" style="font-size:11px">📊 Exportar Excel</button>
         <select id="ppl-f-depto" onchange="pplRenderTable()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
           <option value="">Todos departamentos</option>
           <option>Atendimento</option><option>Criação</option><option>Estratégia</option>
@@ -1079,12 +1080,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
 
     <!-- ── ORGANOGRAMA ── -->
     <div class="tab-panel" id="people-orgchart">
-      <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
+      <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
         <select id="org-sel-depto" onchange="pplRenderOrg()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
           <option value="">Toda a empresa</option>
           <option>Atendimento</option><option>Criação</option><option>Estratégia</option>
           <option>Mídia</option><option>Conteúdo</option><option>Financeiro</option><option>Diretoria</option>
         </select>
+        <button class="btn" onclick="pplExportOrg()" style="font-size:11px">📥 Exportar PNG</button>
         <span style="font-size:11px;color:var(--text3)">Hierarquia visual por gestor/líder</span>
       </div>
       <div id="org-tree" style="overflow-x:auto;padding:16px"></div>
@@ -2591,6 +2593,84 @@ function pplRenderTurnover(){
 }
 
 // ── ORGANOGRAMA ──────────────────────────────────────
+// ── EXPORT EXCEL (Folha) ─────────────────────────────
+function pplExportExcel(){
+  var d=getPplData();
+  if(!d.length){alert('Nenhum colaborador cadastrado!');return;}
+  var hist=getPplHist();
+
+  // Header
+  var rows=[['Nome','Cargo','Departamento','Empresa','Tipo','Gênero','Raça/Etnia','É Líder','Gestor',
+    'Salário (R$)','A. Médica (R$)','Flash (R$)','Wellhub (R$)','Contador (R$)','Total Benefícios (R$)',
+    'Custo Total/mês (R$)','Horas/mês','Custo/hora (R$)','Recebe 13º','Recebe Férias','Data Admissão','Data Desligamento','Status']];
+
+  d.forEach(function(p){
+    var ct=pplCustoTotal(p);
+    var ch=pplCustoHora(p);
+    rows.push([
+      p.nome||'',p.cargo||'',p.depto||'',p.empresa||'euphoria',p.tipo||'',p.genero||'',p.raca||'',
+      p.lider==='sim'?'Sim':'Não',p.gestor||'',
+      p.salario||0,p.ben_medica||0,p.ben_flash||0,p.ben_wellhub||0,p.ben_contador||0,p.beneficios||0,
+      Math.round(ct),p.horas||160,ch.toFixed(2),
+      p.recebe13==='sim'?'Sim':'Não',p.recebeferias==='sim'?'Sim':'Não',
+      p.admissao||'',p.desligamento||'',p.status||'ativo'
+    ]);
+  });
+
+  // Convert to CSV (Excel-compatible UTF-8 BOM)
+  var csv='\uFEFF'+rows.map(function(r){
+    return r.map(function(v){
+      var s=String(v);
+      if(s.includes(',')||s.includes('"')||s.includes('\n'))s='"'+s.replace(/"/g,'""')+'"';
+      return s;
+    }).join(',');
+  }).join('\r\n');
+
+  var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;
+  a.download='Euphoria_Folha_'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ── EXPORT ORGANOGRAMA PNG ───────────────────────────
+function pplExportOrg(){
+  var tree=document.getElementById('org-tree');
+  if(!tree||!tree.innerHTML.trim()){alert('Gere o organograma primeiro!');return;}
+
+  // Use html2canvas via CDN
+  if(typeof html2canvas==='undefined'){
+    var script=document.createElement('script');
+    script.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    script.onload=function(){pplCaptureOrg(tree);};
+    document.head.appendChild(script);
+  } else {
+    pplCaptureOrg(tree);
+  }
+}
+function pplCaptureOrg(tree){
+  html2canvas(tree,{
+    backgroundColor:'#111',
+    scale:2,
+    useCORS:true,
+    logging:false
+  }).then(function(canvas){
+    var url=canvas.toDataURL('image/png');
+    var a=document.createElement('a');
+    a.href=url;
+    a.download='Euphoria_Organograma_'+new Date().toISOString().slice(0,10)+'.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }).catch(function(e){
+    alert('Erro ao exportar PNG: '+e.message);
+  });
+}
+
 function pplRenderOrg(){
   var d=getPplData().filter(function(p){return p.status==='ativo';});
   var fd=document.getElementById('org-sel-depto');
