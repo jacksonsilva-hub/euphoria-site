@@ -2568,7 +2568,7 @@ function pplRenderDEI(){
   var oriMap={};d.forEach(function(p){var o=p.orientacao||'Não informado';oriMap[o]=(oriMap[o]||0)+1;});
   var c3=document.getElementById('chartDeiOrientacao');
   if(_deiCharts.ori)_deiCharts.ori.destroy();
-  _deiCharts.ori=new Chart(c3,{type:'doughnut',data:{labels:Object.keys(oriMap),datasets:[{data:Object.values(oriMap),backgroundColor:['#60a5fa','#f472b6','#34d399','#fbbf24','#a78bfa','#f87171','#888'],borderColor:'#111',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{color:'#888',font:{size:11},boxWidth:12}}}}}})
+  _deiCharts.ori=new Chart(c3,{type:'doughnut',data:{labels:Object.keys(oriMap),datasets:[{data:Object.values(oriMap),backgroundColor:['#60a5fa','#f472b6','#34d399','#fbbf24','#a78bfa','#f87171','#888'],borderColor:'#111',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{color:'#888',font:{size:11},boxWidth:12}}}}});
 
   // Gap salarial por depto
   var deptos=[...new Set(d.map(function(p){return p.depto;}))];
