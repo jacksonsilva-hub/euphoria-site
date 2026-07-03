@@ -1007,8 +1007,16 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
         <select id="cm-ano" onchange="pplRenderCustoMensal()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
           <option value="2026">2026</option><option value="2025">2025</option><option value="2027">2027</option>
         </select>
+        <select id="cm-mes-filtro" onchange="pplRenderCustoMensal()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="">Todos os meses</option>
+          <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option>
+          <option value="3">Abril</option><option value="4">Maio</option><option value="5">Junho</option>
+          <option value="6">Julho</option><option value="7">Agosto</option><option value="8">Setembro</option>
+          <option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
+        </select>
         <button class="tab-btn active" id="cm-view-mensal" onclick="pplCmView('mensal')" style="padding:5px 14px;font-size:11px">Visão Mensal</button>
         <button class="tab-btn" id="cm-view-anual" onclick="pplCmView('anual')" style="padding:5px 14px;font-size:11px">Visão Anual (Rate Card)</button>
+        <button class="tab-btn" id="cm-view-posicao" onclick="pplCmView('posicao')" style="padding:5px 14px;font-size:11px">Rate Card por Posição</button>
       </div>
 
       <div id="cm-kpis" class="kpi-grid" style="margin-bottom:20px"></div>
@@ -1030,7 +1038,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
           <div class="chart-card chart-full"><div class="chart-title">Custo Médio Mensal por Colaborador (Rate Card Anual)</div><div style="position:relative;height:320px"><canvas id="chartCmAnual"></canvas></div></div>
         </div>
         <div class="table-card">
-          <div class="table-header"><span class="table-title">Resumo Anual — Rate Card</span></div>
+          <div class="table-header"><span class="table-title">Resumo Anual — Rate Card por Colaborador</span></div>
           <div style="overflow-x:auto">
             <table class="tbl">
               <thead><tr>
@@ -1045,6 +1053,28 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
           </div>
         </div>
       </div>
+
+      <div id="cm-posicao-view" style="display:none">
+        <div class="charts-row" style="margin-bottom:20px">
+          <div class="chart-card chart-full"><div class="chart-title">Custo Médio por Cargo/Posição</div><div style="position:relative;height:320px"><canvas id="chartCmPosicao"></canvas></div></div>
+        </div>
+        <div class="table-card">
+          <div class="table-header"><span class="table-title">Rate Card por Posição</span><span class="table-meta">Agrupado por cargo — custo médio de mercado interno</span></div>
+          <div style="overflow-x:auto">
+            <table class="tbl">
+              <thead><tr>
+                <th>Cargo</th><th>Departamento</th><th style="text-align:right">Headcount</th>
+                <th style="text-align:right">Custo Mín</th>
+                <th style="text-align:right">Custo Médio</th>
+                <th style="text-align:right">Custo Máx</th>
+                <th style="text-align:right">Custo/Hora Médio</th>
+                <th style="text-align:right">Custo Total</th>
+              </tr></thead>
+              <tbody id="cm-posicao-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ── DEI ── -->
@@ -1053,6 +1083,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       <div class="charts-row" style="margin-bottom:20px">
         <div class="chart-card"><div class="chart-title">Distribuição por Gênero</div><div style="position:relative;height:220px"><canvas id="chartDeiGenero"></canvas></div></div>
         <div class="chart-card"><div class="chart-title">Distribuição por Raça/Etnia</div><div style="position:relative;height:220px"><canvas id="chartDeiRaca"></canvas></div></div>
+        <div class="chart-card"><div class="chart-title">Distribuição por Orientação Sexual</div><div style="position:relative;height:220px"><canvas id="chartDeiOrientacao"></canvas></div></div>
       </div>
       <div class="charts-row">
         <div class="chart-card"><div class="chart-title">Gap Salarial por Gênero — por Departamento</div>
@@ -1087,6 +1118,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
           <option>Atendimento</option><option>Criação</option><option>Estratégia</option>
           <option>Mídia</option><option>Conteúdo</option><option>Produção</option><option>Data Insights</option>
           <option>Financeiro</option><option>Diretoria</option>
+        </select>
+        <select id="org-sel-gestor" onchange="pplRenderOrg()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="">Todos os gestores</option>
         </select>
         <button class="btn" onclick="pplExportOrg()" style="font-size:11px">📥 Exportar PNG</button>
         <span style="font-size:11px;color:var(--text3)">Hierarquia visual por gestor/líder</span>
@@ -1173,6 +1207,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
           <select id="pm-raca" class="field-input">
             <option value="">Não informado</option><option>Branca</option><option>Preta</option>
             <option>Parda</option><option>Amarela</option><option>Indígena</option><option>Prefiro não dizer</option>
+          </select>
+        </div>
+        <div><label class="jur-lbl">ORIENTAÇÃO SEXUAL</label>
+          <select id="pm-orientacao" class="field-input">
+            <option value="">Não informado</option><option>Heterossexual</option><option>Gay/Lésbica</option>
+            <option>Bissexual</option><option>Pansexual</option><option>Assexual</option><option>Prefiro não dizer</option>
           </select>
         </div>
         <div><label class="jur-lbl">TIPO *</label>
@@ -2336,7 +2376,7 @@ function pplAbrirModal(id){
   document.getElementById('ppl-edit-id').value=id||'';
   document.getElementById('ppl-modal-title').textContent=id?'Editar Colaborador':'Novo Colaborador';
   var p=id?getPplData().find(function(x){return x.id===id;}):null;
-  var fields=['nome','genero','raca','tipo','cargo','depto','lider','gestor','empresa','salario','ben-medica','ben-flash','ben-wellhub','ben-contador','recebe13','recebeferias','horas','admissao','desligamento','motivo-saida'];
+  var fields=['nome','genero','raca','orientacao','tipo','cargo','depto','lider','gestor','empresa','salario','ben-medica','ben-flash','ben-wellhub','ben-contador','recebe13','recebeferias','horas','admissao','desligamento','motivo-saida'];
   fields.forEach(function(f){
     var el=document.getElementById('pm-'+f);
     if(!el)return;
@@ -2397,6 +2437,7 @@ function pplSalvarModal(){
     nome:nome,
     genero:document.getElementById('pm-genero').value,
     raca:document.getElementById('pm-raca').value,
+    orientacao:document.getElementById('pm-orientacao').value,
     tipo:document.getElementById('pm-tipo').value,
     cargo:document.getElementById('pm-cargo').value.trim(),
     depto:depto,
@@ -2522,6 +2563,12 @@ function pplRenderDEI(){
   var c2=document.getElementById('chartDeiRaca');
   if(_deiCharts.raca)_deiCharts.raca.destroy();
   _deiCharts.raca=new Chart(c2,{type:'doughnut',data:{labels:Object.keys(racMap),datasets:[{data:Object.values(racMap),backgroundColor:['#fff','#fbbf24','#d97706','#f87171','#a78bfa','#888'],borderColor:'#111',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{color:'#888',font:{size:11},boxWidth:12}}}}});
+
+  // Orientação Sexual chart
+  var oriMap={};d.forEach(function(p){var o=p.orientacao||'Não informado';oriMap[o]=(oriMap[o]||0)+1;});
+  var c3=document.getElementById('chartDeiOrientacao');
+  if(_deiCharts.ori)_deiCharts.ori.destroy();
+  _deiCharts.ori=new Chart(c3,{type:'doughnut',data:{labels:Object.keys(oriMap),datasets:[{data:Object.values(oriMap),backgroundColor:['#60a5fa','#f472b6','#34d399','#fbbf24','#a78bfa','#f87171','#888'],borderColor:'#111',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{color:'#888',font:{size:11},boxWidth:12}}}}}})
 
   // Gap salarial por depto
   var deptos=[...new Set(d.map(function(p){return p.depto;}))];
@@ -2681,13 +2728,82 @@ function pplCaptureOrg(tree){
   });
 }
 
+function pplRenderCustoPosicao(d,ano){
+  if(!d.length){
+    document.getElementById('cm-posicao-table').innerHTML='<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">Cadastre colaboradores para ver o rate card por posição</td></tr>';
+    return;
+  }
+  // Agrupa por cargo
+  var cargoMap={};
+  d.forEach(function(p){
+    var cargo=p.cargo||'Sem cargo';
+    var depto=p.depto||'—';
+    var key=cargo+'|||'+depto;
+    if(!cargoMap[key])cargoMap[key]={cargo,depto,pessoas:[],custos:[]};
+    var totalAno=0, mesesAtivos=0, totalHoras=0;
+    for(var m=0;m<12;m++){
+      if(pplPessoaAtivaNoMes(p,ano,m)){
+        totalAno+=pplCustoNoMes(p,ano,m);
+        mesesAtivos++;
+        totalHoras+=(parseFloat(p.horas)||160);
+      }
+    }
+    var mediaMensal=mesesAtivos>0?totalAno/mesesAtivos:0;
+    var ch=totalHoras>0?totalAno/totalHoras:0;
+    cargoMap[key].pessoas.push(p.nome);
+    cargoMap[key].custos.push({mediaMensal,ch,totalAno});
+  });
+
+  var rows=Object.values(cargoMap).sort(function(a,b){
+    var totA=a.custos.reduce(function(s,c){return s+c.mediaMensal;},0)/a.custos.length;
+    var totB=b.custos.reduce(function(s,c){return s+c.mediaMensal;},0)/b.custos.length;
+    return totB-totA;
+  });
+
+  var c=document.getElementById('chartCmPosicao');
+  if(_cmCharts.pos)_cmCharts.pos.destroy();
+  var top15=rows.slice(0,15);
+  _cmCharts.pos=new Chart(c,{type:'bar',data:{
+    labels:top15.map(function(r){return r.cargo;}),
+    datasets:[{label:'Custo Médio Mensal',data:top15.map(function(r){return Math.round(r.custos.reduce(function(s,c){return s+c.mediaMensal;},0)/r.custos.length);}),backgroundColor:'rgba(167,139,250,0.5)',borderRadius:3}]
+  },options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',callback:function(v){return 'R$ '+Math.round(v/1000)+'k';}}},y:{grid:{display:false},ticks:{color:'#888',font:{size:9}}}}}});
+
+  document.getElementById('cm-posicao-table').innerHTML=rows.map(function(r){
+    var custos=r.custos.map(function(c){return c.mediaMensal;});
+    var mn=Math.min.apply(null,custos), mx=Math.max.apply(null,custos), avg=custos.reduce(function(s,v){return s+v;},0)/custos.length;
+    var chAvg=r.custos.reduce(function(s,c){return s+c.ch;},0)/r.custos.length;
+    var total=r.custos.reduce(function(s,c){return s+c.totalAno;},0);
+    return '<tr>'+
+      '<td><strong>'+r.cargo+'</strong></td>'+
+      '<td><span class="badge badge-blue">'+r.depto+'</span></td>'+
+      '<td style="text-align:right">'+r.pessoas.length+'</td>'+
+      '<td style="text-align:right">R$ '+Math.round(mn).toLocaleString('pt-BR')+'</td>'+
+      '<td style="text-align:right;font-weight:700">R$ '+Math.round(avg).toLocaleString('pt-BR')+'</td>'+
+      '<td style="text-align:right">R$ '+Math.round(mx).toLocaleString('pt-BR')+'</td>'+
+      '<td style="text-align:right;color:var(--amber)">R$ '+chAvg.toFixed(0)+'/h</td>'+
+      '<td style="text-align:right">R$ '+Math.round(total).toLocaleString('pt-BR')+'</td>'+
+    '</tr>';
+  }).join('');
+}
+
 function pplRenderOrg(){
-  var d=getPplData().filter(function(p){return p.status==='ativo';});
+  var todos=getPplData().filter(function(p){return p.status==='ativo';});
+  var d=todos.slice();
   var fd=document.getElementById('org-sel-depto');
   if(fd&&fd.value) d=d.filter(function(p){return p.depto===fd.value;});
+
+  // Populate gestor filter
+  var fg=document.getElementById('org-sel-gestor');
+  if(fg){
+    var gestores=[...new Set(todos.map(function(p){return p.gestor;}).filter(Boolean))].sort();
+    var curGestor=fg.value;
+    fg.innerHTML='<option value="">Todos os gestores</option>'+gestores.map(function(g){return '<option'+(g===curGestor?' selected':'')+'>'+g+'</option>';}).join('');
+    if(fg.value) d=d.filter(function(p){return p.gestor===fg.value||p.nome===fg.value;});
+  }
+
   var tree=document.getElementById('org-tree');
   if(!tree)return;
-  if(!d.length){tree.innerHTML='<div style="color:var(--text3);text-align:center;padding:48px">Nenhum colaborador cadastrado.</div>';return;}
+  if(!d.length){tree.innerHTML='<div style="color:var(--text3);text-align:center;padding:48px">Nenhum colaborador encontrado.</div>';return;}
   // Build hierarchy: group by gestor
   function renderNode(pessoa,all,depth){
     var reports=all.filter(function(p){return p.gestor&&p.gestor.trim().toLowerCase()===pessoa.nome.trim().toLowerCase()&&p.id!==pessoa.id;});
@@ -2817,8 +2933,10 @@ function pplCmView(v){
   _cmView=v;
   document.getElementById('cm-view-mensal').classList.toggle('active',v==='mensal');
   document.getElementById('cm-view-anual').classList.toggle('active',v==='anual');
+  document.getElementById('cm-view-posicao').classList.toggle('active',v==='posicao');
   document.getElementById('cm-mensal-view').style.display=v==='mensal'?'block':'none';
   document.getElementById('cm-anual-view').style.display=v==='anual'?'block':'none';
+  document.getElementById('cm-posicao-view').style.display=v==='posicao'?'block':'none';
   pplRenderCustoMensal();
 }
 
@@ -2872,20 +2990,23 @@ function pplFeriasNoMes(pessoa, ano, mes){
 }
 
 function pplPessoaAtivaNoMes(pessoa, ano, mes){
-  var dataRef=new Date(ano, mes, 1);
+  var fimMes=new Date(ano, mes+1, 0); // último dia do mês
+  var inicioMes=new Date(ano, mes, 1);
   if(pessoa.admissao){
     var adm=new Date(pessoa.admissao);
-    if(adm>dataRef)return false;
+    if(adm>fimMes)return false; // admitido após o fim do mês
   }
   if(pessoa.desligamento){
     var des=new Date(pessoa.desligamento);
-    if(des<dataRef)return false;
+    if(des<inicioMes)return false; // desligado antes do início do mês
   }
   return true;
 }
 
 function pplRenderCustoMensal(){
   var ano=parseInt(document.getElementById('cm-ano').value)||2026;
+  var mesFiltroEl=document.getElementById('cm-mes-filtro');
+  var mesFiltro=mesFiltroEl&&mesFiltroEl.value!==''?parseInt(mesFiltroEl.value):null;
   var d=getPplData();
   var meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
@@ -2911,26 +3032,30 @@ function pplRenderCustoMensal(){
   document.getElementById('cm-kpis').innerHTML=kpis.map(function(k){return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-value" style="font-size:16px">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
 
   if(_cmView==='mensal'){
-    pplRenderCustoMensalTabela(d,ano,meses);
+    pplRenderCustoMensalTabela(d,ano,meses,mesFiltro);
+  } else if(_cmView==='posicao'){
+    pplRenderCustoPosicao(d,ano);
   } else {
     pplRenderCustoAnual(d,ano,meses);
   }
 }
 
-function pplRenderCustoMensalTabela(d,ano,meses){
+function pplRenderCustoMensalTabela(d,ano,meses,mesFiltro){
   var thead=document.getElementById('cm-table-head');
-  thead.innerHTML='<th>Colaborador</th>'+meses.map(function(m){return '<th style="text-align:right">'+m+'</th>';}).join('')+'<th style="text-align:right;color:var(--amber)">Total Ano</th>';
+  var mesesVisiveis=mesFiltro!==null?[meses[mesFiltro]]:meses;
+  var idxVisiveis=mesFiltro!==null?[mesFiltro]:meses.map(function(_,i){return i;});
+  thead.innerHTML='<th>Colaborador</th>'+mesesVisiveis.map(function(m){return '<th style="text-align:right">'+m+'</th>';}).join('')+'<th style="text-align:right;color:var(--amber)">Total</th>';
 
   var tbody=document.getElementById('cm-table-body');
   if(!d.length){
-    tbody.innerHTML='<tr><td colspan="14" style="text-align:center;padding:24px;color:var(--text3)">Cadastre colaboradores para ver o custo mensal</td></tr>';
+    tbody.innerHTML='<tr><td colspan="'+(idxVisiveis.length+2)+'" style="text-align:center;padding:24px;color:var(--text3)">Cadastre colaboradores para ver o custo mensal</td></tr>';
     return;
   }
 
-  var totalPorMes=new Array(12).fill(0);
+  var totalPorIdx={};
   var rows=d.map(function(p){
     var totalAno=0;
-    var cells=meses.map(function(_,m){
+    var cells=idxVisiveis.map(function(m){
       if(!pplPessoaAtivaNoMes(p,ano,m)){
         return '<td style="text-align:right;color:var(--text3)">—</td>';
       }
@@ -2938,7 +3063,7 @@ function pplRenderCustoMensalTabela(d,ano,meses){
       var d13=pplDecimoTerceiroNoMes(p,ano,m);
       var dFerias=pplFeriasNoMes(p,ano,m);
       totalAno+=c;
-      totalPorMes[m]+=c;
+      totalPorIdx[m]=(totalPorIdx[m]||0)+c;
       var badge='';
       if(d13>0)badge+='<span style="font-size:8px;color:var(--amber);display:block">+13º</span>';
       if(dFerias>0)badge+='<span style="font-size:8px;color:#60a5fa;display:block">+Férias</span>';
@@ -2947,9 +3072,9 @@ function pplRenderCustoMensalTabela(d,ano,meses){
     return '<tr><td><strong>'+p.nome+'</strong><div style="font-size:9px;color:var(--text3)">'+(p.cargo||'')+'</div></td>'+cells+'<td style="text-align:right;font-weight:700;color:var(--amber)">R$ '+Math.round(totalAno).toLocaleString('pt-BR')+'</td></tr>';
   }).join('');
 
-  var totalGeral=totalPorMes.reduce(function(s,v){return s+v;},0);
+  var totalGeral=idxVisiveis.reduce(function(s,m){return s+(totalPorIdx[m]||0);},0);
   var footerRow='<tr style="border-top:2px solid var(--border)"><td><strong>TOTAL</strong></td>'+
-    totalPorMes.map(function(v){return '<td style="text-align:right;font-weight:700">R$ '+Math.round(v).toLocaleString('pt-BR')+'</td>';}).join('')+
+    idxVisiveis.map(function(m){return '<td style="text-align:right;font-weight:700">R$ '+Math.round(totalPorIdx[m]||0).toLocaleString('pt-BR')+'</td>';}).join('')+
     '<td style="text-align:right;font-weight:700;color:var(--amber)">R$ '+Math.round(totalGeral).toLocaleString('pt-BR')+'</td></tr>';
 
   tbody.innerHTML=rows+footerRow;
