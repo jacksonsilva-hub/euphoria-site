@@ -1131,10 +1131,17 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     <!-- ── UTILIZATION ── -->
     <div class="tab-panel" id="people-utilization">
       <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
-        <select id="util-sel-periodo" onchange="pplCarregarUtilization()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+        <span style="font-size:11px;color:var(--text3)">De:</span>
+        <select id="util-sel-de" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
           <option value="012026">Jan 2026</option><option value="022026">Fev 2026</option>
           <option value="032026">Mar 2026</option><option value="042026">Abr 2026</option>
-          <option value="052026">Mai 2026</option><option value="062026">Jun 2026</option>
+          <option value="052026">Mai 2026</option><option value="062026" selected>Jun 2026</option>
+        </select>
+        <span style="font-size:11px;color:var(--text3)">Até:</span>
+        <select id="util-sel-ate" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="012026">Jan 2026</option><option value="022026">Fev 2026</option>
+          <option value="032026">Mar 2026</option><option value="042026">Abr 2026</option>
+          <option value="052026">Mai 2026</option><option value="062026" selected>Jun 2026</option>
         </select>
         <button class="btn btn-primary" onclick="pplCarregarUtilization()" style="font-size:11px;padding:5px 14px">↺ Carregar VBS</button>
         <span id="util-loading" style="font-size:11px;color:var(--text3);display:none">Carregando...</span>
@@ -1158,13 +1165,20 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     <!-- ── RENTABILIDADE ── -->
     <div class="tab-panel" id="people-profitability">
       <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
-        <select id="prof-sel-periodo" onchange="pplCarregarProfitability()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+        <span style="font-size:11px;color:var(--text3)">De:</span>
+        <select id="prof-sel-de" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
           <option value="012026">Jan 2026</option><option value="022026">Fev 2026</option>
           <option value="032026">Mar 2026</option><option value="042026">Abr 2026</option>
-          <option value="052026">Mai 2026</option><option value="062026">Jun 2026</option>
+          <option value="052026">Mai 2026</option><option value="062026" selected>Jun 2026</option>
+        </select>
+        <span style="font-size:11px;color:var(--text3)">Até:</span>
+        <select id="prof-sel-ate" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="012026">Jan 2026</option><option value="022026">Fev 2026</option>
+          <option value="032026">Mar 2026</option><option value="042026">Abr 2026</option>
+          <option value="052026">Mai 2026</option><option value="062026" selected>Jun 2026</option>
         </select>
         <button class="btn btn-primary" onclick="pplCarregarProfitability()" style="font-size:11px;padding:5px 14px">↺ Carregar</button>
-        <span id="prof-loading" style="font-size:11px;color:var(--text3);display:none">Carregando VBS...</span>
+        <span id="prof-loading" style="font-size:11px;color:var(--text3);display:none">Carregando...</span>
       </div>
       <div id="prof-kpis" class="kpi-grid" style="margin-bottom:20px"></div>
       <div class="charts-row" style="margin-bottom:20px">
@@ -3124,19 +3138,23 @@ function pplRenderCustoAnual(d,ano,meses){
 
 // ── UTILIZATION ──────────────────────────────────────
 async function pplCarregarUtilization(){
-  var sel=document.getElementById('util-sel-periodo');
-  if(!sel)return;
-  var val=sel.value; // e.g. "012026"
-  var mm=val.substring(0,2), yyyy=val.substring(2,6);
+  var selDe=document.getElementById('util-sel-de');
+  var selAte=document.getElementById('util-sel-ate');
+  if(!selDe)return;
+  var valDe=selDe.value, valAte=selAte?selAte.value:valDe;
+  var mmDe=valDe.substring(0,2), yyyyDe=valDe.substring(2,6);
+  var mmAte=valAte.substring(0,2), yyyyAte=valAte.substring(2,6);
   var loading=document.getElementById('util-loading');
   if(loading)loading.style.display='inline';
 
   var d=getPplData().filter(function(p){return p.status==='ativo';});
-  var totalCapacity=d.reduce(function(s,p){return s+(parseFloat(p.horas)||160);},0);
+  // Calcular capacidade proporcional ao número de meses
+  var mesesCount=pplContarMeses(valDe,valAte);
+  var totalCapacity=d.reduce(function(s,p){return s+(parseFloat(p.horas)||160)*mesesCount;},0);
 
   var vbsData=[];
   try {
-    var res=await fetch(API+'/api/timesheet?conceito_custo_hora=G&periodo_de='+mm+yyyy);
+    var res=await fetch(API+'/api/timesheet?conceito_custo_hora=G&periodo_de='+mmDe+yyyyDe+'&periodo_ate='+mmAte+yyyyAte);
     if(res.ok){
       var j=await res.json();
       var ret=j.data||j;
@@ -3146,44 +3164,60 @@ async function pplCarregarUtilization(){
   } catch(e){console.warn('VBS utilization error:',e);}
   if(loading)loading.style.display='none';
 
-  // Aggregate hours by person and by client
+  // Aggregate hours by person (case-insensitive) and by client
   var personMap={};
   var clientMap={};
+  var clienteHoras=0; // horas em cliente real (excluindo admin/interno)
+  var tiposAdmin=['Administrativo','Administrativo Interno','Interno','Férias','Feriado','Treinamento','Reunião Interna','Day Off','Ausência'];
+
   vbsData.forEach(function(r){
-    var name=String(r.Nome_Completo_Funcionario||r.Nome_Abreviado_Funcionario||'');
-    var cli=String(r.Nome_Campanha||r.Cliente_Horas_Adm||'Interno');
-    if(cli.includes('SEM CAMPANHA')||cli.includes('SEM NOME'))cli=String(r.Cliente_Horas_Adm||'Interno');
+    var name=String(r.Nome_Completo_Funcionario||r.Nome_Abreviado_Funcionario||'').trim();
+    var nameKey=name.toLowerCase();
+    var cli=String(r.Grupo_Empresarial_Horas_Adm||r.Cliente_Horas_Adm||'Interno').trim();
+    if(cli.includes('SEM ')||!cli)cli='Interno';
     var h=(parseFloat(r.Apontamento_Minutos||0))/60;
     if(!name)return;
-    if(!personMap[name])personMap[name]={horas:0};
-    personMap[name].horas+=h;
+    if(!personMap[nameKey])personMap[nameKey]={horas:0,nomeOriginal:name};
+    personMap[nameKey].horas+=h;
     if(!clientMap[cli])clientMap[cli]=0;
     clientMap[cli]+=h;
+    // Conta como hora vendida se for cliente real (não admin)
+    var isAdmin=tiposAdmin.some(function(t){return cli.toLowerCase().includes(t.toLowerCase());});
+    if(!isAdmin&&r.ID_Cliente)clienteHoras+=h;
   });
 
   var totalVBS=Object.values(personMap).reduce(function(s,v){return s+v.horas;},0);
   var utilPct=totalCapacity>0?(totalVBS/totalCapacity*100).toFixed(1):0;
+  var vendidoPct=totalCapacity>0?(clienteHoras/totalCapacity*100).toFixed(1):0;
+  var disponivelH=totalCapacity-clienteHoras;
   var kpis=[
-    {label:'Headcount Ativo',value:d.length,sub:'colaboradores'},
-    {label:'Capacidade Total',value:Math.round(totalCapacity)+'h',sub:'mês'},
-    {label:'Horas VBS',value:Math.round(totalVBS)+'h',sub:'lançadas'},
-    {label:'Utilization',value:utilPct+'%',sub:totalVBS>0?'vs capacidade':'sem dados VBS'},
+    {label:'Headcount Ativo',value:d.length,sub:mesesCount+' mês(es)'},
+    {label:'Capacidade Total',value:Math.round(totalCapacity)+'h',sub:'período selecionado'},
+    {label:'Horas VBS',value:Math.round(totalVBS)+'h',sub:'lançadas no período'},
+    {label:'Equipe Vendida',value:vendidoPct+'%',sub:Math.round(clienteHoras)+'h em clientes'},
+    {label:'Disponível p/ Venda',value:Math.round(disponivelH)+'h',sub:(100-parseFloat(vendidoPct)).toFixed(1)+'% da capacidade'},
   ];
-  document.getElementById('util-kpis').innerHTML=kpis.map(function(k){return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-value" style="font-size:18px">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
+  document.getElementById('util-kpis').innerHTML=kpis.map(function(k){return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-value" style="font-size:16px">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
 
-  // Chart por pessoa (top 15)
+  // Chart por pessoa — cruzamento case-insensitive
+  var useVbsDirect=d.length===0;
+  var vbsNames=Object.entries(personMap).sort(function(a,b){return b[1].horas-a[1].horas;}).slice(0,15);
   var pplSorted=d.slice().sort(function(a,b){
-    var ha=(personMap[a.nome]||{horas:0}).horas;
-    var hb=(personMap[b.nome]||{horas:0}).horas;
+    var ha=(personMap[a.nome.toLowerCase()]||{horas:0}).horas;
+    var hb=(personMap[b.nome.toLowerCase()]||{horas:0}).horas;
     return hb-ha;
   }).slice(0,15);
+
   var c1=document.getElementById('chartUtilPerson');
   if(_utilCharts.p)_utilCharts.p.destroy();
+  var chartLabels=useVbsDirect?vbsNames.map(function(e){return e[1].nomeOriginal.split(' ')[0];}):pplSorted.map(function(p){return p.nome.split(' ')[0];});
+  var chartCap=useVbsDirect?vbsNames.map(function(){return 160*mesesCount;}):pplSorted.map(function(p){return (p.horas||160)*mesesCount;});
+  var chartVbs=useVbsDirect?vbsNames.map(function(e){return Math.round(e[1].horas);}):pplSorted.map(function(p){return Math.round((personMap[p.nome.toLowerCase()]||{horas:0}).horas);});
   _utilCharts.p=new Chart(c1,{type:'bar',data:{
-    labels:pplSorted.map(function(p){return p.nome.split(' ')[0];}),
+    labels:chartLabels,
     datasets:[
-      {label:'Capacidade',data:pplSorted.map(function(p){return p.horas||160;}),backgroundColor:'rgba(255,255,255,0.08)',borderRadius:3},
-      {label:'VBS',data:pplSorted.map(function(p){return Math.round((personMap[p.nome]||{horas:0}).horas);}),backgroundColor:'rgba(96,165,250,0.6)',borderRadius:3},
+      {label:'Capacidade',data:chartCap,backgroundColor:'rgba(255,255,255,0.08)',borderRadius:3},
+      {label:'VBS',data:chartVbs,backgroundColor:'rgba(96,165,250,0.6)',borderRadius:3},
     ]
   },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#888',font:{size:10}}}},scales:{x:{grid:{display:false},ticks:{color:'#666',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',font:{size:10}}}}}});
 
@@ -3193,46 +3227,67 @@ async function pplCarregarUtilization(){
   if(_utilCharts.c)_utilCharts.c.destroy();
   if(topCli.length)_utilCharts.c=new Chart(c2,{type:'doughnut',data:{labels:topCli.map(function(c){return c[0];}),datasets:[{data:topCli.map(function(c){return Math.round(c[1]);}),backgroundColor:['#fff','#60a5fa','#a78bfa','#34d399','#fbbf24','#f87171','#6ee7b7','#93c5fd','#c4b5fd','#fca5a5'],borderColor:'#111',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#888',font:{size:10},boxWidth:10}}}}});
 
-  // Table
+  // Table — case-insensitive name matching
   var tbody=document.getElementById('util-table');
-  tbody.innerHTML=d.map(function(p){
-    var hVBS=(personMap[p.nome]||{horas:0}).horas;
-    var cap=p.horas||160;
-    var pct=cap>0?(hVBS/cap*100):0;
-    var ch=pplCustoHora(p);
-    var stCl=pct>90?'badge-red':pct>70?'badge-amber':'badge-blue';
-    var stLbl=pct>90?'Overloaded':pct>70?'Alto':'Normal';
-    if(!totalVBS)stCl='badge-gray',stLbl='Sem dados';
-    return '<tr>'+
-      '<td><strong>'+p.nome+'</strong></td>'+
-      '<td><span class="badge badge-blue">'+p.depto+'</span></td>'+
-      '<td style="text-align:right">'+Math.round(cap)+'h</td>'+
-      '<td style="text-align:right">'+Math.round(hVBS)+'h</td>'+
-      '<td style="text-align:right;color:'+(pct>90?'var(--neg)':pct>70?'var(--amber)':'var(--pos)')+'">'+pct.toFixed(1)+'%</td>'+
-      '<td style="text-align:right;font-size:11px">R$ '+ch.toFixed(0)+'/h</td>'+
-      '<td style="text-align:right;font-size:11px">—</td>'+
-      '<td><span class="badge '+stCl+'">'+stLbl+'</span></td>'+
-    '</tr>';
-  }).join('')||'<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">Cadastre colaboradores para ver utilization</td></tr>';
+  var rows=useVbsDirect?vbsNames:pplSorted.map(function(p){return [p.nome.toLowerCase(),personMap[p.nome.toLowerCase()]||{horas:0,nomeOriginal:p.nome}];});
+  if(!useVbsDirect){
+    tbody.innerHTML=pplSorted.map(function(p){
+      var hVBS=(personMap[p.nome.toLowerCase()]||{horas:0}).horas;
+      var cap=(p.horas||160)*mesesCount;
+      var pct=cap>0?(hVBS/cap*100):0;
+      var ch=pplCustoHora(p);
+      var stCl=pct>90?'badge-red':pct>70?'badge-amber':'badge-blue';
+      var stLbl=pct>90?'Overloaded':pct>70?'Alto':'Normal';
+      if(!totalVBS)stCl='badge-gray',stLbl='Sem dados';
+      return '<tr>'+
+        '<td><strong>'+p.nome+'</strong></td>'+
+        '<td><span class="badge badge-blue">'+(p.depto||'—')+'</span></td>'+
+        '<td style="text-align:right">'+Math.round(cap)+'h</td>'+
+        '<td style="text-align:right">'+Math.round(hVBS)+'h</td>'+
+        '<td style="text-align:right;color:'+(pct>90?'var(--neg)':pct>70?'var(--amber)':'var(--pos)')+'">'+pct.toFixed(1)+'%</td>'+
+        '<td style="text-align:right;font-size:11px">R$ '+ch.toFixed(0)+'/h</td>'+
+        '<td style="text-align:right;font-size:11px">—</td>'+
+        '<td><span class="badge '+stCl+'">'+stLbl+'</span></td>'+
+      '</tr>';
+    }).join('')||'<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">Cadastre colaboradores para ver utilization</td></tr>';
+  } else {
+    tbody.innerHTML=vbsNames.map(function(e){
+      var h=Math.round(e[1].horas);
+      var cap=160*mesesCount;
+      var pct=(cap>0?(h/cap*100):0).toFixed(1);
+      var stCl=parseFloat(pct)>90?'badge-red':parseFloat(pct)>70?'badge-amber':'badge-blue';
+      return '<tr><td><strong>'+e[1].nomeOriginal+'</strong></td><td>—</td><td style="text-align:right">'+cap+'h</td><td style="text-align:right">'+h+'h</td><td style="text-align:right">'+pct+'%</td><td>—</td><td>—</td><td><span class="badge '+stCl+'">'+(parseFloat(pct)>90?'Overloaded':parseFloat(pct)>70?'Alto':'Normal')+'</span></td></tr>';
+    }).join('');
+  }
 }
 
 // ── RENTABILIDADE POR CLIENTE ────────────────────────
+function pplContarMeses(valDe, valAte){
+  var mmDe=parseInt(valDe.substring(0,2)), yyyyDe=parseInt(valDe.substring(2,6));
+  var mmAte=parseInt(valAte.substring(0,2)), yyyyAte=parseInt(valAte.substring(2,6));
+  return Math.max(1,(yyyyAte-yyyyDe)*12+(mmAte-mmDe)+1);
+}
+
 async function pplCarregarProfitability(){
-  var sel=document.getElementById('prof-sel-periodo');
-  if(!sel)return;
-  var val=sel.value;
-  var mm=val.substring(0,2), yyyy=val.substring(2,6);
+  var selDe=document.getElementById('prof-sel-de');
+  var selAte=document.getElementById('prof-sel-ate');
+  if(!selDe)return;
+  var valDe=selDe.value, valAte=selAte?selAte.value:valDe;
+  var mmDe=valDe.substring(0,2), yyyyDe=valDe.substring(2,6);
+  var mmAte=valAte.substring(0,2), yyyyAte=valAte.substring(2,6);
   var loading=document.getElementById('prof-loading');
   if(loading)loading.style.display='inline';
 
   var d=getPplData().filter(function(p){return p.status==='ativo';});
-  var custoTotal=d.reduce(function(s,p){return s+pplCustoTotal(p);},0);
-  var horasTotal=d.reduce(function(s,p){return s+(parseFloat(p.horas)||160);},0);
+  var mesesCount=pplContarMeses(valDe,valAte);
+  var custoTotal=d.reduce(function(s,p){return s+pplCustoTotal(p);},0)*mesesCount;
+  var horasTotal=d.reduce(function(s,p){return s+(parseFloat(p.horas)||160);},0)*mesesCount;
   var chMedio=horasTotal>0?custoTotal/horasTotal:0;
 
+  // Busca timesheet (horas por cliente)
   var vbsData=[];
   try {
-    var res=await fetch(API+'/api/timesheet?conceito_custo_hora=G&periodo_de='+mm+yyyy);
+    var res=await fetch(API+'/api/timesheet?conceito_custo_hora=G&periodo_de='+mmDe+yyyyDe+'&periodo_ate='+mmAte+yyyyAte);
     if(res.ok){
       var j=await res.json();
       var ret=j.data||j;
@@ -3240,37 +3295,92 @@ async function pplCarregarProfitability(){
       if(!Array.isArray(vbsData))vbsData=[];
     }
   } catch(e){console.warn('VBS profitability error:',e);}
+
+  // Busca receita real por cliente (/api/receita)
+  var receitaMap={};
+  try {
+    var rRes=await fetch(API+'/api/receita?ano='+yyyyDe);
+    if(rRes.ok){
+      var rj=await rRes.json();
+      var matriz=rj.data||[];
+      if(Array.isArray(matriz)&&matriz.length>1){
+        var header=matriz[0];
+        var idxCli=header.indexOf('CLIENTE');
+        var idxMes=header.indexOf('MES');
+        var idxAno=header.indexOf('ANO');
+        // Procura coluna de receita líquida real
+        var idxRec=-1;
+        ['Actual - Net Revenue','Actual - Gross Revenue','Actual - Net Fees'].forEach(function(col){
+          if(idxRec<0)idxRec=header.indexOf(col);
+        });
+        if(idxRec<0){
+          // Fallback: soma todas colunas Actual que não são impostos
+          var actualCols=header.map(function(h,i){return {h,i};}).filter(function(x){return x.h.startsWith('Actual - ')&&!x.h.includes('Tax')&&!x.h.includes('Investment');}).map(function(x){return x.i;});
+        }
+        var mmDeN=parseInt(mmDe), mmAteN=parseInt(mmAte), yyyyDeN=parseInt(yyyyDe), yyyyAteN=parseInt(yyyyAte);
+        for(var row=1;row<matriz.length;row++){
+          var r=matriz[row];
+          if(!r[idxCli])continue;
+          var mes=parseInt(r[idxMes]||0), ano=parseInt(r[idxAno]||0);
+          // Filtra pelo período selecionado
+          if(ano<yyyyDeN||ano>yyyyAteN)continue;
+          if(ano===yyyyDeN&&mes<mmDeN)continue;
+          if(ano===yyyyAteN&&mes>mmAteN)continue;
+          var cli=String(r[idxCli]).trim().toUpperCase();
+          var val=idxRec>=0?parseFloat(r[idxRec]||0):actualCols.reduce(function(s,i){return s+parseFloat(r[i]||0);},0);
+          if(!receitaMap[cli])receitaMap[cli]=0;
+          receitaMap[cli]+=val;
+        }
+      }
+    }
+  } catch(e){console.warn('Receita error:',e);}
+
   if(loading)loading.style.display='none';
 
-  // Aggregate by client
+  // Agrupa timesheet por CLIENTE REAL (Grupo_Empresarial_Horas_Adm)
   var cliMap={};
   vbsData.forEach(function(r){
-    var cli=String(r.Nome_Campanha||r.Cliente_Horas_Adm||'Não identificado').trim();
-    if(cli.includes('SEM CAMPANHA')||cli.includes('SEM NOME'))cli=String(r.Cliente_Horas_Adm||'Interno');
+    // Usa cliente real, não campanha
+    var cli=String(r.Grupo_Empresarial_Horas_Adm||r.Cliente_Horas_Adm||'').trim();
+    if(!cli||cli.includes('SEM '))cli=null;
+    if(!cli&&r.ID_Cliente)cli=String(r.ID_Cliente);
+    if(!cli)cli='Administrativo Interno';
     var h=(parseFloat(r.Apontamento_Minutos||0))/60;
-    var rev=parseFloat(r.Valor_Custo||0);
-    if(!cliMap[cli])cliMap[cli]={horas:0,receita:0};
+    if(!cliMap[cli])cliMap[cli]={horas:0};
     cliMap[cli].horas+=h;
-    cliMap[cli].receita+=rev;
   });
 
-  var clients=Object.entries(cliMap).sort(function(a,b){return b[1].receita-a[1].receita;});
+  // Junta horas com receita
   var OVH_PCT=0.15;
-  var rows=clients.map(function(entry){
-    var cli=entry[0], dat=entry[1];
-    var custoEq=dat.horas*chMedio;
-    var ovh=dat.receita*OVH_PCT;
-    var lucro=dat.receita-custoEq-ovh;
-    var margem=dat.receita>0?(lucro/dat.receita*100):0;
-    return {cli,horas:dat.horas,receita:dat.receita,custoEq,ovh,lucro,margem};
+  var allClis=new Set([...Object.keys(cliMap),...Object.keys(receitaMap)]);
+  var rows=[];
+  allClis.forEach(function(cli){
+    var horas=(cliMap[cli]||{horas:0}).horas;
+    // Tenta encontrar receita — normaliza o nome para comparação
+    var cliUpper=cli.toUpperCase();
+    var receita=receitaMap[cliUpper]||0;
+    // Tenta match parcial se não achou exato
+    if(!receita){
+      Object.keys(receitaMap).forEach(function(k){
+        if(k.includes(cliUpper.split(' ')[0])||cliUpper.includes(k.split(' ')[0])){
+          receita=receitaMap[k];
+        }
+      });
+    }
+    var custoEq=horas*chMedio;
+    var ovh=custoEq*OVH_PCT;
+    var lucro=receita-custoEq-ovh;
+    var margem=receita>0?(lucro/receita*100):0;
+    if(horas>0||receita>0)rows.push({cli,horas,receita,custoEq,ovh,lucro,margem});
   });
+  rows.sort(function(a,b){return b.receita-a.receita||b.horas-a.horas;});
 
   var totalRec=rows.reduce(function(s,r){return s+r.receita;},0);
   var totalCus=rows.reduce(function(s,r){return s+r.custoEq;},0);
   var totalLuc=rows.reduce(function(s,r){return s+r.lucro;},0);
   var margemGeral=totalRec>0?(totalLuc/totalRec*100):0;
   var kpis=[
-    {label:'Receita Total VBS',value:'R$ '+Math.round(totalRec).toLocaleString('pt-BR'),sub:mm+'/'+yyyy},
+    {label:'Receita Total',value:'R$ '+Math.round(totalRec).toLocaleString('pt-BR'),sub:mmDe+'/'+yyyyDe+' a '+mmAte+'/'+yyyyAte},
     {label:'Custo de Equipe',value:'R$ '+Math.round(totalCus).toLocaleString('pt-BR'),sub:'custo/hora × horas'},
     {label:'Lucro Bruto',value:'R$ '+Math.round(totalLuc).toLocaleString('pt-BR'),sub:'após equipe + OVH'},
     {label:'Margem Bruta',value:margemGeral.toFixed(1)+'%',sub:'geral consolidado'},
@@ -3308,7 +3418,7 @@ async function pplCarregarProfitability(){
       '<td style="text-align:right;color:'+(r.lucro>=0?'var(--pos)':'var(--neg)')+'">'+fmtR(r.lucro)+'</td>'+
       '<td style="text-align:right;font-weight:700;color:'+mc+'">'+r.margem.toFixed(1)+'%</td>'+
     '</tr>';
-  }).join('')||'<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Carregue os dados VBS para ver a rentabilidade</td></tr>';
+  }).join('')||'<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Carregue os dados para ver a rentabilidade</td></tr>';
 }
 
 // Compatibility shim for Jurídico and TI modules that use old structure
