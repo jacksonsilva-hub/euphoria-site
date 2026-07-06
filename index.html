@@ -182,6 +182,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     <div class="nav-item" onclick="goPage('timesheet')" data-page="timesheet"><span class="nav-icon">⏱️</span><span class="nav-label">Timesheet</span></div>
     <div class="nav-item" onclick="goPage('projetos')" data-page="projetos"><span class="nav-icon">📋</span><span class="nav-label">Projetos</span></div>
     <div class="nav-item" onclick="goPage('people')" data-page="people"><span class="nav-icon">👥</span><span class="nav-label">People Analytics</span></div>
+    <div class="nav-item" onclick="goPage('alocacao')" data-page="alocacao"><span class="nav-icon">📌</span><span class="nav-label">Alocação</span></div>
     <div class="sidebar-section-label">Suporte</div>
     <div class="nav-item" onclick="goPage('juridico')" data-page="juridico"><span class="nav-icon">⚖️</span><span class="nav-label">Jurídico</span></div>
     <div class="nav-item" onclick="goPage('ti')" data-page="ti"><span class="nav-icon">💻</span><span class="nav-label">TI & Ativos</span></div>
@@ -1322,6 +1323,198 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
   </div>
 
   <!-- JURÍDICO -->
+  <!-- ALOCAÇÃO DE HORAS -->
+  <div class="page" id="page-alocacao">
+    <div class="tab-nav">
+      <button class="tab-btn active" onclick="switchAlocTab('lancar',event)">📌 Lançar Alocação</button>
+      <button class="tab-btn" onclick="switchAlocTab('colaborador',event)">👤 Por Colaborador</button>
+      <button class="tab-btn" onclick="switchAlocTab('cliente',event)">🏢 Por Cliente</button>
+      <button class="tab-btn" onclick="switchAlocTab('capacidade',event)">📊 Capacidade</button>
+    </div>
+
+    <!-- LANÇAR -->
+    <div class="tab-panel active" id="aloc-lancar">
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-primary" onclick="alocAbrirModal()">+ Nova Alocação</button>
+        <select id="aloc-f-status" onchange="alocRenderTabela()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="">Todos os status</option>
+          <option value="aprovado">Aprovado</option>
+          <option value="proposta">Proposta</option>
+          <option value="negociacao">Em negociação</option>
+          <option value="perdido">Perdido</option>
+        </select>
+        <select id="aloc-f-cliente" onchange="alocRenderTabela()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="">Todos os clientes</option>
+        </select>
+        <select id="aloc-f-mes" onchange="alocRenderTabela()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="">Todos os meses</option>
+          <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+          <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+          <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+          <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+        </select>
+      </div>
+      <div id="aloc-kpis" class="kpi-grid" style="margin-bottom:16px"></div>
+      <div class="table-card">
+        <div class="table-header"><span class="table-title">Alocações</span><span class="table-meta" id="aloc-table-meta"></span></div>
+        <div style="overflow-x:auto">
+          <table class="tbl" style="min-width:900px">
+            <thead><tr>
+              <th>Colaborador/Perfil</th><th>Departamento</th><th>Cliente</th>
+              <th style="text-align:right">Horas/mês</th><th>Período</th>
+              <th>Status</th><th>Obs</th><th></th>
+            </tr></thead>
+            <tbody id="aloc-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- POR COLABORADOR -->
+    <div class="tab-panel" id="aloc-colaborador">
+      <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
+        <select id="aloc-col-mes" onchange="alocRenderColaborador()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="0">Todos os meses</option>
+          <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+          <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+          <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+          <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+        </select>
+      </div>
+      <div class="charts-row" style="margin-bottom:20px">
+        <div class="chart-card chart-full"><div class="chart-title">Horas por Colaborador — Capacidade vs Alocado vs Proposta</div><div style="position:relative;height:320px"><canvas id="chartAlocColaborador"></canvas></div></div>
+      </div>
+      <div class="table-card">
+        <div class="table-header"><span class="table-title">Disponibilidade por Colaborador</span></div>
+        <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr>
+              <th>Colaborador</th><th>Depto</th>
+              <th style="text-align:right">Capacidade</th>
+              <th style="text-align:right">VBS (exec.)</th>
+              <th style="text-align:right">Aprovado</th>
+              <th style="text-align:right">Proposta</th>
+              <th style="text-align:right">Disponível</th>
+              <th>Status</th>
+            </tr></thead>
+            <tbody id="aloc-col-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- POR CLIENTE -->
+    <div class="tab-panel" id="aloc-cliente">
+      <div class="charts-row" style="margin-bottom:20px">
+        <div class="chart-card"><div class="chart-title">Horas por Cliente</div><div style="position:relative;height:280px"><canvas id="chartAlocCliente"></canvas></div></div>
+        <div class="chart-card"><div class="chart-title">Status das Alocações</div><div style="position:relative;height:280px"><canvas id="chartAlocStatus"></canvas></div></div>
+      </div>
+      <div class="table-card">
+        <div class="table-header"><span class="table-title">Alocações por Cliente</span></div>
+        <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr>
+              <th>Cliente</th>
+              <th style="text-align:right">H Aprovadas</th>
+              <th style="text-align:right">H Proposta</th>
+              <th style="text-align:right">H Negociação</th>
+              <th style="text-align:right">Total</th>
+              <th style="text-align:right">Custo Estimado</th>
+            </tr></thead>
+            <tbody id="aloc-cli-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- CAPACIDADE -->
+    <div class="tab-panel" id="aloc-capacidade">
+      <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
+        <select id="aloc-cap-mes" onchange="alocRenderCapacidade()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="0">Todos os meses</option>
+          <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+          <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+          <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+          <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+        </select>
+        <select id="aloc-cap-depto" onchange="alocRenderCapacidade()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="">Todos os departamentos</option>
+          <option>Atendimento</option><option>Criação</option><option>Estratégia</option>
+          <option>Mídia</option><option>Conteúdo</option><option>Social</option>
+          <option>Produção</option><option>Data Insights</option>
+          <option>Financeiro</option><option>People & RH</option><option>TI</option><option>Diretoria</option>
+        </select>
+      </div>
+      <div id="aloc-cap-kpis" class="kpi-grid" style="margin-bottom:20px"></div>
+      <div class="charts-row" style="margin-bottom:20px">
+        <div class="chart-card chart-full"><div class="chart-title">Capacidade Total vs Alocado por Departamento</div><div style="position:relative;height:280px"><canvas id="chartAlocCapDepto"></canvas></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL ALOCAÇÃO -->
+  <div id="aloc-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center">
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:28px;width:100%;max-width:620px;max-height:90vh;overflow-y:auto">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <div style="font-family:var(--font-head);font-weight:700;font-size:16px" id="aloc-modal-title">Nova Alocação</div>
+        <button onclick="alocFecharModal()" style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer">✕</button>
+      </div>
+      <input type="hidden" id="aloc-edit-id">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div style="grid-column:1/-1">
+          <label class="jur-lbl">COLABORADOR (ou perfil se não definido)</label>
+          <input id="aloc-colaborador" type="text" class="field-input" placeholder="Ex: João Silva ou Diretor de Arte" list="aloc-col-list">
+          <datalist id="aloc-col-list"></datalist>
+        </div>
+        <div>
+          <label class="jur-lbl">DEPARTAMENTO</label>
+          <select id="aloc-depto" class="field-input">
+            <option value="">Selecione...</option>
+            <option>Atendimento</option><option>Criação</option><option>Estratégia</option>
+            <option>Mídia</option><option>Conteúdo</option><option>Social</option>
+            <option>Produção</option><option>Data Insights</option>
+            <option>Financeiro</option><option>People & RH</option><option>TI</option><option>Diretoria</option>
+          </select>
+        </div>
+        <div>
+          <label class="jur-lbl">CLIENTE</label>
+          <input id="aloc-cliente-input" type="text" class="field-input" placeholder="Nome do cliente" list="aloc-cli-list">
+          <datalist id="aloc-cli-list"></datalist>
+        </div>
+        <div>
+          <label class="jur-lbl">HORAS/MÊS</label>
+          <input id="aloc-horas" type="number" class="field-input" placeholder="Ex: 40">
+        </div>
+        <div>
+          <label class="jur-lbl">STATUS</label>
+          <select id="aloc-status" class="field-input">
+            <option value="aprovado">✅ Aprovado</option>
+            <option value="proposta">📋 Proposta</option>
+            <option value="negociacao">🔄 Em negociação</option>
+            <option value="perdido">❌ Perdido</option>
+          </select>
+        </div>
+        <div>
+          <label class="jur-lbl">MÊS INÍCIO</label>
+          <input id="aloc-mes-inicio" type="month" class="field-input">
+        </div>
+        <div>
+          <label class="jur-lbl">MÊS FIM (deixe vazio = contínuo)</label>
+          <input id="aloc-mes-fim" type="month" class="field-input">
+        </div>
+        <div style="grid-column:1/-1">
+          <label class="jur-lbl">OBSERVAÇÃO</label>
+          <input id="aloc-obs" type="text" class="field-input" placeholder="Ex: Fee mensal, projeto específico...">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+        <button class="btn" onclick="alocFecharModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="alocSalvar()">💾 Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JURIDICO -->
   <div class="page" id="page-juridico">
     <div class="tab-nav">
       <button class="tab-btn active" onclick="switchJurTab('analisar',event)">Analisar Contrato</button>
@@ -2031,6 +2224,7 @@ const PAGE_META = {
   timesheet:{title:'Timesheet',sub:'Lançamento de Horas'},
   projetos:{title:'Projetos',sub:'Kanban & Acompanhamento'},
   people:{title:'People Analytics',sub:'DEI • Turnover • Utilization • Rentabilidade'},
+  alocacao:{title:'Alocação de Horas',sub:'Pipeline • Aprovado • Executando'},
   juridico:{title:'Jurídico',sub:'Contratos e Alertas'},
   ti:{title:'TI & Ativos',sub:'Controle e Suporte'},
 };
@@ -2056,6 +2250,7 @@ function goPage(id) {
   document.getElementById('topbar-title').textContent = meta.title;
   document.getElementById('topbar-sub').textContent = meta.sub;
   if(id==='crm') setTimeout(function(){ if(typeof crmCarregar==='function') crmCarregar(); }, 100);
+  if(id==='alocacao') setTimeout(function(){ alocRenderTabela(); alocPopularFiltros(); }, 100);
 }
 
 function toggleSidebar() {
@@ -2092,7 +2287,7 @@ var USERS = [
   {user:'midia',email:'midia@euphoriacreative.com',pass:'midia123',name:'Mídia',role:'operacional',initials:'MD'},
 ];
 var PERMISSIONS = {
-  admin:['financeiro','growth','crm','timesheet','projetos','people','juridico','ti'],
+  admin:['financeiro','growth','crm','timesheet','projetos','people','alocacao','juridico','ti'],
   gestor:['growth','timesheet','projetos','people'],
   operacional:['timesheet','projetos'],
 };
@@ -3423,6 +3618,325 @@ async function pplCarregarProfitability(){
 
 // Compatibility shim for Jurídico and TI modules that use old structure
 function getPplDataLegacy(){return getPplData();}
+
+// ── ALOCAÇÃO DE HORAS ────────────────────────────────
+var _alocCharts={};
+function getAlocData(){return JSON.parse(localStorage.getItem('euphoria_alocacao_v1')||'[]');}
+function saveAlocData(d){localStorage.setItem('euphoria_alocacao_v1',JSON.stringify(d));}
+
+function switchAlocTab(tab,e){
+  document.querySelectorAll('#page-alocacao .tab-btn').forEach(function(b){b.classList.remove('active');});
+  document.querySelectorAll('#page-alocacao .tab-panel').forEach(function(p){p.classList.remove('active');});
+  document.getElementById('aloc-'+tab).classList.add('active');
+  if(e&&e.target)e.target.classList.add('active');
+  if(tab==='lancar')alocRenderTabela();
+  if(tab==='colaborador')alocRenderColaborador();
+  if(tab==='cliente')alocRenderCliente();
+  if(tab==='capacidade')alocRenderCapacidade();
+}
+
+function alocAbrirModal(id){
+  document.getElementById('aloc-edit-id').value=id||'';
+  document.getElementById('aloc-modal-title').textContent=id?'Editar Alocação':'Nova Alocação';
+  var a=id?getAlocData().find(function(x){return x.id===id;}):null;
+  document.getElementById('aloc-colaborador').value=a?a.colaborador:'';
+  document.getElementById('aloc-depto').value=a?a.depto:'';
+  document.getElementById('aloc-cliente-input').value=a?a.cliente:'';
+  document.getElementById('aloc-horas').value=a?a.horas:'';
+  document.getElementById('aloc-status').value=a?(a.status||'aprovado'):'aprovado';
+  document.getElementById('aloc-mes-inicio').value=a?a.mesInicio:'';
+  document.getElementById('aloc-mes-fim').value=a?a.mesFim:'';
+  document.getElementById('aloc-obs').value=a?a.obs:'';
+
+  // Populate datalists
+  var ppl=getPplData().filter(function(p){return p.status==='ativo';});
+  document.getElementById('aloc-col-list').innerHTML=ppl.map(function(p){return '<option value="'+p.nome+'">';}).join('');
+  var clientes=[...new Set(getAlocData().map(function(a){return a.cliente;}).filter(Boolean))];
+  document.getElementById('aloc-cli-list').innerHTML=clientes.map(function(c){return '<option value="'+c+'">';}).join('');
+
+  document.getElementById('aloc-modal').style.display='flex';
+}
+function alocFecharModal(){document.getElementById('aloc-modal').style.display='none';}
+
+function alocSalvar(){
+  var colab=document.getElementById('aloc-colaborador').value.trim();
+  var cliente=document.getElementById('aloc-cliente-input').value.trim();
+  var horas=parseFloat(document.getElementById('aloc-horas').value)||0;
+  if(!colab||!cliente||!horas){alert('Colaborador, cliente e horas são obrigatórios!');return;}
+  var id=document.getElementById('aloc-edit-id').value;
+  var d=getAlocData();
+  var ppl=getPplData();
+  // Auto-preenche depto se colaborador encontrado
+  var pessoaEncontrada=ppl.find(function(p){return p.nome.toLowerCase()===colab.toLowerCase();});
+  var depto=document.getElementById('aloc-depto').value||((pessoaEncontrada&&pessoaEncontrada.depto)||'');
+  var obj={
+    id:id||String(Date.now()),
+    colaborador:colab,
+    depto:depto,
+    cliente:cliente,
+    horas:horas,
+    status:document.getElementById('aloc-status').value,
+    mesInicio:document.getElementById('aloc-mes-inicio').value,
+    mesFim:document.getElementById('aloc-mes-fim').value,
+    obs:document.getElementById('aloc-obs').value.trim()
+  };
+  if(id){var idx=d.findIndex(function(x){return x.id===id;});if(idx>=0)d[idx]=obj;else d.push(obj);}
+  else d.push(obj);
+  saveAlocData(d);
+  alocFecharModal();
+  alocRenderTabela();
+  alocPopularFiltros();
+}
+
+function alocRemover(id){
+  if(!confirm('Remover esta alocação?'))return;
+  saveAlocData(getAlocData().filter(function(x){return x.id!==id;}));
+  alocRenderTabela();
+}
+
+function alocPopularFiltros(){
+  var d=getAlocData();
+  var clientes=[...new Set(d.map(function(a){return a.cliente;}).filter(Boolean))].sort();
+  var sel=document.getElementById('aloc-f-cliente');
+  var cur=sel?sel.value:'';
+  if(sel)sel.innerHTML='<option value="">Todos os clientes</option>'+clientes.map(function(c){return '<option'+(c===cur?' selected':'')+'>'+c+'</option>';}).join('');
+}
+
+function alocFiltrar(){
+  var d=getAlocData();
+  var fStatus=document.getElementById('aloc-f-status');
+  var fCli=document.getElementById('aloc-f-cliente');
+  var fMes=document.getElementById('aloc-f-mes');
+  var fs=fStatus?fStatus.value:'';
+  var fc=fCli?fCli.value:'';
+  var fm=fMes?parseInt(fMes.value):0;
+  return d.filter(function(a){
+    if(fs&&a.status!==fs)return false;
+    if(fc&&a.cliente!==fc)return false;
+    if(fm){
+      var inicio=a.mesInicio?new Date(a.mesInicio+'-01'):null;
+      var fim=a.mesFim?new Date(a.mesFim+'-01'):null;
+      var ref=new Date(2026,fm-1,1);
+      if(inicio&&inicio>ref)return false;
+      if(fim&&fim<ref)return false;
+    }
+    return true;
+  });
+}
+
+function alocRenderTabela(){
+  alocPopularFiltros();
+  var d=alocFiltrar();
+  var total=getAlocData();
+  var aprovadas=total.filter(function(a){return a.status==='aprovado';});
+  var propostas=total.filter(function(a){return a.status==='proposta';});
+  var negoc=total.filter(function(a){return a.status==='negociacao';});
+  var hAprov=aprovadas.reduce(function(s,a){return s+a.horas;},0);
+  var hProp=propostas.reduce(function(s,a){return s+a.horas;},0);
+  var hNeg=negoc.reduce(function(s,a){return s+a.horas;},0);
+  document.getElementById('aloc-kpis').innerHTML=[
+    {label:'Aprovadas',value:Math.round(hAprov)+'h',sub:aprovadas.length+' alocações'},
+    {label:'Em Proposta',value:Math.round(hProp)+'h',sub:propostas.length+' alocações'},
+    {label:'Em Negociação',value:Math.round(hNeg)+'h',sub:negoc.length+' alocações'},
+    {label:'Total Pipeline',value:Math.round(hProp+hNeg)+'h',sub:'não confirmado'},
+  ].map(function(k){return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-value" style="font-size:18px">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
+
+  var statusBadge={aprovado:'badge-green',proposta:'badge-blue',negociacao:'badge-amber',perdido:'badge-red'};
+  var statusLabel={aprovado:'✅ Aprovado',proposta:'📋 Proposta',negociacao:'🔄 Negociação',perdido:'❌ Perdido'};
+
+  document.getElementById('aloc-table-meta').textContent=d.length+' alocações';
+  document.getElementById('aloc-table').innerHTML=d.map(function(a){
+    var per=(a.mesInicio||'?')+(a.mesFim?' → '+a.mesFim:'');
+    return '<tr>'+
+      '<td><strong>'+a.colaborador+'</strong></td>'+
+      '<td><span class="badge badge-blue">'+(a.depto||'—')+'</span></td>'+
+      '<td>'+a.cliente+'</td>'+
+      '<td style="text-align:right;font-weight:700">'+Math.round(a.horas)+'h</td>'+
+      '<td style="font-size:11px;color:var(--text3)">'+per+'</td>'+
+      '<td><span class="badge '+(statusBadge[a.status]||'badge-gray')+'">'+(statusLabel[a.status]||a.status)+'</span></td>'+
+      '<td style="font-size:11px;color:var(--text3)">'+(a.obs||'—')+'</td>'+
+      '<td style="display:flex;gap:4px">'+
+        '<button class="btn" style="padding:2px 7px;font-size:10px" onclick="alocAbrirModal(\''+a.id+'\')">✏️</button>'+
+        '<button class="btn" style="padding:2px 7px;font-size:10px;color:var(--neg)" onclick="alocRemover(\''+a.id+'\')">✕</button>'+
+      '</td>'+
+    '</tr>';
+  }).join('')||'<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text3)">Nenhuma alocação. Clique em "+ Nova Alocação" para começar.</td></tr>';
+}
+
+function alocRenderColaborador(){
+  var ppl=getPplData().filter(function(p){return p.status==='ativo';});
+  var alocs=getAlocData();
+  var mes=parseInt(document.getElementById('aloc-col-mes').value)||0;
+
+  function horasAlocadas(nome, status){
+    return alocs.filter(function(a){
+      if(a.colaborador.toLowerCase()!==nome.toLowerCase())return false;
+      if(status&&a.status!==status)return false;
+      if(mes){
+        var inicio=a.mesInicio?new Date(a.mesInicio+'-01'):null;
+        var fim=a.mesFim?new Date(a.mesFim+'-01'):null;
+        var ref=new Date(2026,mes-1,1);
+        if(inicio&&inicio>ref)return false;
+        if(fim&&fim<ref)return false;
+      }
+      return true;
+    }).reduce(function(s,a){return s+a.horas;},0);
+  }
+
+  var rows=ppl.map(function(p){
+    var cap=p.horas||160;
+    var aprov=horasAlocadas(p.nome,'aprovado');
+    var prop=horasAlocadas(p.nome,'proposta')+horasAlocadas(p.nome,'negociacao');
+    var disp=Math.max(0,cap-aprov-prop);
+    return {p,cap,aprov,prop,disp};
+  }).sort(function(a,b){return (b.aprov+b.prop)-(a.aprov+a.prop);});
+
+  var top15=rows.slice(0,15);
+  var c=document.getElementById('chartAlocColaborador');
+  if(_alocCharts.col)_alocCharts.col.destroy();
+  _alocCharts.col=new Chart(c,{type:'bar',data:{
+    labels:top15.map(function(r){return r.p.nome.split(' ')[0];}),
+    datasets:[
+      {label:'Aprovado',data:top15.map(function(r){return r.aprov;}),backgroundColor:'rgba(110,231,183,0.6)',borderRadius:2},
+      {label:'Proposta/Neg.',data:top15.map(function(r){return r.prop;}),backgroundColor:'rgba(251,191,36,0.5)',borderRadius:2},
+      {label:'Disponível',data:top15.map(function(r){return r.disp;}),backgroundColor:'rgba(255,255,255,0.08)',borderRadius:2},
+    ]
+  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#888',font:{size:10}}}},scales:{x:{stacked:true,grid:{display:false},ticks:{color:'#666',font:{size:9}}},y:{stacked:true,grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',font:{size:10}}}}}});
+
+  document.getElementById('aloc-col-table').innerHTML=rows.map(function(r){
+    var pct=(r.cap>0?((r.aprov+r.prop)/r.cap*100):0).toFixed(0);
+    var stCl=parseFloat(pct)>=100?'badge-red':parseFloat(pct)>=80?'badge-amber':'badge-green';
+    return '<tr>'+
+      '<td><strong>'+r.p.nome+'</strong></td>'+
+      '<td><span class="badge badge-blue">'+(r.p.depto||'—')+'</span></td>'+
+      '<td style="text-align:right">'+Math.round(r.cap)+'h</td>'+
+      '<td style="text-align:right;color:var(--text3)">—</td>'+
+      '<td style="text-align:right;color:var(--pos)">'+Math.round(r.aprov)+'h</td>'+
+      '<td style="text-align:right;color:var(--amber)">'+Math.round(r.prop)+'h</td>'+
+      '<td style="text-align:right;font-weight:700;color:'+(r.disp<=0?'var(--neg)':'var(--pos)')+'">'+Math.round(r.disp)+'h</td>'+
+      '<td><span class="badge '+stCl+'">'+pct+'% alocado</span></td>'+
+    '</tr>';
+  }).join('')||'<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">Cadastre colaboradores em People Analytics</td></tr>';
+}
+
+function alocRenderCliente(){
+  var alocs=getAlocData();
+  var ppl=getPplData();
+  var pplMap={};
+  ppl.forEach(function(p){pplMap[p.nome.toLowerCase()]=p;});
+
+  var cliMap={};
+  alocs.forEach(function(a){
+    var cli=a.cliente||'Sem cliente';
+    if(!cliMap[cli])cliMap[cli]={aprovado:0,proposta:0,negociacao:0};
+    cliMap[cli][a.status]=(cliMap[cli][a.status]||0)+a.horas;
+  });
+
+  var rows=Object.entries(cliMap).sort(function(a,b){
+    var ta=a[1].aprovado+a[1].proposta+a[1].negociacao;
+    var tb=b[1].aprovado+b[1].proposta+b[1].negociacao;
+    return tb-ta;
+  });
+
+  var c1=document.getElementById('chartAlocCliente');
+  if(_alocCharts.cli)_alocCharts.cli.destroy();
+  _alocCharts.cli=new Chart(c1,{type:'bar',data:{
+    labels:rows.slice(0,10).map(function(r){return r[0].split(' ')[0];}),
+    datasets:[
+      {label:'Aprovado',data:rows.slice(0,10).map(function(r){return r[1].aprovado||0;}),backgroundColor:'rgba(110,231,183,0.6)',borderRadius:2},
+      {label:'Proposta',data:rows.slice(0,10).map(function(r){return r[1].proposta||0;}),backgroundColor:'rgba(251,191,36,0.5)',borderRadius:2},
+      {label:'Negociação',data:rows.slice(0,10).map(function(r){return r[1].negociacao||0;}),backgroundColor:'rgba(96,165,250,0.5)',borderRadius:2},
+    ]
+  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#888',font:{size:10}}}},scales:{x:{stacked:true,grid:{display:false},ticks:{color:'#666',font:{size:9}}},y:{stacked:true,grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',font:{size:10}}}}}});
+
+  var totAprov=alocs.filter(function(a){return a.status==='aprovado';}).reduce(function(s,a){return s+a.horas;},0);
+  var totProp=alocs.filter(function(a){return a.status==='proposta';}).reduce(function(s,a){return s+a.horas;},0);
+  var totNeg=alocs.filter(function(a){return a.status==='negociacao';}).reduce(function(s,a){return s+a.horas;},0);
+  var totPerd=alocs.filter(function(a){return a.status==='perdido';}).reduce(function(s,a){return s+a.horas;},0);
+  var c2=document.getElementById('chartAlocStatus');
+  if(_alocCharts.status)_alocCharts.status.destroy();
+  _alocCharts.status=new Chart(c2,{type:'doughnut',data:{
+    labels:['Aprovado','Proposta','Negociação','Perdido'],
+    datasets:[{data:[totAprov,totProp,totNeg,totPerd],backgroundColor:['rgba(110,231,183,0.7)','rgba(251,191,36,0.7)','rgba(96,165,250,0.7)','rgba(248,113,113,0.5)'],borderColor:'#111',borderWidth:2}]
+  },options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{color:'#888',font:{size:11},boxWidth:12}}}}});
+
+  // Custo estimado por cliente
+  var chMedioGeral=(function(){
+    var d=getPplData().filter(function(p){return p.status==='ativo';});
+    var ct=d.reduce(function(s,p){return s+pplCustoTotal(p);},0);
+    var ht=d.reduce(function(s,p){return s+(p.horas||160);},0);
+    return ht>0?ct/ht:0;
+  })();
+
+  document.getElementById('aloc-cli-table').innerHTML=rows.map(function(r){
+    var total=(r[1].aprovado||0)+(r[1].proposta||0)+(r[1].negociacao||0);
+    var custo=total*chMedioGeral;
+    return '<tr>'+
+      '<td><strong>'+r[0]+'</strong></td>'+
+      '<td style="text-align:right;color:var(--pos)">'+Math.round(r[1].aprovado||0)+'h</td>'+
+      '<td style="text-align:right;color:var(--amber)">'+Math.round(r[1].proposta||0)+'h</td>'+
+      '<td style="text-align:right;color:#60a5fa">'+Math.round(r[1].negociacao||0)+'h</td>'+
+      '<td style="text-align:right;font-weight:700">'+Math.round(total)+'h</td>'+
+      '<td style="text-align:right">R$ '+Math.round(custo).toLocaleString('pt-BR')+'</td>'+
+    '</tr>';
+  }).join('')||'<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text3)">Sem alocações</td></tr>';
+}
+
+function alocRenderCapacidade(){
+  var ppl=getPplData().filter(function(p){return p.status==='ativo';});
+  var alocs=getAlocData();
+  var mes=parseInt(document.getElementById('aloc-cap-mes').value)||0;
+  var fDepto=document.getElementById('aloc-cap-depto');
+  var fd=fDepto?fDepto.value:'';
+
+  var pplFiltrado=fd?ppl.filter(function(p){return p.depto===fd;}):ppl;
+
+  var deptoMap={};
+  pplFiltrado.forEach(function(p){
+    var dep=p.depto||'Sem depto';
+    if(!deptoMap[dep])deptoMap[dep]={cap:0,aprov:0,prop:0};
+    deptoMap[dep].cap+=p.horas||160;
+
+    alocs.filter(function(a){
+      if(a.colaborador.toLowerCase()!==p.nome.toLowerCase())return false;
+      if(mes){
+        var inicio=a.mesInicio?new Date(a.mesInicio+'-01'):null;
+        var fim=a.mesFim?new Date(a.mesFim+'-01'):null;
+        var ref=new Date(2026,mes-1,1);
+        if(inicio&&inicio>ref)return false;
+        if(fim&&fim<ref)return false;
+      }
+      return true;
+    }).forEach(function(a){
+      if(a.status==='aprovado')deptoMap[dep].aprov+=a.horas;
+      else if(a.status==='proposta'||a.status==='negociacao')deptoMap[dep].prop+=a.horas;
+    });
+  });
+
+  var totalCap=pplFiltrado.reduce(function(s,p){return s+(p.horas||160);},0);
+  var totalAprov=Object.values(deptoMap).reduce(function(s,v){return s+v.aprov;},0);
+  var totalProp=Object.values(deptoMap).reduce(function(s,v){return s+v.prop;},0);
+  var totalDisp=totalCap-totalAprov-totalProp;
+
+  document.getElementById('aloc-cap-kpis').innerHTML=[
+    {label:'Capacidade Total',value:Math.round(totalCap)+'h',sub:pplFiltrado.length+' colaboradores'},
+    {label:'Horas Aprovadas',value:Math.round(totalAprov)+'h',sub:(totalCap>0?(totalAprov/totalCap*100).toFixed(0):0)+'% da capacidade'},
+    {label:'Pipeline',value:Math.round(totalProp)+'h',sub:'proposta + negociação'},
+    {label:'Disponível',value:Math.round(totalDisp)+'h',sub:(totalCap>0?(totalDisp/totalCap*100).toFixed(0):0)+'% livre'},
+  ].map(function(k){return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-value" style="font-size:18px">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
+
+  var deptos=Object.entries(deptoMap);
+  var c=document.getElementById('chartAlocCapDepto');
+  if(_alocCharts.cap)_alocCharts.cap.destroy();
+  _alocCharts.cap=new Chart(c,{type:'bar',data:{
+    labels:deptos.map(function(d){return d[0];}),
+    datasets:[
+      {label:'Aprovado',data:deptos.map(function(d){return d[1].aprov;}),backgroundColor:'rgba(110,231,183,0.6)',borderRadius:2},
+      {label:'Proposta/Neg.',data:deptos.map(function(d){return d[1].prop;}),backgroundColor:'rgba(251,191,36,0.5)',borderRadius:2},
+      {label:'Disponível',data:deptos.map(function(d){return Math.max(0,d[1].cap-d[1].aprov-d[1].prop);}),backgroundColor:'rgba(255,255,255,0.08)',borderRadius:2},
+    ]
+  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#888',font:{size:10}}}},scales:{x:{stacked:true,grid:{display:false},ticks:{color:'#666',font:{size:9}}},y:{stacked:true,grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',font:{size:10}}}}}});
+}
 
 // ── IMPORTAR FUNCIONÁRIOS DO VBS ─────────────────────
 async function pplImportarVBS(){
