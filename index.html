@@ -1336,6 +1336,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     <div class="tab-panel active" id="aloc-lancar">
       <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
         <button class="btn btn-primary" onclick="alocAbrirModal()">+ Nova Alocação</button>
+        <button class="btn" onclick="alocExportCSV()" style="font-size:11px">📊 Exportar Excel</button>
         <select id="aloc-f-status" onchange="alocRenderTabela()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
           <option value="">Todos os status</option>
           <option value="aprovado">Aprovado</option>
@@ -1353,6 +1354,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
           <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
           <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
         </select>
+        <button class="btn" onclick="alocCarregarVBS()" style="font-size:11px">⬇️ Carregar Clientes/Projetos VBS</button>
+        <span id="aloc-vbs-loading" style="font-size:11px;color:var(--text3);display:none">Carregando...</span>
       </div>
       <div id="aloc-kpis" class="kpi-grid" style="margin-bottom:16px"></div>
       <div class="table-card">
@@ -1360,7 +1363,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
         <div style="overflow-x:auto">
           <table class="tbl" style="min-width:900px">
             <thead><tr>
-              <th>Colaborador/Perfil</th><th>Departamento</th><th>Cliente</th>
+              <th>Colaborador/Perfil</th><th>Departamento</th><th>Cliente</th><th>Projeto</th>
               <th style="text-align:right">Horas/mês</th><th>Período</th>
               <th>Status</th><th>Obs</th><th></th>
             </tr></thead>
@@ -1478,8 +1481,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
         </div>
         <div>
           <label class="jur-lbl">CLIENTE</label>
-          <input id="aloc-cliente-input" type="text" class="field-input" placeholder="Nome do cliente" list="aloc-cli-list">
+          <input id="aloc-cliente-input" type="text" class="field-input" placeholder="Nome do cliente" list="aloc-cli-list" oninput="alocFiltrarProjetos()">
           <datalist id="aloc-cli-list"></datalist>
+        </div>
+        <div style="grid-column:1/-1">
+          <label class="jur-lbl">PROJETO/CAMPANHA <span style="color:var(--text3);font-size:9px">(opcional)</span></label>
+          <input id="aloc-projeto" type="text" class="field-input" placeholder="Ex: Fee Mensal, Campanha Verão..." list="aloc-proj-list">
+          <datalist id="aloc-proj-list"></datalist>
         </div>
         <div>
           <label class="jur-lbl">HORAS/MÊS</label>
@@ -2250,7 +2258,7 @@ function goPage(id) {
   document.getElementById('topbar-title').textContent = meta.title;
   document.getElementById('topbar-sub').textContent = meta.sub;
   if(id==='crm') setTimeout(function(){ if(typeof crmCarregar==='function') crmCarregar(); }, 100);
-  if(id==='alocacao') setTimeout(function(){ alocRenderTabela(); alocPopularFiltros(); }, 100);
+  if(id==='alocacao') setTimeout(function(){ alocCarregarCacheVBS(); alocRenderTabela(); alocPopularFiltros(); }, 100);
 }
 
 function toggleSidebar() {
@@ -3621,8 +3629,72 @@ function getPplDataLegacy(){return getPplData();}
 
 // ── ALOCAÇÃO DE HORAS ────────────────────────────────
 var _alocCharts={};
+var _alocClientesVBS=[];
+var _alocProjetosVBS=[];
 function getAlocData(){return JSON.parse(localStorage.getItem('euphoria_alocacao_v1')||'[]');}
 function saveAlocData(d){localStorage.setItem('euphoria_alocacao_v1',JSON.stringify(d));}
+
+// Carrega clientes e projetos do VBS
+async function alocCarregarVBS(){
+  var loading=document.getElementById('aloc-vbs-loading');
+  if(loading)loading.style.display='inline';
+  try {
+    // Clientes ativos
+    var rCli=await fetch(API+'/api/clientes?ativos=1');
+    if(rCli.ok){
+      var jCli=await rCli.json();
+      var retCli=jCli.data?.Retorno||jCli.data||[];
+      if(Array.isArray(retCli)){
+        _alocClientesVBS=retCli.map(function(c){return String(c.NomeFantasia_Cliente||c.RazaoSocial_Cliente||'').trim();}).filter(Boolean).sort();
+      }
+    }
+    // Campanhas/Projetos ativos
+    var rProj=await fetch(API+'/api/campanhas?ativas=1');
+    if(rProj.ok){
+      var jProj=await rProj.json();
+      var retProj=jProj.data?.Retorno||jProj.data||[];
+      if(Array.isArray(retProj)){
+        _alocProjetosVBS=retProj.map(function(c){return String(c.Nome_Campanha||c.nome||'').trim();}).filter(Boolean).sort();
+      }
+    }
+    // Salva no localStorage pra reusar
+    localStorage.setItem('euphoria_aloc_clientes',JSON.stringify(_alocClientesVBS));
+    localStorage.setItem('euphoria_aloc_projetos',JSON.stringify(_alocProjetosVBS));
+    alert('Carregados: '+_alocClientesVBS.length+' clientes e '+_alocProjetosVBS.length+' projetos do VBS!');
+  } catch(e){alert('Erro ao carregar VBS: '+e.message);}
+  if(loading)loading.style.display='none';
+  alocPopularDatalistsCli();
+}
+
+function alocCarregarCacheVBS(){
+  var cli=localStorage.getItem('euphoria_aloc_clientes');
+  var proj=localStorage.getItem('euphoria_aloc_projetos');
+  if(cli)_alocClientesVBS=JSON.parse(cli);
+  if(proj)_alocProjetosVBS=JSON.parse(proj);
+}
+
+function alocPopularDatalistsCli(){
+  // Clientes: VBS + já usados nas alocações
+  var usados=[...new Set(getAlocData().map(function(a){return a.cliente;}).filter(Boolean))];
+  var todos=[...new Set([..._alocClientesVBS,...usados])].sort();
+  var dlCli=document.getElementById('aloc-cli-list');
+  if(dlCli)dlCli.innerHTML=todos.map(function(c){return '<option value="'+c+'">';}).join('');
+  // Filtro dropdown
+  var fCli=document.getElementById('aloc-f-cliente');
+  var cur=fCli?fCli.value:'';
+  if(fCli)fCli.innerHTML='<option value="">Todos os clientes</option>'+todos.map(function(c){return '<option'+(c===cur?' selected':'')+'>'+c+'</option>';}).join('');
+}
+
+function alocFiltrarProjetos(){
+  var cli=(document.getElementById('aloc-cliente-input')||{value:''}).value.trim().toUpperCase();
+  // Filtra projetos do VBS pelo cliente selecionado
+  var projetos=_alocProjetosVBS;
+  // Também inclui projetos já usados
+  var usados=[...new Set(getAlocData().filter(function(a){return a.projeto;}).map(function(a){return a.projeto;}))];
+  var todos=[...new Set([...projetos,...usados])].sort();
+  var dl=document.getElementById('aloc-proj-list');
+  if(dl)dl.innerHTML=todos.map(function(p){return '<option value="'+p+'">';}).join('');
+}
 
 function switchAlocTab(tab,e){
   document.querySelectorAll('#page-alocacao .tab-btn').forEach(function(b){b.classList.remove('active');});
@@ -3636,23 +3708,27 @@ function switchAlocTab(tab,e){
 }
 
 function alocAbrirModal(id){
+  alocCarregarCacheVBS();
   document.getElementById('aloc-edit-id').value=id||'';
   document.getElementById('aloc-modal-title').textContent=id?'Editar Alocação':'Nova Alocação';
   var a=id?getAlocData().find(function(x){return x.id===id;}):null;
   document.getElementById('aloc-colaborador').value=a?a.colaborador:'';
   document.getElementById('aloc-depto').value=a?a.depto:'';
   document.getElementById('aloc-cliente-input').value=a?a.cliente:'';
+  document.getElementById('aloc-projeto').value=a?(a.projeto||''):'';
   document.getElementById('aloc-horas').value=a?a.horas:'';
   document.getElementById('aloc-status').value=a?(a.status||'aprovado'):'aprovado';
   document.getElementById('aloc-mes-inicio').value=a?a.mesInicio:'';
   document.getElementById('aloc-mes-fim').value=a?a.mesFim:'';
   document.getElementById('aloc-obs').value=a?a.obs:'';
 
-  // Populate datalists
+  // Populate collaborator datalist
   var ppl=getPplData().filter(function(p){return p.status==='ativo';});
   document.getElementById('aloc-col-list').innerHTML=ppl.map(function(p){return '<option value="'+p.nome+'">';}).join('');
-  var clientes=[...new Set(getAlocData().map(function(a){return a.cliente;}).filter(Boolean))];
-  document.getElementById('aloc-cli-list').innerHTML=clientes.map(function(c){return '<option value="'+c+'">';}).join('');
+
+  // Populate clients and projects
+  alocPopularDatalistsCli();
+  alocFiltrarProjetos();
 
   document.getElementById('aloc-modal').style.display='flex';
 }
@@ -3674,6 +3750,7 @@ function alocSalvar(){
     colaborador:colab,
     depto:depto,
     cliente:cliente,
+    projeto:document.getElementById('aloc-projeto').value.trim(),
     horas:horas,
     status:document.getElementById('aloc-status').value,
     mesInicio:document.getElementById('aloc-mes-inicio').value,
@@ -3695,11 +3772,8 @@ function alocRemover(id){
 }
 
 function alocPopularFiltros(){
-  var d=getAlocData();
-  var clientes=[...new Set(d.map(function(a){return a.cliente;}).filter(Boolean))].sort();
-  var sel=document.getElementById('aloc-f-cliente');
-  var cur=sel?sel.value:'';
-  if(sel)sel.innerHTML='<option value="">Todos os clientes</option>'+clientes.map(function(c){return '<option'+(c===cur?' selected':'')+'>'+c+'</option>';}).join('');
+  alocCarregarCacheVBS();
+  alocPopularDatalistsCli();
 }
 
 function alocFiltrar(){
@@ -3751,6 +3825,7 @@ function alocRenderTabela(){
       '<td><strong>'+a.colaborador+'</strong></td>'+
       '<td><span class="badge badge-blue">'+(a.depto||'—')+'</span></td>'+
       '<td>'+a.cliente+'</td>'+
+      '<td style="font-size:11px;color:var(--text2)">'+(a.projeto||'—')+'</td>'+
       '<td style="text-align:right;font-weight:700">'+Math.round(a.horas)+'h</td>'+
       '<td style="font-size:11px;color:var(--text3)">'+per+'</td>'+
       '<td><span class="badge '+(statusBadge[a.status]||'badge-gray')+'">'+(statusLabel[a.status]||a.status)+'</span></td>'+
@@ -3760,7 +3835,23 @@ function alocRenderTabela(){
         '<button class="btn" style="padding:2px 7px;font-size:10px;color:var(--neg)" onclick="alocRemover(\''+a.id+'\')">✕</button>'+
       '</td>'+
     '</tr>';
-  }).join('')||'<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text3)">Nenhuma alocação. Clique em "+ Nova Alocação" para começar.</td></tr>';
+  }).join('')||'<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text3)">Nenhuma alocação. Clique em "+ Nova Alocação" para começar.</td></tr>';
+}
+
+function alocExportCSV(){
+  var d=getAlocData();
+  if(!d.length){alert('Sem alocações para exportar!');return;}
+  var statusLabel={aprovado:'Aprovado',proposta:'Proposta',negociacao:'Em negociação',perdido:'Perdido'};
+  var rows=[['Colaborador/Perfil','Departamento','Cliente','Projeto','Horas/mês','Mês Início','Mês Fim','Status','Observação']];
+  d.forEach(function(a){
+    rows.push([a.colaborador||'',a.depto||'',a.cliente||'',a.projeto||'',a.horas||0,a.mesInicio||'',a.mesFim||'',(statusLabel[a.status]||a.status),a.obs||'']);
+  });
+  var csv='\uFEFF'+rows.map(function(r){return r.map(function(v){var s=String(v);if(s.includes(','))s='"'+s+'"';return s;}).join(',');}).join('\r\n');
+  var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;a.download='Euphoria_Alocacoes_'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
 }
 
 function alocRenderColaborador(){
