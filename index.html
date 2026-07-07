@@ -700,8 +700,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
             <thead><tr>
               <th>Cliente</th>
               <th style="text-align:right">Inv. Cliente</th>
-              <th style="text-align:right">Receita Euphoria</th>
-              <th style="text-align:right">Budget Net Rev</th>
+              <th style="text-align:right">Receita Euphoria (Budget)</th>
               <th style="text-align:right">Actual 2026</th>
               <th style="text-align:right">Actual 2025</th>
               <th style="text-align:right">Var vs Bud</th>
@@ -2258,19 +2257,26 @@ function renderInvestmentCharts(agg) {
     var var26 = r.actual2026 > 0 && r.budgetNet > 0 ? r.actual2026 - r.budgetNet : null;
     var yoy   = r.actual2026 > 0 && r.actual2025 > 0 ? r.actual2026 - r.actual2025 : null;
     var ating = r.budgetNet > 0 && r.actual2026 > 0 ? r.actual2026 / r.budgetNet : 0;
-    var varCls = var26 !== null ? (var26 >= 0 ? 'pos' : 'neg') : '';
-    var yoyCls = yoy !== null ? (yoy >= 0 ? 'pos' : 'neg') : '';
+    var fmtVar = function(v){ return v===null?'—':(v>=0?'+':'')+fmtFull(v); };
+    var clr = function(v){ return v===null?'':' style="text-align:right;color:'+(v>=0?'var(--pos)':'var(--neg)')+'\"'; };
     return '<tr>' +
       '<td><strong>' + r.client + '</strong></td>' +
-      '<td style="text-align:right">' + fmtFull(r.budgetGross||0) + '</td>' +
-      '<td style="text-align:right">' + fmtFull(r.budgetNet||0) + '</td>' +
+      '<td style="text-align:right">' + (r.budgetGross > 0 ? fmtFull(r.budgetGross) : '—') + '</td>' +
+      '<td style="text-align:right">' + (r.budgetNet > 0 ? fmtFull(r.budgetNet) : '—') + '</td>' +
       '<td style="text-align:right">' + (r.actual2026 > 0 ? fmtFull(r.actual2026) : '—') + '</td>' +
       '<td style="text-align:right">' + (r.actual2025 > 0 ? fmtFull(r.actual2025) : '—') + '</td>' +
-      '<td style="text-align:right" class="' + varCls + '">' + (var26 !== null ? (var26>=0?'+':'')+fmtFull(var26) : '—') + '</td>' +
-      '<td style="text-align:right" class="' + yoyCls + '">' + (yoy !== null ? (yoy>=0?'+':'')+fmtFull(yoy) : '—') + '</td>' +
-      '<td style="text-align:right">' + (ating > 0 ? pct(ating) : '—') + '</td>' +
+      '<td' + clr(var26) + '>' + fmtVar(var26) + '</td>' +
+      '<td' + clr(yoy) + '>' + fmtVar(yoy) + '</td>' +
+      '<td style="text-align:right">' + (ating > 0 ? (ating*100).toFixed(1)+'%' : '—') + '</td>' +
     '</tr>';
-  }).join('');
+  }).join('') + (agg.length ? '<tr class="summary-row">' +
+    '<td><strong>Total</strong></td>' +
+    '<td style="text-align:right">' + fmtFull(agg.reduce(function(s,r){return s+(r.budgetGross||0);},0)) + '</td>' +
+    '<td style="text-align:right">' + fmtFull(agg.reduce(function(s,r){return s+(r.budgetNet||0);},0)) + '</td>' +
+    '<td style="text-align:right">' + fmtFull(agg.reduce(function(s,r){return s+(r.actual2026||0);},0)) + '</td>' +
+    '<td style="text-align:right">' + fmtFull(agg.reduce(function(s,r){return s+(r.actual2025||0);},0)) + '</td>' +
+    '<td colspan="3"></td>' +
+  '</tr>' : '');
 }
 
 
@@ -6641,13 +6647,21 @@ async function carregarActualVbs(){
 
     // Aggregate by client name - match to ALLCLIENTS sheet client names
     var vbsMap = {};
-    var vbsMapByMonth = {}; // month (1-12) → {clientName: value}
+    var vbsMapByMonth = {};
+    var vbsMapByTipo = {}; // tipo → {clientName: value}
+    var TIPO_MAP_VBS = {
+      'fee': function(x){ return parseFloat(x.Valor_faturamento_fee||0); },
+      'mediaCom': function(x){ return parseFloat(x.Valor_receita_midia||0)+parseFloat(x.Valor_receita_bv_midia||0); },
+      'prodCom': function(x){ return parseFloat(x.Valor_receita_producao||0); },
+      'prodInv': function(x){ return parseFloat(x.Valor_faturamento_producao||0)-parseFloat(x.Valor_receita_producao||0); },
+      'mediaInv': function(x){ return parseFloat(x.Valor_faturamento_midia||0)-parseFloat(x.Valor_receita_midia||0); },
+    };
     allRows.forEach(function(x){
       var cli = String(x.Nome_grupo_empresarial||x.Razao_social_cliente||'').trim().toUpperCase();
       if(!cli) return;
       if(!vbsMap[cli]) vbsMap[cli] = 0;
       vbsMap[cli] += parseFloat(x.Valor_receita_total||0);
-      // Store by month too
+      // By month
       var dt = x.Data_competencia_nota ? new Date(x.Data_competencia_nota) : null;
       if(dt){
         var mes = dt.getMonth()+1;
@@ -6655,11 +6669,21 @@ async function carregarActualVbs(){
         if(!vbsMapByMonth[mes][cli]) vbsMapByMonth[mes][cli] = 0;
         vbsMapByMonth[mes][cli] += parseFloat(x.Valor_receita_total||0);
       }
+      // By tipo
+      Object.keys(TIPO_MAP_VBS).forEach(function(tipo){
+        var val = TIPO_MAP_VBS[tipo](x);
+        if(val > 0){
+          if(!vbsMapByTipo[tipo]) vbsMapByTipo[tipo] = {};
+          if(!vbsMapByTipo[tipo][cli]) vbsMapByTipo[tipo][cli] = 0;
+          vbsMapByTipo[tipo][cli] += val;
+        }
+      });
     });
 
     window._vbsActualMap = vbsMap;
     window._vbsActual2026 = vbsMap;
     window._vbsActualByMonth = vbsMapByMonth;
+    window._vbsActualByTipo = vbsMapByTipo;
 
     // Match VBS client name to dashboard client name
     // Tabela de-para: nome VBS (uppercase) → nome Budget (exato)
@@ -6773,33 +6797,41 @@ async function carregarActualVbs(){
     }
     window.aggregateClients = function(rows26, rows25){
       var result = window._origAggFn(rows26, rows25);
-      var map26 = window._budgetActualMap || {};
+      var map26base = window._budgetActualMap || {};
       var map25 = window._budgetActualMap2025 || {};
+      var dep = window._DEPARA || {};
 
-      // Se filtro de mês ativo, usa dados mensais
-      var selMes = document.getElementById('sel-month');
-      var mesFiltro = selMes ? parseInt(selMes.value) : 0;
-      if(mesFiltro && window._vbsActualByMonth && window._vbsActualByMonth[mesFiltro]){
-        var rawMes = window._vbsActualByMonth[mesFiltro];
-        // Reconstroi mapa mensal com de-para
-        var map26Mes = {};
-        var dep = window._DEPARA || {};
-        Object.keys(rawMes).forEach(function(vbsKey){
+      function buildMapFromRaw(rawMap){
+        var m = {};
+        if(!rawMap) return m;
+        Object.keys(rawMap).forEach(function(vbsKey){
           var budNome = dep[vbsKey] || null;
           if(!budNome){
             var vUp=vbsKey.toUpperCase();
-            Object.keys(map26).forEach(function(b){
-              if(!b)return;
-              var bUp=b.toUpperCase();
-              if(vUp===bUp||vUp.startsWith(bUp))budNome=b;
+            Object.keys(map26base).forEach(function(b){
+              if(!b||budNome)return;
+              if(vUp===b.toUpperCase()||vUp.startsWith(b.toUpperCase()))budNome=b;
             });
           }
           if(budNome && budNome!=='NOVOS NEGÓCIOS 1'){
-            if(!map26Mes[budNome])map26Mes[budNome]=0;
-            map26Mes[budNome]+=rawMes[vbsKey];
+            if(!m[budNome])m[budNome]=0;
+            m[budNome]+=rawMap[vbsKey];
           }
         });
-        map26 = map26Mes;
+        return m;
+      }
+
+      // Detect active filters — check both dashboard and clientes tab selects
+      var selMes  = document.getElementById('sel-month')  || document.getElementById('cli-month');
+      var selTipo = document.getElementById('sel-tipo')   || document.getElementById('cli-tipo');
+      var mesFiltro  = selMes  ? parseInt(selMes.value)  : 0;
+      var tipoFiltro = selTipo ? selTipo.value : 'all';
+
+      var map26 = map26base;
+      if(tipoFiltro && tipoFiltro!=='all' && window._vbsActualByTipo && window._vbsActualByTipo[tipoFiltro]){
+        map26 = buildMapFromRaw(window._vbsActualByTipo[tipoFiltro]);
+      } else if(mesFiltro && window._vbsActualByMonth && window._vbsActualByMonth[mesFiltro]){
+        map26 = buildMapFromRaw(window._vbsActualByMonth[mesFiltro]);
       }
 
       if(Array.isArray(result)){
