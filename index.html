@@ -6768,8 +6768,8 @@ async function carregarActualVbs(){
           var cli = item.client || '';
           var v26 = map26[cli] || 0;
           var v25 = map25[cli] || 0;
-          if(v26 > 0) item.actual2026 = Math.round(v26/1000);
-          if(v25 > 0) item.actual2025 = Math.round(v25/1000);
+          if(v26 > 0) item.actual2026 = Math.round(v26);
+          if(v25 > 0) item.actual2025 = Math.round(v25);
         });
       }
       return result;
