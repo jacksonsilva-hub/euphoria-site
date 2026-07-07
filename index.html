@@ -6651,13 +6651,56 @@ async function carregarActualVbs(){
     window._vbsActual2026 = vbsMap;
 
     // Match VBS client name to dashboard client name
-    function matchVbsCli(cli, map){
-      var val=0, cliUp=cli.toUpperCase();
-      Object.keys(map).forEach(function(k){
-        var kUp=k.toUpperCase();
-        if(kUp===cliUp||kUp.startsWith(cliUp.substring(0,8))||cliUp.startsWith(kUp.substring(0,8))){
-          val+=map[k];
+    // Tabela de-para: nome VBS → nome Budget
+    var DEPARA = {
+      'PERNOD RICARD BRASIL INDUSTRIA E COMERCIO': 'PERNOD RICARD',
+      'AMAZON SERVICOS DE VAREJO DO BRASIL LTDA.': 'AMAZON',
+      'UNILEVER BRASIL LTDA.': "HELLMANN'S",
+      'JCDECAUX DO BRASIL LTDA.': 'JCDECAUX',
+      'TRACK GAMING BRASIL LTDA': 'BETWARRIOR',
+      'GLOBO COMUNICACAO E PARTICIPACOES S/A': 'GLOBO',
+      'IESSI PRODUCOES E EVENTOS LTDA': 'IVETE SANGALO',
+    };
+
+    // Palavras ignoradas no matching
+    var STOPWORDS = ['BRASIL','LTDA','LTDA.','S/A','SA','DO','DE','DA','E','COMERCIO','INDUSTRIA','SERVICOS','PARTICIPACOES','COMUNICACAO','PRODUCOES','EVENTOS','VAREJO'];
+
+    function palavrasSignificativas(nome){
+      return nome.toUpperCase().split(/\s+/).filter(function(w){
+        return w.length>2 && STOPWORDS.indexOf(w)<0;
+      });
+    }
+
+    function matchVbsCli(budgetCli, map){
+      var val=0;
+      var budUp=budgetCli.toUpperCase();
+
+      Object.keys(map).forEach(function(vbsKey){
+        var vbsUp=vbsKey.toUpperCase();
+        var matched=false;
+
+        // 1. Match exato
+        if(vbsUp===budUp){matched=true;}
+
+        // 2. Tabela de-para
+        if(!matched && DEPARA[vbsKey] && DEPARA[vbsKey].toUpperCase()===budUp){matched=true;}
+
+        // 3. VBS começa com o nome Budget (ex: "PERNOD RICARD BRASIL..." começa com "PERNOD RICARD")
+        if(!matched && vbsUp.startsWith(budUp)){matched=true;}
+
+        // 4. Budget começa com VBS (ex: "PREMIERPET" é exato)
+        if(!matched && budUp.startsWith(vbsUp)){matched=true;}
+
+        // 5. Palavras significativas — todas as palavras do Budget aparecem no VBS
+        if(!matched){
+          var budWords=palavrasSignificativas(budUp);
+          var vbsWords=palavrasSignificativas(vbsUp);
+          if(budWords.length>0 && budWords.every(function(w){return vbsWords.indexOf(w)>=0;})){
+            matched=true;
+          }
         }
+
+        if(matched) val+=map[vbsKey];
       });
       return val;
     }
