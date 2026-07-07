@@ -6667,19 +6667,19 @@ async function carregarActualVbs(){
       'JCDECAUX TRANSPORTES LTDA': 'JCDECAUX',
       'JCDECAUX TRILHOS LTDA': 'JCDECAUX',
       'TRACK GAMING BRASIL LTDA': 'BETWARRIOR',
-      'GLOBO COMUNICACAO E PARTICIPACOES S/A': 'NOVOS NEGÓCIOS 1',
-      'GLOBO COMUNICACAO E PARTICIPACOES S/A - SP': 'NOVOS NEGÓCIOS 1',
+      'GLOBO COMUNICACAO E PARTICIPACOES S/A': 'WARNER BROS.',
+      'GLOBO COMUNICACAO E PARTICIPACOES S/A - SP': 'WARNER BROS.',
       'IESSI PRODUCOES E EVENTOS LTDA': 'IVETE SANGALO',
       'TICKET SERVICOS SA': 'TICKET',
       'GSK - GLAXOSMITHKLINE BRASIL LTDA': 'GSK',
       'TFCF LATIN AMERICAN CHANNELS DO BRASIL LTDA.': 'WARNER BROS.',
-      'UNIVERSO ONLINE S/A': 'NOVOS NEGÓCIOS 1',
-      'DOMINIUM PUBLICIDADE E MARKETING LTDA': 'NOVOS NEGÓCIOS 1',
-      'PBSA - PUBLIBANCA BRASIL S/A (MATRIZ RIO DE JANEIRO)': 'NOVOS NEGÓCIOS 1',
-      'ELETROMIDIA SP CONCESSIONÁRIA DE MOBILIÁRIO URBANO SPE S.A': 'NOVOS NEGÓCIOS 1',
-      'CEMUSA BRASILIA S.A': 'NOVOS NEGÓCIOS 1',
-      'CONCESSIONARIA A HORA DE SAO PAULO LTDA': 'NOVOS NEGÓCIOS 1',
-      'VEX PAINÉIS': 'NOVOS NEGÓCIOS 1',
+      'UNIVERSO ONLINE S/A': 'AMAZON',
+      'DOMINIUM PUBLICIDADE E MARKETING LTDA': 'BETWARRIOR',
+      'PBSA - PUBLIBANCA BRASIL S/A (MATRIZ RIO DE JANEIRO)': 'JCDECAUX',
+      'ELETROMIDIA SP CONCESSIONÁRIA DE MOBILIÁRIO URBANO SPE S.A': 'JCDECAUX',
+      'CEMUSA BRASILIA S.A': 'JCDECAUX',
+      'CONCESSIONARIA A HORA DE SAO PAULO LTDA': 'JCDECAUX',
+      'VEX PAINÉIS': 'JCDECAUX',
     };
 
     // Constrói mapa Budget → Actual VBS somando todas as empresas do grupo
@@ -6700,7 +6700,7 @@ async function carregarActualVbs(){
         });
       }
 
-      if(budgetNome){
+      if(budgetNome && budgetNome !== 'NOVOS NEGÓCIOS 1'){
         if(!budgetActualMap[budgetNome]) budgetActualMap[budgetNome] = 0;
         budgetActualMap[budgetNome] += vbsMap[vbsKey];
       }
@@ -6744,7 +6744,7 @@ async function carregarActualVbs(){
           if(vbsUp===bUp||vbsUp.startsWith(bUp)||bUp.startsWith(vbsUp.split(' ')[0])){budgetNome=b;}
         });
       }
-      if(budgetNome){
+      if(budgetNome && budgetNome !== 'NOVOS NEGÓCIOS 1'){
         if(!budgetActualMap2025[budgetNome])budgetActualMap2025[budgetNome]=0;
         budgetActualMap2025[budgetNome]+=vbsMap2025[vbsKey];
       }
