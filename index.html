@@ -6713,13 +6713,16 @@ async function carregarActualVbs(){
     // A planilha tem colunas: row[0]=CLIENTE, row[22]=Actual Media Inv, etc.
     // Mas é mais seguro sobrescrever via aggregateClients override
     var _origAgg = window._origAggFn || aggregateClients;
-    window._origAggFn = _origAgg; // salva referência original
+    window._origAggFn = _origAgg;
     window.aggregateClients = function(rows26, rows25){
       var result = _origAgg(rows26, rows25);
-      Object.keys(result).forEach(function(cli){
-        var val = window._budgetActualMap[cli] || 0;
-        if(val > 0) result[cli].actual2026 = Math.round(val/1000);
-      });
+      if(Array.isArray(result)){
+        result.forEach(function(item){
+          var cli = item.client || '';
+          var val = window._budgetActualMap[cli] || 0;
+          if(val > 0) item.actual2026 = Math.round(val/1000);
+        });
+      }
       return result;
     };
 
