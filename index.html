@@ -2112,7 +2112,7 @@ function renderMonthlyChart(revM, gmM, mIdx) {
   const revD   = mIdx >= 0 ? [revM[mIdx]]   : revM;
   const gmD    = mIdx >= 0 ? [gmM[mIdx]]    : gmM;
   if (chartRC) chartRC.destroy();
-  chartRC = new Chart(document.getElementById('chartRevCost'), {
+  chartRC = new Chart(document.getElementById('chartRevenue'), {
     type: 'bar',
     data: {
       labels,
@@ -6706,8 +6706,50 @@ async function carregarActualVbs(){
       }
     });
 
-    window._budgetActualMap = budgetActualMap;
-    window._vbsActual2026 = vbsMap;
+    // Busca também o ano anterior (2025) para comparação YoY
+    var ano2025 = ano - 1;
+    var promises2025 = [];
+    for(var m2=1; m2<=12; m2++){
+      var mm2=String(m2).padStart(2,'0');
+      var lastDay2=new Date(ano2025,m2,0).getDate();
+      var de2='01'+mm2+ano2025;
+      var ate2=String(lastDay2).padStart(2,'0')+mm2+ano2025;
+      promises2025.push(
+        fetch(API+'/api/faturamento?data_de='+de2+'&data_ate='+ate2+'&intervalo_data=2&tipo_faturamento=1&valor=2')
+          .then(function(r){return r.json();})
+          .then(function(j){return j.ok?(j.data.Retorno||[]):[];})
+          .catch(function(){return [];})
+      );
+    }
+    var results2025 = await Promise.all(promises2025);
+    var allRows2025 = [].concat.apply([], results2025);
+    var vbsMap2025 = {};
+    allRows2025.forEach(function(x){
+      var cli = String(x.Nome_grupo_empresarial||x.Razao_social_cliente||'').trim().toUpperCase();
+      if(!cli) return;
+      if(!vbsMap2025[cli]) vbsMap2025[cli] = 0;
+      vbsMap2025[cli] += parseFloat(x.Valor_receita_total||0);
+    });
+
+    // Constrói mapa Budget → Actual 2025
+    var budgetActualMap2025 = {};
+    Object.keys(vbsMap2025).forEach(function(vbsKey){
+      var budgetNome = DEPARA[vbsKey] || null;
+      if(!budgetNome){
+        var vbsUp=vbsKey.toUpperCase();
+        var budgetClientes=[...new Set((G.clientes||[]).slice(1).map(function(r){return r[0];}).filter(Boolean))];
+        budgetClientes.forEach(function(b){
+          if(!b)return;
+          var bUp=b.toUpperCase();
+          if(vbsUp===bUp||vbsUp.startsWith(bUp)||bUp.startsWith(vbsUp.split(' ')[0])){budgetNome=b;}
+        });
+      }
+      if(budgetNome){
+        if(!budgetActualMap2025[budgetNome])budgetActualMap2025[budgetNome]=0;
+        budgetActualMap2025[budgetNome]+=vbsMap2025[vbsKey];
+      }
+    });
+    window._budgetActualMap2025 = budgetActualMap2025;
 
     // Força re-renderização injetando os valores diretamente nas linhas do G.clientes
     // A planilha tem colunas: row[0]=CLIENTE, row[22]=Actual Media Inv, etc.
@@ -6719,8 +6761,10 @@ async function carregarActualVbs(){
       if(Array.isArray(result)){
         result.forEach(function(item){
           var cli = item.client || '';
-          var val = window._budgetActualMap[cli] || 0;
-          if(val > 0) item.actual2026 = Math.round(val/1000);
+          var val2026 = window._budgetActualMap[cli] || 0;
+          var val2025 = (window._budgetActualMap2025||{})[cli] || 0;
+          if(val2026 > 0) item.actual2026 = Math.round(val2026/1000);
+          if(val2025 > 0) item.actual2025 = Math.round(val2025/1000);
         });
       }
       return result;
