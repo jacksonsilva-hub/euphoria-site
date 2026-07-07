@@ -1378,14 +1378,31 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
 
     <!-- POR COLABORADOR -->
     <div class="tab-panel" id="aloc-por-colaborador">
-      <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
-        <select id="aloc-col-mes" onchange="alocRenderColaborador()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
-          <option value="0">Todos os meses</option>
+      <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
+        <span style="font-size:11px;color:var(--text3)">De:</span>
+        <select id="aloc-col-de" onchange="alocRenderColaborador()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="0">Início do ano</option>
+          <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+          <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+          <option value="7" selected>Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+          <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+        </select>
+        <span style="font-size:11px;color:var(--text3)">Até:</span>
+        <select id="aloc-col-ate" onchange="alocRenderColaborador()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="0">Fim do ano</option>
           <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
           <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
           <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
-          <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+          <option value="10">Outubro</option><option value="11">Novembro</option><option value="12" selected>Dezembro</option>
         </select>
+        <select id="aloc-col-depto" onchange="alocRenderColaborador()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="">Todos os departamentos</option>
+          <option>Atendimento</option><option>Criação</option><option>Estratégia</option>
+          <option>Mídia</option><option>Conteúdo</option><option>Social</option>
+          <option>Produção</option><option>Data Insights</option>
+          <option>Financeiro</option><option>People & RH</option><option>TI</option><option>Diretoria</option>
+        </select>
+        <span id="aloc-col-periodo-label" style="font-size:11px;color:var(--amber);font-weight:600"></span>
       </div>
       <div class="charts-row" style="margin-bottom:20px">
         <div class="chart-card chart-full"><div class="chart-title">Horas por Colaborador — Capacidade vs Alocado vs Proposta</div><div style="position:relative;height:320px"><canvas id="chartAlocColaborador"></canvas></div></div>
@@ -1437,13 +1454,22 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
 
     <!-- CAPACIDADE -->
     <div class="tab-panel" id="aloc-capacidade">
-      <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
-        <select id="aloc-cap-mes" onchange="alocRenderCapacidade()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
-          <option value="0">Todos os meses</option>
+      <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
+        <span style="font-size:11px;color:var(--text3)">De:</span>
+        <select id="aloc-cap-de" onchange="alocRenderCapacidade()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="0">Início do ano</option>
+          <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+          <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+          <option value="7" selected>Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+          <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+        </select>
+        <span style="font-size:11px;color:var(--text3)">Até:</span>
+        <select id="aloc-cap-ate" onchange="alocRenderCapacidade()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="0">Fim do ano</option>
           <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
           <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
           <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
-          <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+          <option value="10">Outubro</option><option value="11">Novembro</option><option value="12" selected>Dezembro</option>
         </select>
         <select id="aloc-cap-depto" onchange="alocRenderCapacidade()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
           <option value="">Todos os departamentos</option>
@@ -3968,52 +3994,61 @@ function alocExportCSV(){
 function alocRenderColaborador(){
   var ppl=getPplData().filter(function(p){return p.status==='ativo';});
   var alocs=getAlocData();
-  var mes=parseInt(document.getElementById('aloc-col-mes').value)||0;
+  var mesDeEl=document.getElementById('aloc-col-de');
+  var mesAteEl=document.getElementById('aloc-col-ate');
+  var deptoEl=document.getElementById('aloc-col-depto');
+  var mesDe=mesDeEl?parseInt(mesDeEl.value)||0:0;
+  var mesAte=mesAteEl?parseInt(mesAteEl.value)||0:0;
+  var fd=deptoEl?deptoEl.value:'';
   var anoAtual=new Date().getFullYear();
+  var mInicio=mesDe>0?mesDe-1:0;   // 0-indexed
+  var mFim=mesAte>0?mesAte-1:11;   // 0-indexed
+  var qtdMeses=mFim-mInicio+1;
 
-  // Calcula quantos meses a pessoa está ativa no ano
-  function mesesAtivosNoAno(p){
-    if(mes>0)return 1; // mês específico
+  // Label do período
+  var meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  var lbl=document.getElementById('aloc-col-periodo-label');
+  if(lbl)lbl.textContent=meses[mInicio]+' → '+meses[mFim]+' ('+qtdMeses+' meses)';
+
+  if(fd) ppl=ppl.filter(function(p){return p.depto===fd;});
+
+  function mesesAtivosPeriodo(p){
     var admissao=p.admissao?new Date(p.admissao):null;
     var desligamento=p.desligamento?new Date(p.desligamento):null;
-    var inicio=admissao&&admissao.getFullYear()===anoAtual?admissao.getMonth():0; // 0=Jan
-    var fim=desligamento&&desligamento.getFullYear()===anoAtual?desligamento.getMonth():11; // 11=Dez
-    return Math.max(1, fim-inicio+1);
+    var pInicio=mInicio;
+    var pFim=mFim;
+    if(admissao&&admissao.getFullYear()===anoAtual)pInicio=Math.max(pInicio,admissao.getMonth());
+    if(admissao&&admissao.getFullYear()>anoAtual)return 0;
+    if(desligamento&&desligamento.getFullYear()===anoAtual)pFim=Math.min(pFim,desligamento.getMonth());
+    if(desligamento&&desligamento.getFullYear()<anoAtual)return 0;
+    return Math.max(0,pFim-pInicio+1);
   }
 
-  function horasAlocadas(nome, status){
+  function horasAlocadasPeriodo(nome, status){
     return alocs.filter(function(a){
       if(a.colaborador.toLowerCase()!==nome.toLowerCase())return false;
       if(status&&a.status!==status)return false;
-      if(mes){
-        var inicio=a.mesInicio?new Date(a.mesInicio+'-01'):null;
-        var fim=a.mesFim?new Date(a.mesFim+'-01'):null;
-        var ref=new Date(anoAtual,mes-1,1);
-        if(inicio&&inicio>ref)return false;
-        if(fim&&fim<ref)return false;
-      }
       return true;
     }).reduce(function(s,a){
-      // Se todos os meses, conta horas × meses do período
-      if(mes>0)return s+a.horas;
       var inicio=a.mesInicio?new Date(a.mesInicio+'-01'):new Date(anoAtual,0,1);
       var fim=a.mesFim?new Date(a.mesFim+'-01'):new Date(anoAtual,11,1);
-      var mInicio=Math.max(inicio.getMonth(),0);
-      var mFim=Math.min(fim.getMonth(),11);
-      if(inicio.getFullYear()<anoAtual)mInicio=0;
-      if(fim.getFullYear()>anoAtual)mFim=11;
-      var qtdMeses=Math.max(1,mFim-mInicio+1);
-      return s+a.horas*qtdMeses;
+      var aMes=inicio.getFullYear()<anoAtual?0:inicio.getMonth();
+      var zMes=fim.getFullYear()>anoAtual?11:fim.getMonth();
+      // Intersecção com o período selecionado
+      var iInicio=Math.max(aMes,mInicio);
+      var iFim=Math.min(zMes,mFim);
+      if(iFim<iInicio)return s;
+      return s+a.horas*(iFim-iInicio+1);
     },0);
   }
 
   var rows=ppl.map(function(p){
-    var mesesAtivos=mesesAtivosNoAno(p);
-    var cap=(p.horas||160)*mesesAtivos;
-    var aprov=horasAlocadas(p.nome,'aprovado');
-    var prop=horasAlocadas(p.nome,'proposta')+horasAlocadas(p.nome,'negociacao');
+    var mAtivos=mesesAtivosPeriodo(p);
+    var cap=(p.horas||160)*mAtivos;
+    var aprov=horasAlocadasPeriodo(p.nome,'aprovado');
+    var prop=horasAlocadasPeriodo(p.nome,'proposta')+horasAlocadasPeriodo(p.nome,'negociacao');
     var disp=Math.max(0,cap-aprov-prop);
-    return {p,cap,aprov,prop,disp,mesesAtivos};
+    return {p,cap,aprov,prop,disp,mAtivos};
   }).sort(function(a,b){return (b.aprov+b.prop)-(a.aprov+a.prop);});
 
   var top15=rows.slice(0,15);
@@ -4031,7 +4066,7 @@ function alocRenderColaborador(){
   document.getElementById('aloc-col-table').innerHTML=rows.map(function(r){
     var pct=(r.cap>0?((r.aprov+r.prop)/r.cap*100):0).toFixed(0);
     var stCl=parseFloat(pct)>=100?'badge-red':parseFloat(pct)>=80?'badge-amber':'badge-green';
-    var capLabel=mes>0?Math.round(r.cap)+'h':Math.round(r.cap)+'h ('+r.mesesAtivos+'m)';
+    var capLabel=Math.round(r.cap)+'h ('+r.mAtivos+'m)';
     return '<tr>'+
       '<td><strong>'+r.p.nome+'</strong></td>'+
       '<td><span class="badge badge-blue">'+(r.p.depto||'—')+'</span></td>'+
@@ -4125,9 +4160,16 @@ function alocRenderCliente(){
 function alocRenderCapacidade(){
   var ppl=getPplData().filter(function(p){return p.status==='ativo';});
   var alocs=getAlocData();
-  var mes=parseInt(document.getElementById('aloc-cap-mes').value)||0;
+  var mesDeEl=document.getElementById('aloc-cap-de');
+  var mesAteEl=document.getElementById('aloc-cap-ate');
   var fDepto=document.getElementById('aloc-cap-depto');
+  var mesDe=mesDeEl?parseInt(mesDeEl.value)||0:0;
+  var mesAte=mesAteEl?parseInt(mesAteEl.value)||0:0;
   var fd=fDepto?fDepto.value:'';
+  var anoAtual=new Date().getFullYear();
+  var mInicio=mesDe>0?mesDe-1:0;
+  var mFim=mesAte>0?mesAte-1:11;
+  var qtdMeses=mFim-mInicio+1;
 
   var pplFiltrado=fd?ppl.filter(function(p){return p.depto===fd;}):ppl;
 
@@ -4135,31 +4177,38 @@ function alocRenderCapacidade(){
   pplFiltrado.forEach(function(p){
     var dep=p.depto||'Sem depto';
     if(!deptoMap[dep])deptoMap[dep]={cap:0,aprov:0,prop:0};
-    deptoMap[dep].cap+=p.horas||160;
+
+    // Capacidade proporcional ao período
+    var admissao=p.admissao?new Date(p.admissao):null;
+    var pIn=mInicio, pFm=mFim;
+    if(admissao&&admissao.getFullYear()===anoAtual)pIn=Math.max(pIn,admissao.getMonth());
+    var mAtivos=Math.max(0,pFm-pIn+1);
+    deptoMap[dep].cap+=(p.horas||160)*mAtivos;
 
     alocs.filter(function(a){
-      if(a.colaborador.toLowerCase()!==p.nome.toLowerCase())return false;
-      if(mes){
-        var inicio=a.mesInicio?new Date(a.mesInicio+'-01'):null;
-        var fim=a.mesFim?new Date(a.mesFim+'-01'):null;
-        var ref=new Date(2026,mes-1,1);
-        if(inicio&&inicio>ref)return false;
-        if(fim&&fim<ref)return false;
-      }
-      return true;
+      return a.colaborador.toLowerCase()===p.nome.toLowerCase();
     }).forEach(function(a){
-      if(a.status==='aprovado')deptoMap[dep].aprov+=a.horas;
-      else if(a.status==='proposta'||a.status==='negociacao')deptoMap[dep].prop+=a.horas;
+      var inicio=a.mesInicio?new Date(a.mesInicio+'-01'):new Date(anoAtual,0,1);
+      var fim=a.mesFim?new Date(a.mesFim+'-01'):new Date(anoAtual,11,1);
+      var aMes=inicio.getFullYear()<anoAtual?0:inicio.getMonth();
+      var zMes=fim.getFullYear()>anoAtual?11:fim.getMonth();
+      var iIn=Math.max(aMes,mInicio);
+      var iFm=Math.min(zMes,mFim);
+      if(iFm<iIn)return;
+      var hPeriodo=a.horas*(iFm-iIn+1);
+      if(a.status==='aprovado')deptoMap[dep].aprov+=hPeriodo;
+      else if(a.status==='proposta'||a.status==='negociacao')deptoMap[dep].prop+=hPeriodo;
     });
   });
 
-  var totalCap=pplFiltrado.reduce(function(s,p){return s+(p.horas||160);},0);
+  var totalCap=Object.values(deptoMap).reduce(function(s,v){return s+v.cap;},0);
   var totalAprov=Object.values(deptoMap).reduce(function(s,v){return s+v.aprov;},0);
   var totalProp=Object.values(deptoMap).reduce(function(s,v){return s+v.prop;},0);
   var totalDisp=totalCap-totalAprov-totalProp;
+  var meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
   document.getElementById('aloc-cap-kpis').innerHTML=[
-    {label:'Capacidade Total',value:Math.round(totalCap)+'h',sub:pplFiltrado.length+' colaboradores'},
+    {label:'Capacidade '+meses[mInicio]+'→'+meses[mFim],value:Math.round(totalCap)+'h',sub:pplFiltrado.length+' colaboradores × '+qtdMeses+'m'},
     {label:'Horas Aprovadas',value:Math.round(totalAprov)+'h',sub:(totalCap>0?(totalAprov/totalCap*100).toFixed(0):0)+'% da capacidade'},
     {label:'Pipeline',value:Math.round(totalProp)+'h',sub:'proposta + negociação'},
     {label:'Disponível',value:Math.round(totalDisp)+'h',sub:(totalCap>0?(totalDisp/totalCap*100).toFixed(0):0)+'% livre'},
