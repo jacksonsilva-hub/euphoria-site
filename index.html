@@ -6751,20 +6751,25 @@ async function carregarActualVbs(){
     });
     window._budgetActualMap2025 = budgetActualMap2025;
 
-    // Força re-renderização injetando os valores diretamente nas linhas do G.clientes
-    // A planilha tem colunas: row[0]=CLIENTE, row[22]=Actual Media Inv, etc.
-    // Mas é mais seguro sobrescrever via aggregateClients override
-    var _origAgg = window._origAggFn || aggregateClients;
-    window._origAggFn = _origAgg;
+    // Salva mapas ANTES de criar o override
+    window._budgetActualMap = budgetActualMap;
+    window._budgetActualMap2025 = budgetActualMap2025;
+
+    // Override seguro — sempre usa _origAggFn para não empilhar
+    if(!window._origAggFn){
+      window._origAggFn = aggregateClients;
+    }
     window.aggregateClients = function(rows26, rows25){
-      var result = _origAgg(rows26, rows25);
+      var result = window._origAggFn(rows26, rows25);
+      var map26 = window._budgetActualMap || {};
+      var map25 = window._budgetActualMap2025 || {};
       if(Array.isArray(result)){
         result.forEach(function(item){
           var cli = item.client || '';
-          var val2026 = window._budgetActualMap[cli] || 0;
-          var val2025 = (window._budgetActualMap2025||{})[cli] || 0;
-          if(val2026 > 0) item.actual2026 = Math.round(val2026/1000);
-          if(val2025 > 0) item.actual2025 = Math.round(val2025/1000);
+          var v26 = map26[cli] || 0;
+          var v25 = map25[cli] || 0;
+          if(v26 > 0) item.actual2026 = Math.round(v26/1000);
+          if(v25 > 0) item.actual2025 = Math.round(v25/1000);
         });
       }
       return result;
