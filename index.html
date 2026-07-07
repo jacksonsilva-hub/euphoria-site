@@ -2172,31 +2172,32 @@ function renderClientTable(agg, totalRev) {
   var totalBudget = active.reduce(function(s,r){ return s + (r.budgetNet||0); }, 0);
 
   tbody.innerHTML = active.map(function(r) {
-    var share  = totalBudget > 0 ? (r.budgetNet||0) / totalBudget * 100 : 0;
-    var barPct = Math.round((r.budgetNet||r.actual2026||0) / maxBudget * 100);
-    var yoy    = r.actual2026 > 0 && r.actual2025 > 0 ? r.actual2026 - r.actual2025 : null;
-    var yoyCls = yoy !== null ? (yoy >= 0 ? 'pos' : 'neg') : '';
+    var varVsBud = r.actual2026 > 0 && r.budgetNet > 0 ? r.actual2026 - r.budgetNet : null;
+    var yoy      = r.actual2026 > 0 && r.actual2025 > 0 ? r.actual2026 - r.actual2025 : null;
+    var ating    = r.budgetNet > 0 && r.actual2026 > 0 ? (r.actual2026/r.budgetNet*100) : 0;
+    var share    = totalBudget > 0 ? (r.budgetNet||0) / totalBudget * 100 : 0;
+    var barPct   = Math.round((r.actual2026||0) / Math.max(r.budgetNet||1,1) * 100);
+    barPct = Math.min(barPct,100);
     var badge;
     if (!r.actual2026)                                        badge = '<span class="badge badge-blue">Budget only</span>';
     else if (r.budgetNet > 0 && r.actual2026 >= r.budgetNet) badge = '<span class="badge badge-green">On track</span>';
     else                                                      badge = '<span class="badge badge-red">Abaixo</span>';
+    var fmtVar = function(v){ if(v===null)return '—'; return (v>=0?'+':'')+fmtFull(v); };
+    var clr = function(v){ return v===null?'':v>=0?'color:var(--pos)':'color:var(--neg)'; };
     return '<tr>' +
       '<td><strong>' + r.client + '</strong></td>' +
+      '<td style="text-align:right">' + fmtFull(r.budgetGross||0) + '</td>' +
       '<td style="text-align:right">' + fmtFull(r.budgetNet||0) + '</td>' +
       '<td style="text-align:right">' + (r.actual2026 > 0 ? fmtFull(r.actual2026) : '—') + '</td>' +
       '<td style="text-align:right">' + (r.actual2025 > 0 ? fmtFull(r.actual2025) : '—') + '</td>' +
-      '<td style="text-align:right" class="' + yoyCls + '">' + (yoy !== null ? (yoy >= 0 ? '+' : '') + fmtFull(yoy) : '—') + '</td>' +
-      '<td style="text-align:right">' + share.toFixed(1) + '%</td>' +
-      '<td><div style="display:flex;align-items:center;gap:6px">' +
-        '<div style="flex:1;height:4px;background:rgba(255,255,255,0.08);border-radius:2px;min-width:50px">' +
-          '<div style="width:' + barPct + '%;height:100%;background:#fff;border-radius:2px"></div>' +
-        '</div>' +
-        '<span style="font-size:10px;color:#555;min-width:24px">' + barPct + '%</span>' +
-      '</div></td>' +
+      '<td style="text-align:right;' + clr(varVsBud) + '">' + fmtVar(varVsBud) + '</td>' +
+      '<td style="text-align:right;' + clr(yoy) + '">' + fmtVar(yoy) + '</td>' +
+      '<td style="text-align:right">' + (ating>0?ating.toFixed(1)+'%':'—') + '</td>' +
       '<td>' + badge + '</td>' +
     '</tr>';
   }).join('') + (active.length ? '<tr class="summary-row">' +
     '<td>Total</td>' +
+    '<td style="text-align:right">' + fmtFull(active.reduce(function(s,r){return s+(r.budgetGross||0);},0)) + '</td>' +
     '<td style="text-align:right">' + fmtFull(totalBudget) + '</td>' +
     '<td style="text-align:right">' + fmtFull(active.reduce(function(s,r){return s+(r.actual2026||0);},0)) + '</td>' +
     '<td style="text-align:right">' + fmtFull(active.reduce(function(s,r){return s+(r.actual2025||0);},0)) + '</td>' +
@@ -6640,15 +6641,25 @@ async function carregarActualVbs(){
 
     // Aggregate by client name - match to ALLCLIENTS sheet client names
     var vbsMap = {};
+    var vbsMapByMonth = {}; // month (1-12) → {clientName: value}
     allRows.forEach(function(x){
       var cli = String(x.Nome_grupo_empresarial||x.Razao_social_cliente||'').trim().toUpperCase();
       if(!cli) return;
       if(!vbsMap[cli]) vbsMap[cli] = 0;
       vbsMap[cli] += parseFloat(x.Valor_receita_total||0);
+      // Store by month too
+      var dt = x.Data_competencia_nota ? new Date(x.Data_competencia_nota) : null;
+      if(dt){
+        var mes = dt.getMonth()+1;
+        if(!vbsMapByMonth[mes]) vbsMapByMonth[mes] = {};
+        if(!vbsMapByMonth[mes][cli]) vbsMapByMonth[mes][cli] = 0;
+        vbsMapByMonth[mes][cli] += parseFloat(x.Valor_receita_total||0);
+      }
     });
 
     window._vbsActualMap = vbsMap;
     window._vbsActual2026 = vbsMap;
+    window._vbsActualByMonth = vbsMapByMonth;
 
     // Match VBS client name to dashboard client name
     // Tabela de-para: nome VBS (uppercase) → nome Budget (exato)
@@ -6752,6 +6763,7 @@ async function carregarActualVbs(){
     window._budgetActualMap2025 = budgetActualMap2025;
 
     // Salva mapas ANTES de criar o override
+    window._DEPARA = DEPARA;
     window._budgetActualMap = budgetActualMap;
     window._budgetActualMap2025 = budgetActualMap2025;
 
@@ -6763,6 +6775,33 @@ async function carregarActualVbs(){
       var result = window._origAggFn(rows26, rows25);
       var map26 = window._budgetActualMap || {};
       var map25 = window._budgetActualMap2025 || {};
+
+      // Se filtro de mês ativo, usa dados mensais
+      var selMes = document.getElementById('sel-month');
+      var mesFiltro = selMes ? parseInt(selMes.value) : 0;
+      if(mesFiltro && window._vbsActualByMonth && window._vbsActualByMonth[mesFiltro]){
+        var rawMes = window._vbsActualByMonth[mesFiltro];
+        // Reconstroi mapa mensal com de-para
+        var map26Mes = {};
+        var dep = window._DEPARA || {};
+        Object.keys(rawMes).forEach(function(vbsKey){
+          var budNome = dep[vbsKey] || null;
+          if(!budNome){
+            var vUp=vbsKey.toUpperCase();
+            Object.keys(map26).forEach(function(b){
+              if(!b)return;
+              var bUp=b.toUpperCase();
+              if(vUp===bUp||vUp.startsWith(bUp))budNome=b;
+            });
+          }
+          if(budNome && budNome!=='NOVOS NEGÓCIOS 1'){
+            if(!map26Mes[budNome])map26Mes[budNome]=0;
+            map26Mes[budNome]+=rawMes[vbsKey];
+          }
+        });
+        map26 = map26Mes;
+      }
+
       if(Array.isArray(result)){
         result.forEach(function(item){
           var cli = item.client || '';
