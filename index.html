@@ -3969,6 +3969,17 @@ function alocRenderColaborador(){
   var ppl=getPplData().filter(function(p){return p.status==='ativo';});
   var alocs=getAlocData();
   var mes=parseInt(document.getElementById('aloc-col-mes').value)||0;
+  var anoAtual=new Date().getFullYear();
+
+  // Calcula quantos meses a pessoa está ativa no ano
+  function mesesAtivosNoAno(p){
+    if(mes>0)return 1; // mês específico
+    var admissao=p.admissao?new Date(p.admissao):null;
+    var desligamento=p.desligamento?new Date(p.desligamento):null;
+    var inicio=admissao&&admissao.getFullYear()===anoAtual?admissao.getMonth():0; // 0=Jan
+    var fim=desligamento&&desligamento.getFullYear()===anoAtual?desligamento.getMonth():11; // 11=Dez
+    return Math.max(1, fim-inicio+1);
+  }
 
   function horasAlocadas(nome, status){
     return alocs.filter(function(a){
@@ -3977,20 +3988,32 @@ function alocRenderColaborador(){
       if(mes){
         var inicio=a.mesInicio?new Date(a.mesInicio+'-01'):null;
         var fim=a.mesFim?new Date(a.mesFim+'-01'):null;
-        var ref=new Date(2026,mes-1,1);
+        var ref=new Date(anoAtual,mes-1,1);
         if(inicio&&inicio>ref)return false;
         if(fim&&fim<ref)return false;
       }
       return true;
-    }).reduce(function(s,a){return s+a.horas;},0);
+    }).reduce(function(s,a){
+      // Se todos os meses, conta horas × meses do período
+      if(mes>0)return s+a.horas;
+      var inicio=a.mesInicio?new Date(a.mesInicio+'-01'):new Date(anoAtual,0,1);
+      var fim=a.mesFim?new Date(a.mesFim+'-01'):new Date(anoAtual,11,1);
+      var mInicio=Math.max(inicio.getMonth(),0);
+      var mFim=Math.min(fim.getMonth(),11);
+      if(inicio.getFullYear()<anoAtual)mInicio=0;
+      if(fim.getFullYear()>anoAtual)mFim=11;
+      var qtdMeses=Math.max(1,mFim-mInicio+1);
+      return s+a.horas*qtdMeses;
+    },0);
   }
 
   var rows=ppl.map(function(p){
-    var cap=p.horas||160;
+    var mesesAtivos=mesesAtivosNoAno(p);
+    var cap=(p.horas||160)*mesesAtivos;
     var aprov=horasAlocadas(p.nome,'aprovado');
     var prop=horasAlocadas(p.nome,'proposta')+horasAlocadas(p.nome,'negociacao');
     var disp=Math.max(0,cap-aprov-prop);
-    return {p,cap,aprov,prop,disp};
+    return {p,cap,aprov,prop,disp,mesesAtivos};
   }).sort(function(a,b){return (b.aprov+b.prop)-(a.aprov+a.prop);});
 
   var top15=rows.slice(0,15);
@@ -4008,10 +4031,11 @@ function alocRenderColaborador(){
   document.getElementById('aloc-col-table').innerHTML=rows.map(function(r){
     var pct=(r.cap>0?((r.aprov+r.prop)/r.cap*100):0).toFixed(0);
     var stCl=parseFloat(pct)>=100?'badge-red':parseFloat(pct)>=80?'badge-amber':'badge-green';
+    var capLabel=mes>0?Math.round(r.cap)+'h':Math.round(r.cap)+'h ('+r.mesesAtivos+'m)';
     return '<tr>'+
       '<td><strong>'+r.p.nome+'</strong></td>'+
       '<td><span class="badge badge-blue">'+(r.p.depto||'—')+'</span></td>'+
-      '<td style="text-align:right">'+Math.round(r.cap)+'h</td>'+
+      '<td style="text-align:right">'+capLabel+'</td>'+
       '<td style="text-align:right;color:var(--text3)">—</td>'+
       '<td style="text-align:right;color:var(--pos)">'+Math.round(r.aprov)+'h</td>'+
       '<td style="text-align:right;color:var(--amber)">'+Math.round(r.prop)+'h</td>'+
