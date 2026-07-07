@@ -214,6 +214,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     <div class="tab-nav">
       <button class="tab-btn active" onclick="switchFinTab('dashboard',event)">Dashboard P&L</button>
       <button class="tab-btn" onclick="switchFinTab('dre',event)">📊 DRE Comparativo</button>
+      <button class="tab-btn" onclick="switchFinTab('receita',event)">💰 Receita</button>
       <button class="tab-btn" onclick="switchFinTab('cr',event)">Contas a Receber</button>
       <button class="tab-btn" onclick="switchFinTab('cp',event)">Contas a Pagar</button>
       <button class="tab-btn" onclick="switchFinTab('cashflow',event)">Fluxo de Caixa</button>
@@ -329,6 +330,62 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     <div class="chart-title">💰 Distribuição de Resultados — Sócios</div>
     <div style="font-size:11px;color:var(--text3);margin-bottom:16px">Split: 50% distribuição • 20% reserva caixa • 30% reinvestimento</div>
     <div id="dre-dist-content"></div>
+  </div>
+</div>
+
+<!-- ── RECEITA ── -->
+<div class="tab-panel" id="fin-receita">
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
+    <span style="font-size:11px;color:var(--text3)">De:</span>
+    <input id="rec-data-de" type="month" value="2026-01" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+    <span style="font-size:11px;color:var(--text3)">Até:</span>
+    <input id="rec-data-ate" type="month" value="2026-06" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+    <select id="rec-f-cliente" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+      <option value="">Todos os clientes</option>
+    </select>
+    <select id="rec-f-tipo" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+      <option value="">Todos os tipos</option>
+      <option value="fee">Fee</option>
+      <option value="producao">Produção</option>
+      <option value="midia">Mídia</option>
+      <option value="ci">Custo Interno</option>
+    </select>
+    <button class="btn btn-primary" onclick="recCarregar()" style="font-size:11px;padding:5px 14px">↺ Carregar VBS</button>
+    <span id="rec-loading" style="font-size:11px;color:var(--text3);display:none">Carregando...</span>
+  </div>
+
+  <div id="rec-kpis" class="kpi-grid" style="margin-bottom:20px"></div>
+
+  <div class="charts-row" style="margin-bottom:20px">
+    <div class="chart-card"><div class="chart-title">Receita Líquida por Tipo</div><div style="position:relative;height:260px"><canvas id="chartRecTipo"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">Receita por Cliente (Top 10)</div><div style="position:relative;height:260px"><canvas id="chartRecCliente"></canvas></div></div>
+  </div>
+
+  <div class="charts-row" style="margin-bottom:20px">
+    <div class="chart-card chart-full"><div class="chart-title">Evolução Mensal por Tipo de Receita</div><div style="position:relative;height:260px"><canvas id="chartRecMensal"></canvas></div></div>
+  </div>
+
+  <div class="table-card">
+    <div class="table-header">
+      <span class="table-title">Detalhamento de Receita</span>
+      <button class="btn" onclick="recExportCSV()" style="font-size:11px">📊 Exportar</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="tbl" style="min-width:900px">
+        <thead><tr>
+          <th>Cliente</th><th>Competência</th><th>Tipo</th>
+          <th style="text-align:right">Fat. Bruto</th>
+          <th style="text-align:right">Fee</th>
+          <th style="text-align:right">Repasse Produção</th>
+          <th style="text-align:right">Repasse Mídia</th>
+          <th style="text-align:right">Com. Produção</th>
+          <th style="text-align:right">Com. Mídia</th>
+          <th style="text-align:right">CI</th>
+          <th style="text-align:right">Receita Líquida</th>
+        </tr></thead>
+        <tbody id="rec-table"></tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -2344,6 +2401,7 @@ function switchFinTab(tab, e) {
   if (tab==='pl') setTimeout(function(){ renderPLFull(); }, 50);
   if (tab==='cashflow') setTimeout(function(){ renderCashflow(); }, 50);
   if (tab==='dre') setTimeout(function(){ dreRender(); }, 50);
+  if (tab==='receita') setTimeout(function(){ recCarregar(); }, 50);
 }
 
 // ── AUTH ──────────────────────────────────────────────
@@ -6344,6 +6402,218 @@ function dreUploadBudget(event){
 }
 
 // ── DASHBOARD ACTUAL DO VBS ───────────────────────────────────────────────────
+// ── MÓDULO RECEITA ────────────────────────────────────
+var _recCharts={};
+var _recDados=[];
+
+async function recCarregar(){
+  var loading=document.getElementById('rec-loading');
+  if(loading)loading.style.display='inline';
+  var de=document.getElementById('rec-data-de').value; // "2026-01"
+  var ate=document.getElementById('rec-data-ate').value; // "2026-06"
+  if(!de||!ate){alert('Selecione o período!');return;}
+
+  // Converte "2026-01" para "01012026"
+  function toVbsDate(yearMonth, lastDay){
+    var parts=yearMonth.split('-');
+    var m=parts[1], y=parts[0];
+    var day=lastDay?String(new Date(parseInt(y),parseInt(m),0).getDate()).padStart(2,'0'):'01';
+    return day+m+y;
+  }
+
+  // Busca mês a mês para cobrir todo o período
+  var deDate=new Date(de+'-01');
+  var ateDate=new Date(ate+'-01');
+  var promises=[];
+  var cur=new Date(deDate);
+  while(cur<=ateDate){
+    var m=String(cur.getMonth()+1).padStart(2,'0');
+    var y=cur.getFullYear();
+    var lastD=new Date(y,cur.getMonth()+1,0).getDate();
+    var deDt='01'+m+y, ateDt=String(lastD).padStart(2,'0')+m+y;
+    promises.push(
+      fetch(API+'/api/faturamento?data_de='+deDt+'&data_ate='+ateDt+'&intervalo_data=2&tipo_faturamento=1&valor=2')
+        .then(function(r){return r.json();})
+        .then(function(j){return j.ok&&j.data.Retorno?j.data.Retorno:[];})
+        .catch(function(){return [];})
+    );
+    cur.setMonth(cur.getMonth()+1);
+  }
+
+  var results=await Promise.all(promises);
+  _recDados=[].concat.apply([],results);
+  if(loading)loading.style.display='none';
+
+  // Popular filtro de clientes
+  var clientes=[...new Set(_recDados.map(function(r){return r.Nome_grupo_empresarial||r.Razao_social_cliente||'';}).filter(Boolean))].sort();
+  var fCli=document.getElementById('rec-f-cliente');
+  if(fCli){
+    var cur2=fCli.value;
+    fCli.innerHTML='<option value="">Todos os clientes</option>'+clientes.map(function(c){return '<option'+(c===cur2?' selected':'')+'>'+c+'</option>';}).join('');
+  }
+
+  recRenderizar();
+}
+
+function recFiltrar(){
+  var fCli=(document.getElementById('rec-f-cliente')||{value:''}).value;
+  var fTipo=(document.getElementById('rec-f-tipo')||{value:''}).value;
+  return _recDados.filter(function(r){
+    var cli=r.Nome_grupo_empresarial||r.Razao_social_cliente||'';
+    if(fCli&&cli!==fCli)return false;
+    if(fTipo){
+      var tipo=fTipo;
+      if(tipo==='fee'&&!(parseFloat(r.Valor_faturamento_fee||0)>0))return false;
+      if(tipo==='producao'&&!(parseFloat(r.Valor_faturamento_producao||0)>0))return false;
+      if(tipo==='midia'&&!(parseFloat(r.Valor_faturamento_midia||0)>0))return false;
+      if(tipo==='ci'&&!(parseFloat(r.Valor_faturamento_ci||0)>0))return false;
+    }
+    return true;
+  });
+}
+
+function recRenderizar(){
+  var d=recFiltrar();
+  var meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+  // Totais
+  var totFee=d.reduce(function(s,r){return s+parseFloat(r.Valor_faturamento_fee||0);},0);
+  var totRepProd=d.reduce(function(s,r){return s+parseFloat(r.Valor_faturamento_producao||0)-parseFloat(r.Valor_receita_producao||0);},0);
+  var totRepMidia=d.reduce(function(s,r){return s+parseFloat(r.Valor_faturamento_midia||0)-parseFloat(r.Valor_receita_midia||0);},0);
+  var totComProd=d.reduce(function(s,r){return s+parseFloat(r.Valor_receita_producao||0);},0);
+  var totComMidia=d.reduce(function(s,r){return s+parseFloat(r.Valor_receita_midia||0)+parseFloat(r.Valor_receita_bv_midia||0);},0);
+  var totCI=d.reduce(function(s,r){return s+parseFloat(r.Valor_receita_custo_interno||0);},0);
+  var totRL=d.reduce(function(s,r){return s+parseFloat(r.Valor_receita_total||0);},0);
+  var totBruto=d.reduce(function(s,r){return s+parseFloat(r.Valor_faturamento_total||0);},0);
+
+  document.getElementById('rec-kpis').innerHTML=[
+    {label:'Receita Líquida',value:'R$ '+Math.round(totRL).toLocaleString('pt-BR'),sub:'total do período'},
+    {label:'Fee',value:'R$ '+Math.round(totFee).toLocaleString('pt-BR'),sub:(totRL>0?(totFee/totRL*100).toFixed(1):0)+'% da RL'},
+    {label:'Com. Produção',value:'R$ '+Math.round(totComProd).toLocaleString('pt-BR'),sub:(totRL>0?(totComProd/totRL*100).toFixed(1):0)+'% da RL'},
+    {label:'Com. Mídia',value:'R$ '+Math.round(totComMidia).toLocaleString('pt-BR'),sub:'comissão + BV'},
+    {label:'Faturamento Bruto',value:'R$ '+Math.round(totBruto).toLocaleString('pt-BR'),sub:'gross billing'},
+  ].map(function(k){return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-value" style="font-size:15px">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
+
+  // Chart por tipo
+  var c1=document.getElementById('chartRecTipo');
+  if(_recCharts.tipo)_recCharts.tipo.destroy();
+  _recCharts.tipo=new Chart(c1,{type:'doughnut',data:{
+    labels:['Fee','Com. Produção','Com. Mídia','CI','BV Mídia'],
+    datasets:[{data:[Math.round(totFee),Math.round(totComProd),Math.round(totComMidia-totRepMidia),Math.round(totCI),Math.round(d.reduce(function(s,r){return s+parseFloat(r.Valor_receita_bv_midia||0);},0))],
+    backgroundColor:['#fff','#60a5fa','#a78bfa','#34d399','#fbbf24'],borderColor:'#111',borderWidth:2}]
+  },options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{color:'#888',font:{size:10},boxWidth:10}}}}});
+
+  // Chart por cliente (top 10)
+  var cliMap={};
+  d.forEach(function(r){
+    var cli=r.Nome_grupo_empresarial||r.Razao_social_cliente||'';
+    if(!cli)return;
+    if(!cliMap[cli])cliMap[cli]=0;
+    cliMap[cli]+=parseFloat(r.Valor_receita_total||0);
+  });
+  var topCli=Object.entries(cliMap).sort(function(a,b){return b[1]-a[1];}).slice(0,10);
+  var c2=document.getElementById('chartRecCliente');
+  if(_recCharts.cli)_recCharts.cli.destroy();
+  if(topCli.length)_recCharts.cli=new Chart(c2,{type:'bar',data:{
+    labels:topCli.map(function(c){return c[0].split(' ')[0];}),
+    datasets:[{label:'Receita Líquida',data:topCli.map(function(c){return Math.round(c[1]);}),backgroundColor:'rgba(255,255,255,0.2)',borderRadius:3}]
+  },options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',callback:function(v){return 'R$'+Math.round(v/1000)+'k';}}},y:{grid:{display:false},ticks:{color:'#888',font:{size:9}}}}}});
+
+  // Chart mensal por tipo
+  var mesMap={};
+  d.forEach(function(r){
+    var dt=r.Data_competencia_nota?new Date(r.Data_competencia_nota):null;
+    if(!dt)return;
+    var key=dt.getMonth();
+    if(!mesMap[key])mesMap[key]={fee:0,prod:0,midia:0,ci:0};
+    mesMap[key].fee+=parseFloat(r.Valor_faturamento_fee||0);
+    mesMap[key].prod+=parseFloat(r.Valor_receita_producao||0);
+    mesMap[key].midia+=parseFloat(r.Valor_receita_midia||0)+parseFloat(r.Valor_receita_bv_midia||0);
+    mesMap[key].ci+=parseFloat(r.Valor_receita_custo_interno||0);
+  });
+  var mesKeys=Object.keys(mesMap).map(Number).sort(function(a,b){return a-b;});
+  var c3=document.getElementById('chartRecMensal');
+  if(_recCharts.mensal)_recCharts.mensal.destroy();
+  if(mesKeys.length)_recCharts.mensal=new Chart(c3,{type:'bar',data:{
+    labels:mesKeys.map(function(m){return meses[m];}),
+    datasets:[
+      {label:'Fee',data:mesKeys.map(function(m){return Math.round((mesMap[m]||{fee:0}).fee);}),backgroundColor:'rgba(255,255,255,0.3)',borderRadius:2},
+      {label:'Com. Produção',data:mesKeys.map(function(m){return Math.round((mesMap[m]||{prod:0}).prod);}),backgroundColor:'rgba(96,165,250,0.6)',borderRadius:2},
+      {label:'Com. Mídia',data:mesKeys.map(function(m){return Math.round((mesMap[m]||{midia:0}).midia);}),backgroundColor:'rgba(167,139,250,0.6)',borderRadius:2},
+      {label:'CI',data:mesKeys.map(function(m){return Math.round((mesMap[m]||{ci:0}).ci);}),backgroundColor:'rgba(52,211,153,0.5)',borderRadius:2},
+    ]
+  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#888',font:{size:10}}}},scales:{x:{stacked:true,grid:{display:false},ticks:{color:'#666',font:{size:10}}},y:{stacked:true,grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',callback:function(v){return 'R$'+Math.round(v/1000)+'k';}}}}}});
+
+  // Tabela detalhada — agrupa por cliente + mês + tipo
+  var tblMap={};
+  d.forEach(function(r){
+    var cli=r.Nome_grupo_empresarial||r.Razao_social_cliente||'';
+    var dt=r.Data_competencia_nota?new Date(r.Data_competencia_nota):null;
+    var comp=dt?(meses[dt.getMonth()]+'/'+dt.getFullYear()):'—';
+    var tipo=r.Nome_curto_meio||'—';
+    var key=cli+'||'+comp+'||'+tipo;
+    if(!tblMap[key])tblMap[key]={cli,comp,tipo,bruto:0,fee:0,repProd:0,repMidia:0,comProd:0,comMidia:0,ci:0,rl:0};
+    var t=tblMap[key];
+    t.bruto+=parseFloat(r.Valor_faturamento_total||0);
+    t.fee+=parseFloat(r.Valor_faturamento_fee||0);
+    t.repProd+=parseFloat(r.Valor_faturamento_producao||0)-parseFloat(r.Valor_receita_producao||0);
+    t.repMidia+=parseFloat(r.Valor_faturamento_midia||0)-parseFloat(r.Valor_receita_midia||0);
+    t.comProd+=parseFloat(r.Valor_receita_producao||0);
+    t.comMidia+=parseFloat(r.Valor_receita_midia||0)+parseFloat(r.Valor_receita_bv_midia||0);
+    t.ci+=parseFloat(r.Valor_receita_custo_interno||0);
+    t.rl+=parseFloat(r.Valor_receita_total||0);
+  });
+
+  var tblRows=Object.values(tblMap).sort(function(a,b){return b.rl-a.rl;});
+  var fmtK=function(v){return v===0?'—':'R$ '+Math.round(v).toLocaleString('pt-BR');};
+  document.getElementById('rec-table').innerHTML=tblRows.map(function(r){
+    return '<tr>'+
+      '<td><strong>'+r.cli+'</strong></td>'+
+      '<td style="font-size:11px">'+r.comp+'</td>'+
+      '<td><span class="badge badge-blue">'+r.tipo+'</span></td>'+
+      '<td style="text-align:right;font-size:11px;color:var(--text3)">'+fmtK(r.bruto)+'</td>'+
+      '<td style="text-align:right;font-size:11px">'+fmtK(r.fee)+'</td>'+
+      '<td style="text-align:right;font-size:11px">'+fmtK(r.repProd)+'</td>'+
+      '<td style="text-align:right;font-size:11px">'+fmtK(r.repMidia)+'</td>'+
+      '<td style="text-align:right;font-size:11px;color:#60a5fa">'+fmtK(r.comProd)+'</td>'+
+      '<td style="text-align:right;font-size:11px;color:#a78bfa">'+fmtK(r.comMidia)+'</td>'+
+      '<td style="text-align:right;font-size:11px;color:#34d399">'+fmtK(r.ci)+'</td>'+
+      '<td style="text-align:right;font-weight:700;color:var(--pos)">R$ '+Math.round(r.rl).toLocaleString('pt-BR')+'</td>'+
+    '</tr>';
+  }).join('')||'<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text3)">Clique em "↺ Carregar VBS" para buscar os dados</td></tr>';
+}
+
+function recExportCSV(){
+  var d=recFiltrar();
+  if(!d.length){alert('Sem dados para exportar!');return;}
+  var rows=[['Cliente','Competência','Emissão','Tipo','Fat. Bruto','Fee','Repasse Produção','Repasse Mídia','Com. Produção','Com. Mídia','BV Mídia','CI','Receita Líquida']];
+  var meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  d.forEach(function(r){
+    var cli=r.Nome_grupo_empresarial||r.Razao_social_cliente||'';
+    var dtC=r.Data_competencia_nota?new Date(r.Data_competencia_nota):null;
+    var dtE=r.Data_emissao_nota?new Date(r.Data_emissao_nota):null;
+    var comp=dtC?(meses[dtC.getMonth()]+'/'+dtC.getFullYear()):'';
+    var emis=dtE?dtE.toLocaleDateString('pt-BR'):'';
+    rows.push([cli,comp,emis,r.Nome_curto_meio||'',
+      Math.round(r.Valor_faturamento_total||0),
+      Math.round(r.Valor_faturamento_fee||0),
+      Math.round((r.Valor_faturamento_producao||0)-(r.Valor_receita_producao||0)),
+      Math.round((r.Valor_faturamento_midia||0)-(r.Valor_receita_midia||0)),
+      Math.round(r.Valor_receita_producao||0),
+      Math.round(r.Valor_receita_midia||0),
+      Math.round(r.Valor_receita_bv_midia||0),
+      Math.round(r.Valor_receita_custo_interno||0),
+      Math.round(r.Valor_receita_total||0)
+    ]);
+  });
+  var csv='\uFEFF'+rows.map(function(r){return r.map(function(v){var s=String(v);if(s.includes(','))s='"'+s+'"';return s;}).join(',');}).join('\r\n');
+  var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;a.download='Euphoria_Receita_'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+}
+
 async function carregarActualVbs(){
   var btn = document.getElementById('btn-actual-vbs');
   if(btn){btn.textContent='Carregando...';btn.disabled=true;}
@@ -6371,7 +6641,7 @@ async function carregarActualVbs(){
     // Aggregate by client name - match to ALLCLIENTS sheet client names
     var vbsMap = {};
     allRows.forEach(function(x){
-      var cli = String(x.Razao_social_cliente||'').trim().toUpperCase();
+      var cli = String(x.Nome_grupo_empresarial||x.Razao_social_cliente||'').trim().toUpperCase();
       if(!cli) return;
       if(!vbsMap[cli]) vbsMap[cli] = 0;
       vbsMap[cli] += parseFloat(x.Valor_receita_total||0);
