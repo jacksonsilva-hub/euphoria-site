@@ -6651,67 +6651,73 @@ async function carregarActualVbs(){
     window._vbsActual2026 = vbsMap;
 
     // Match VBS client name to dashboard client name
-    // Tabela de-para: nome VBS → nome Budget
+    // Tabela de-para: nome VBS (uppercase) → nome Budget (exato)
     var DEPARA = {
       'PERNOD RICARD BRASIL INDUSTRIA E COMERCIO': 'PERNOD RICARD',
       'AMAZON SERVICOS DE VAREJO DO BRASIL LTDA.': 'AMAZON',
       'UNILEVER BRASIL LTDA.': "HELLMANN'S",
       'JCDECAUX DO BRASIL LTDA.': 'JCDECAUX',
+      'JCDECAUX DO BRASIL LTDA..': 'JCDECAUX',
+      'JCDECAUX DO BRASIL LTDA  MUB CAMPINAS': 'JCDECAUX',
+      'JCDECAUX MIDIA AEROPORTOS LTDA': 'JCDECAUX',
+      'JCDECAUX MIDIA AEROPORTOS LTDA.': 'JCDECAUX',
+      'JCDECAUX MUPI RIO S.A': 'JCDECAUX',
+      'JCDECAUX RETAIL LTDA': 'JCDECAUX',
+      'JCDECAUX RIO LTDA': 'JCDECAUX',
+      'JCDECAUX TRANSPORTES LTDA': 'JCDECAUX',
+      'JCDECAUX TRILHOS LTDA': 'JCDECAUX',
       'TRACK GAMING BRASIL LTDA': 'BETWARRIOR',
-      'GLOBO COMUNICACAO E PARTICIPACOES S/A': 'GLOBO',
+      'GLOBO COMUNICACAO E PARTICIPACOES S/A': 'NOVOS NEGÓCIOS 1',
+      'GLOBO COMUNICACAO E PARTICIPACOES S/A - SP': 'NOVOS NEGÓCIOS 1',
       'IESSI PRODUCOES E EVENTOS LTDA': 'IVETE SANGALO',
+      'TICKET SERVICOS SA': 'TICKET',
+      'GSK - GLAXOSMITHKLINE BRASIL LTDA': 'GSK',
+      'TFCF LATIN AMERICAN CHANNELS DO BRASIL LTDA.': 'WARNER BROS.',
+      'UNIVERSO ONLINE S/A': 'NOVOS NEGÓCIOS 1',
+      'DOMINIUM PUBLICIDADE E MARKETING LTDA': 'NOVOS NEGÓCIOS 1',
+      'PBSA - PUBLIBANCA BRASIL S/A (MATRIZ RIO DE JANEIRO)': 'NOVOS NEGÓCIOS 1',
+      'ELETROMIDIA SP CONCESSIONÁRIA DE MOBILIÁRIO URBANO SPE S.A': 'NOVOS NEGÓCIOS 1',
+      'CEMUSA BRASILIA S.A': 'NOVOS NEGÓCIOS 1',
+      'CONCESSIONARIA A HORA DE SAO PAULO LTDA': 'NOVOS NEGÓCIOS 1',
+      'VEX PAINÉIS': 'NOVOS NEGÓCIOS 1',
     };
 
-    // Palavras ignoradas no matching
-    var STOPWORDS = ['BRASIL','LTDA','LTDA.','S/A','SA','DO','DE','DA','E','COMERCIO','INDUSTRIA','SERVICOS','PARTICIPACOES','COMUNICACAO','PRODUCOES','EVENTOS','VAREJO'];
+    // Constrói mapa Budget → Actual VBS somando todas as empresas do grupo
+    var budgetActualMap = {};
+    Object.keys(vbsMap).forEach(function(vbsKey){
+      var budgetNome = DEPARA[vbsKey] || null;
 
-    function palavrasSignificativas(nome){
-      return nome.toUpperCase().split(/\s+/).filter(function(w){
-        return w.length>2 && STOPWORDS.indexOf(w)<0;
-      });
-    }
-
-    function matchVbsCli(budgetCli, map){
-      var val=0;
-      var budUp=budgetCli.toUpperCase();
-
-      Object.keys(map).forEach(function(vbsKey){
-        var vbsUp=vbsKey.toUpperCase();
-        var matched=false;
-
-        // 1. Match exato
-        if(vbsUp===budUp){matched=true;}
-
-        // 2. Tabela de-para
-        if(!matched && DEPARA[vbsKey] && DEPARA[vbsKey].toUpperCase()===budUp){matched=true;}
-
-        // 3. VBS começa com o nome Budget (ex: "PERNOD RICARD BRASIL..." começa com "PERNOD RICARD")
-        if(!matched && vbsUp.startsWith(budUp)){matched=true;}
-
-        // 4. Budget começa com VBS (ex: "PREMIERPET" é exato)
-        if(!matched && budUp.startsWith(vbsUp)){matched=true;}
-
-        // 5. Palavras significativas — todas as palavras do Budget aparecem no VBS
-        if(!matched){
-          var budWords=palavrasSignificativas(budUp);
-          var vbsWords=palavrasSignificativas(vbsUp);
-          if(budWords.length>0 && budWords.every(function(w){return vbsWords.indexOf(w)>=0;})){
-            matched=true;
+      // Se não tem de-para, tenta match por início de nome
+      if(!budgetNome){
+        var vbsUp = vbsKey.toUpperCase();
+        var budgetClientes = [...new Set((G.clientes||[]).slice(1).map(function(r){return r[0];}).filter(Boolean))];
+        budgetClientes.forEach(function(b){
+          if(!b) return;
+          var bUp = b.toUpperCase();
+          if(vbsUp === bUp || vbsUp.startsWith(bUp) || bUp.startsWith(vbsUp.split(' ')[0])) {
+            budgetNome = b;
           }
-        }
+        });
+      }
 
-        if(matched) val+=map[vbsKey];
-      });
-      return val;
-    }
+      if(budgetNome){
+        if(!budgetActualMap[budgetNome]) budgetActualMap[budgetNome] = 0;
+        budgetActualMap[budgetNome] += vbsMap[vbsKey];
+      }
+    });
 
-    // Override actual2026 ONLY in aggregated map, not in raw rows
-    // This avoids contaminating actual2025 which reads same row[37]
-    var _origAgg = window.aggregateClients || aggregateClients;
+    window._budgetActualMap = budgetActualMap;
+    window._vbsActual2026 = vbsMap;
+
+    // Força re-renderização injetando os valores diretamente nas linhas do G.clientes
+    // A planilha tem colunas: row[0]=CLIENTE, row[22]=Actual Media Inv, etc.
+    // Mas é mais seguro sobrescrever via aggregateClients override
+    var _origAgg = window._origAggFn || aggregateClients;
+    window._origAggFn = _origAgg; // salva referência original
     window.aggregateClients = function(rows26, rows25){
       var result = _origAgg(rows26, rows25);
       Object.keys(result).forEach(function(cli){
-        var val = matchVbsCli(cli, window._vbsActual2026||{});
+        var val = window._budgetActualMap[cli] || 0;
         if(val > 0) result[cli].actual2026 = Math.round(val/1000);
       });
       return result;
