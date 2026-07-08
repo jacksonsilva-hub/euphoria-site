@@ -184,6 +184,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     <div class="nav-item" onclick="goPage('people')" data-page="people"><span class="nav-icon">👥</span><span class="nav-label">People Analytics</span></div>
     <div class="nav-item" onclick="goPage('alocacao')" data-page="alocacao"><span class="nav-icon">📌</span><span class="nav-label">Alocação</span></div>
     <div class="sidebar-section-label">Suporte</div>
+    <div class="nav-item" onclick="goPage('agentes')" data-page="agentes"><span class="nav-icon">🤖</span><span class="nav-label">Agentes IA</span></div>
     <div class="nav-item" onclick="goPage('juridico')" data-page="juridico"><span class="nav-icon">⚖️</span><span class="nav-label">Jurídico</span></div>
     <div class="nav-item" onclick="goPage('ti')" data-page="ti"><span class="nav-icon">💻</span><span class="nav-label">TI & Ativos</span></div>
   </nav>
@@ -248,7 +249,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
         </div>
         <div class="table-card">
           <div class="table-header"><span class="table-title">Detalhamento por cliente</span><span class="table-meta" id="table-info"></span></div>
-          <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Cliente</th><th style="text-align:right">Inv. Cliente</th><th style="text-align:right">Budget Net Rev</th><th style="text-align:right">Actual 2026</th><th style="text-align:right">Actual 2025</th><th style="text-align:right">Var vs Bud</th><th style="text-align:right">Var YoY</th><th style="text-align:right">% Ating.</th><th>Status</th></tr></thead><tbody id="table-body"></tbody></table></div>
+          <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Cliente</th><th style="text-align:right">Budget Net Rev</th><th style="text-align:right">Actual 2026</th><th style="text-align:right">Actual 2025</th><th style="text-align:right">Var YoY</th><th style="text-align:right">% Receita</th><th>Participação</th><th>Status</th></tr></thead><tbody id="table-body"></tbody></table></div>
         </div>
       </div>
     </div>
@@ -1640,6 +1641,195 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     </div>
   </div>
 
+  <!-- AGENTES IA -->
+  <div class="page" id="page-agentes">
+    <div class="tab-nav">
+      <button class="tab-btn active" onclick="switchAgentTab('financeiro',event)">💰 Financeiro</button>
+      <button class="tab-btn" onclick="switchAgentTab('juridico-ai',event)">⚖️ Jurídico</button>
+      <button class="tab-btn" onclick="switchAgentTab('dev',event)">👨‍💻 Desenvolvimento</button>
+      <button class="tab-btn" onclick="switchAgentTab('ti-ai',event)">💻 TI</button>
+      <button class="tab-btn" onclick="switchAgentTab('rh-ai',event)">👥 People & RH</button>
+    </div>
+
+    <!-- AGENTE FINANCEIRO -->
+    <div class="tab-panel active" id="agent-financeiro">
+      <div style="display:flex;gap:16px;height:calc(100vh - 180px)">
+        <!-- Sidebar de contexto -->
+        <div style="width:260px;flex-shrink:0;display:flex;flex-direction:column;gap:12px">
+          <div class="kpi-card" style="cursor:pointer" onclick="agentSendSuggestion('Como está nossa receita vs budget em 2026?')">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px">💡 SUGESTÃO</div>
+            <div style="font-size:12px">Como está nossa receita vs budget em 2026?</div>
+          </div>
+          <div class="kpi-card" style="cursor:pointer" onclick="agentSendSuggestion('Qual cliente está mais abaixo da meta?')">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px">💡 SUGESTÃO</div>
+            <div style="font-size:12px">Qual cliente está mais abaixo da meta?</div>
+          </div>
+          <div class="kpi-card" style="cursor:pointer" onclick="agentSendSuggestion('Qual a projeção de fechamento do ano se mantivermos esse ritmo?')">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px">💡 SUGESTÃO</div>
+            <div style="font-size:12px">Qual a projeção de fechamento do ano se mantivermos esse ritmo?</div>
+          </div>
+          <div class="kpi-card" style="cursor:pointer" onclick="agentSendSuggestion('Qual é o custo total da equipe por departamento?')">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px">💡 SUGESTÃO</div>
+            <div style="font-size:12px">Qual é o custo total da equipe por departamento?</div>
+          </div>
+          <div class="kpi-card" style="cursor:pointer" onclick="agentSendSuggestion('Analise a rentabilidade por cliente e aponte os 3 mais críticos')">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px">💡 SUGESTÃO</div>
+            <div style="font-size:12px">Analise a rentabilidade por cliente e aponte os 3 mais críticos</div>
+          </div>
+          <div class="kpi-card" style="cursor:pointer" onclick="agentSendSuggestion('Qual foi nossa receita de Fee vs Produção vs Mídia no primeiro semestre?')">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px">💡 SUGESTÃO</div>
+            <div style="font-size:12px">Fee vs Produção vs Mídia no 1º semestre?</div>
+          </div>
+          <button class="btn" onclick="agentClearChat('financeiro')" style="font-size:11px;margin-top:auto">🗑️ Limpar conversa</button>
+        </div>
+
+        <!-- Chat -->
+        <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+          <div id="agent-fin-messages" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:4px 4px 16px 4px;margin-bottom:12px">
+            <div style="background:rgba(255,255,255,0.04);border-radius:12px;padding:16px;font-size:13px;line-height:1.6;color:var(--text2)">
+              <strong style="color:var(--text)">Agente Financeiro Euphoria</strong><br><br>
+              Olá! Sou o agente financeiro da Euphoria. Tenho acesso aos dados de receita VBS, budget, custo de equipe e alocações.<br><br>
+              Posso responder perguntas sobre performance financeira, projeções, rentabilidade por cliente e muito mais. Como posso ajudar?
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:flex-end">
+            <textarea id="agent-fin-input" placeholder="Pergunte sobre receita, budget, custos, rentabilidade..." style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:10px;font-size:13px;resize:none;height:48px;max-height:120px;outline:none;font-family:inherit;line-height:1.5" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();agentSend('financeiro');}"></textarea>
+            <button onclick="agentSend('financeiro')" style="background:var(--accent);border:none;color:#000;padding:12px 18px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:700;flex-shrink:0">↑</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AGENTE JURIDICO -->
+    <div class="tab-panel" id="agent-juridico-ai">
+      <div style="display:flex;gap:16px;height:calc(100vh - 180px)">
+        <div style="width:260px;flex-shrink:0;display:flex;flex-direction:column;gap:12px">
+          <div class="kpi-card" style="cursor:pointer" onclick="agentSendSuggestion2('juridico-ai','Revise esta cláusula de rescisão e aponte riscos')">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px">💡 SUGESTÃO</div>
+            <div style="font-size:12px">Revise esta cláusula de rescisão e aponte riscos</div>
+          </div>
+          <div class="kpi-card" style="cursor:pointer" onclick="agentSendSuggestion2('juridico-ai','Quais são os principais pontos de atenção em contratos de prestação de serviços de publicidade no Brasil?')">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px">💡 SUGESTÃO</div>
+            <div style="font-size:12px">Pontos de atenção em contratos de publicidade no Brasil</div>
+          </div>
+          <div class="kpi-card" style="cursor:pointer" onclick="agentSendSuggestion2('juridico-ai','Redija uma cláusula de confidencialidade para contrato com cliente')">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px">💡 SUGESTÃO</div>
+            <div style="font-size:12px">Redija uma cláusula de confidencialidade</div>
+          </div>
+          <button class="btn" onclick="agentClearChat('juridico-ai')" style="font-size:11px;margin-top:auto">🗑️ Limpar conversa</button>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+          <div id="agent-juridico-ai-messages" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:4px 4px 16px 4px;margin-bottom:12px">
+            <div style="background:rgba(255,255,255,0.04);border-radius:12px;padding:16px;font-size:13px;line-height:1.6;color:var(--text2)">
+              <strong style="color:var(--text)">Agente Jurídico Euphoria</strong><br><br>
+              Especializado em direito publicitário, contratos de agência, LGPD, propriedade intelectual e legislação brasileira aplicada ao setor de comunicação. Como posso ajudar?
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:flex-end">
+            <textarea id="agent-juridico-ai-input" placeholder="Pergunte sobre contratos, cláusulas, legislação..." style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:10px;font-size:13px;resize:none;height:48px;max-height:120px;outline:none;font-family:inherit;line-height:1.5" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();agentSend('juridico-ai');}"></textarea>
+            <button onclick="agentSend('juridico-ai')" style="background:var(--accent);border:none;color:#000;padding:12px 18px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:700;flex-shrink:0">↑</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AGENTE DEV -->
+    <div class="tab-panel" id="agent-dev">
+      <div style="display:flex;gap:16px;height:calc(100vh - 180px)">
+        <div style="width:260px;flex-shrink:0;display:flex;flex-direction:column;gap:12px">
+          <div class="kpi-card" style="cursor:pointer" onclick="agentSendSuggestion2('dev','Adicione um filtro de departamento na aba Receita do Financeiro')">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px">💡 SUGESTÃO</div>
+            <div style="font-size:12px">Adicione um filtro de departamento na aba Receita</div>
+          </div>
+          <div class="kpi-card" style="cursor:pointer" onclick="agentSendSuggestion2('dev','Como funciona o módulo de Alocação de Horas?')">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px">💡 SUGESTÃO</div>
+            <div style="font-size:12px">Como funciona o módulo de Alocação de Horas?</div>
+          </div>
+          <div class="kpi-card" style="cursor:pointer" onclick="agentSendSuggestion2('dev','Quais endpoints do VBS estão sendo usados no sistema?')">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px">💡 SUGESTÃO</div>
+            <div style="font-size:12px">Quais endpoints VBS estão sendo usados?</div>
+          </div>
+          <button class="btn" onclick="agentClearChat('dev')" style="font-size:11px;margin-top:auto">🗑️ Limpar conversa</button>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+          <div id="agent-dev-messages" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:4px 4px 16px 4px;margin-bottom:12px">
+            <div style="background:rgba(255,255,255,0.04);border-radius:12px;padding:16px;font-size:13px;line-height:1.6;color:var(--text2)">
+              <strong style="color:var(--text)">Agente de Desenvolvimento Euphoria OS</strong><br><br>
+              Conheço toda a arquitetura do Euphoria OS — frontend single-file, backend Node.js/PostgreSQL no Render, endpoints VBS, módulos de People Analytics, Financeiro, Alocação e CRM.<br><br>
+              Posso explicar como funciona qualquer parte do sistema, sugerir melhorias e ajudar a planejar novas funcionalidades. Como posso ajudar?
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:flex-end">
+            <textarea id="agent-dev-input" placeholder="Pergunte sobre o sistema, arquitetura, funcionalidades..." style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:10px;font-size:13px;resize:none;height:48px;max-height:120px;outline:none;font-family:inherit;line-height:1.5" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();agentSend('dev');}"></textarea>
+            <button onclick="agentSend('dev')" style="background:var(--accent);border:none;color:#000;padding:12px 18px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:700;flex-shrink:0">↑</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AGENTE TI -->
+    <div class="tab-panel" id="agent-ti-ai">
+      <div style="display:flex;gap:16px;height:calc(100vh - 180px)">
+        <div style="width:260px;flex-shrink:0;display:flex;flex-direction:column;gap:12px">
+          <div class="kpi-card" style="cursor:pointer" onclick="agentSendSuggestion2('ti-ai','Como devo estruturar a política de segurança de senhas para a agência?')">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px">💡 SUGESTÃO</div>
+            <div style="font-size:12px">Política de segurança de senhas para agência</div>
+          </div>
+          <div class="kpi-card" style="cursor:pointer" onclick="agentSendSuggestion2('ti-ai','Quais são as melhores práticas para backup de dados em uma agência de publicidade?')">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px">💡 SUGESTÃO</div>
+            <div style="font-size:12px">Melhores práticas de backup para agência</div>
+          </div>
+          <button class="btn" onclick="agentClearChat('ti-ai')" style="font-size:11px;margin-top:auto">🗑️ Limpar conversa</button>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+          <div id="agent-ti-ai-messages" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:4px 4px 16px 4px;margin-bottom:12px">
+            <div style="background:rgba(255,255,255,0.04);border-radius:12px;padding:16px;font-size:13px;line-height:1.6;color:var(--text2)">
+              <strong style="color:var(--text)">Agente de TI Euphoria</strong><br><br>
+              Especializado em infraestrutura, segurança, gestão de ativos e suporte técnico para agências criativas. Como posso ajudar?
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:flex-end">
+            <textarea id="agent-ti-ai-input" placeholder="Pergunte sobre infraestrutura, segurança, ativos..." style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:10px;font-size:13px;resize:none;height:48px;max-height:120px;outline:none;font-family:inherit;line-height:1.5" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();agentSend('ti-ai');}"></textarea>
+            <button onclick="agentSend('ti-ai')" style="background:var(--accent);border:none;color:#000;padding:12px 18px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:700;flex-shrink:0">↑</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AGENTE RH -->
+    <div class="tab-panel" id="agent-rh-ai">
+      <div style="display:flex;gap:16px;height:calc(100vh - 180px)">
+        <div style="width:260px;flex-shrink:0;display:flex;flex-direction:column;gap:12px">
+          <div class="kpi-card" style="cursor:pointer" onclick="agentSendSuggestion2('rh-ai','Quem tem férias vencendo nos próximos 30 dias?')">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px">💡 SUGESTÃO</div>
+            <div style="font-size:12px">Quem tem férias vencendo nos próximos 30 dias?</div>
+          </div>
+          <div class="kpi-card" style="cursor:pointer" onclick="agentSendSuggestion2('rh-ai','Como calcular a rescisão de um colaborador CLT com 2 anos de empresa?')">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px">💡 SUGESTÃO</div>
+            <div style="font-size:12px">Como calcular rescisão CLT com 2 anos?</div>
+          </div>
+          <div class="kpi-card" style="cursor:pointer" onclick="agentSendSuggestion2('rh-ai','Explique as regras do CCT SINAPRO para agências de publicidade')">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px">💡 SUGESTÃO</div>
+            <div style="font-size:12px">Regras do CCT SINAPRO para agências</div>
+          </div>
+          <button class="btn" onclick="agentClearChat('rh-ai')" style="font-size:11px;margin-top:auto">🗑️ Limpar conversa</button>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+          <div id="agent-rh-ai-messages" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:4px 4px 16px 4px;margin-bottom:12px">
+            <div style="background:rgba(255,255,255,0.04);border-radius:12px;padding:16px;font-size:13px;line-height:1.6;color:var(--text2)">
+              <strong style="color:var(--text)">Agente People & RH Euphoria</strong><br><br>
+              Especializado em legislação trabalhista brasileira, CCT SINAPRO, gestão de férias, cálculo de rescisão, folha de pagamento e boas práticas de RH para agências criativas. Como posso ajudar?
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:flex-end">
+            <textarea id="agent-rh-ai-input" placeholder="Pergunte sobre férias, rescisão, CCT, folha..." style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:10px;font-size:13px;resize:none;height:48px;max-height:120px;outline:none;font-family:inherit;line-height:1.5" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();agentSend('rh-ai');}"></textarea>
+            <button onclick="agentSend('rh-ai')" style="background:var(--accent);border:none;color:#000;padding:12px 18px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:700;flex-shrink:0">↑</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- JURIDICO -->
   <div class="page" id="page-juridico">
     <div class="tab-nav">
@@ -2359,7 +2549,7 @@ const PAGE_META = {
   projetos:{title:'Projetos',sub:'Kanban & Acompanhamento'},
   people:{title:'People Analytics',sub:'DEI • Turnover • Utilization • Rentabilidade'},
   alocacao:{title:'Alocação de Horas',sub:'Pipeline • Aprovado • Executando'},
-  juridico:{title:'Jurídico',sub:'Contratos e Alertas'},
+  agentes:{title:'Agentes IA',sub:'Financeiro • Jurídico • Desenvolvimento • TI'},
   ti:{title:'TI & Ativos',sub:'Controle e Suporte'},
 };
 
@@ -2422,7 +2612,7 @@ var USERS = [
   {user:'midia',email:'midia@euphoriacreative.com',pass:'midia123',name:'Mídia',role:'operacional',initials:'MD'},
 ];
 var PERMISSIONS = {
-  admin:['financeiro','growth','crm','timesheet','projetos','people','alocacao','juridico','ti'],
+  admin:['financeiro','growth','crm','timesheet','projetos','people','alocacao','agentes','juridico','ti'],
   gestor:['growth','timesheet','projetos','people'],
   operacional:['timesheet','projetos'],
 };
@@ -3751,8 +3941,175 @@ async function pplCarregarProfitability(){
   }).join('')||'<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Carregue os dados para ver a rentabilidade</td></tr>';
 }
 
-// Compatibility shim for Jurídico and TI modules that use old structure
-function getPplDataLegacy(){return getPplData();}
+// ── AGENTES IA ───────────────────────────────────────
+var _agentHistory = {};
+var _agentTyping = {};
+
+var AGENT_SYSTEMS = {
+  'financeiro': function(){
+    var ctx = '';
+    // Injeta contexto financeiro real do sistema
+    if(window._budgetActualMap){
+      var entries = Object.entries(window._budgetActualMap).slice(0,10);
+      ctx += '\n\nDADOS REAIS VBS 2026 (Receita Líquida por cliente):\n';
+      entries.forEach(function(e){ ctx += '- '+e[0]+': R$ '+Math.round(e[1]).toLocaleString('pt-BR')+'\n'; });
+      var total = Object.values(window._budgetActualMap).reduce(function(s,v){return s+v;},0);
+      ctx += 'TOTAL ACTUAL 2026: R$ '+Math.round(total).toLocaleString('pt-BR')+'\n';
+    }
+    if(window.G && window.G.clientes){
+      var totalBudget = 0;
+      try {
+        var rows = window.G.clientes.slice(1).filter(function(r){return r[0]&&r[0]!=='CLIENTE';});
+        rows.forEach(function(r){ totalBudget += parseFloat(String(r[20]||'0').replace(/\./g,'').replace(',','.'))||0; });
+      } catch(e){}
+      if(totalBudget > 0) ctx += 'BUDGET NET REVENUE 2026: R$ '+Math.round(totalBudget*1000).toLocaleString('pt-BR')+'\n';
+    }
+    if(window._budgetActualMap2025){
+      var total25 = Object.values(window._budgetActualMap2025).reduce(function(s,v){return s+v;},0);
+      ctx += 'TOTAL ACTUAL 2025: R$ '+Math.round(total25).toLocaleString('pt-BR')+'\n';
+    }
+    var ppl = getPplData ? getPplData() : [];
+    if(ppl.length){
+      var custoTotal = ppl.reduce(function(s,p){return s+(typeof pplCustoTotal==='function'?pplCustoTotal(p):0);},0);
+      ctx += 'CUSTO MENSAL EQUIPE: R$ '+Math.round(custoTotal).toLocaleString('pt-BR')+'\n';
+      ctx += 'HEADCOUNT ATIVO: '+ppl.filter(function(p){return p.status==='ativo';}).length+' colaboradores\n';
+    }
+    return 'Você é o Agente Financeiro da Euphoria Creative Agency, uma agência de publicidade brasileira. '+
+      'Responda sempre em português brasileiro, de forma objetiva e analítica. '+
+      'Use os dados reais abaixo para embasar suas respostas com números precisos. '+
+      'Quando identificar problemas ou oportunidades, seja direto e propositivo.'+ctx;
+  },
+  'juridico-ai': function(){
+    return 'Você é o Agente Jurídico da Euphoria Creative Agency. '+
+      'Especializado em direito publicitário brasileiro, Lei 4.680/65 (agências de publicidade), '+
+      'CENP Normas-Padrão, LGPD, contratos de prestação de serviços, propriedade intelectual, '+
+      'legislação trabalhista (CLT) e CCT SINAPRO. '+
+      'Responda sempre em português brasileiro. Seja preciso mas sempre recomende consultar um advogado para casos específicos.';
+  },
+  'dev': function(){
+    return 'Você é o Agente de Desenvolvimento do Euphoria OS, uma plataforma interna single-file (index.html) '+
+      'hospedada no GitHub Pages com backend Node.js/PostgreSQL no Render. '+
+      'Stack: HTML/CSS/JS vanilla, Chart.js, API VBS (euphoria-server-wsls.onrender.com). '+
+      'Módulos: Financeiro (P&L, DRE, Receita VBS), People Analytics (DEI, Custo Mensal, Utilization, Rentabilidade), '+
+      'Alocação de Horas, CRM Pipeline, Jurídico, TI & Ativos. '+
+      'Responda sempre em português. Para sugestões de código, use JavaScript vanilla compatível com o projeto.';
+  },
+  'ti-ai': function(){
+    return 'Você é o Agente de TI da Euphoria Creative Agency, uma agência de publicidade com ~54 colaboradores. '+
+      'Especializado em infraestrutura, segurança da informação, LGPD, gestão de ativos de TI, '+
+      'suporte técnico, políticas de segurança e melhores práticas para empresas de médio porte. '+
+      'Responda sempre em português brasileiro de forma prática e objetiva.';
+  },
+  'rh-ai': function(){
+    var ppl = getPplData ? getPplData().filter(function(p){return p.status==='ativo';}) : [];
+    var ctx = '';
+    if(ppl.length){
+      ctx += '\n\nEQUIPE ATUAL ('+ppl.length+' colaboradores ativos):\n';
+      var hoje = new Date();
+      var ferias = ppl.filter(function(p){
+        if(!p.admissao) return false;
+        var adm = new Date(p.admissao);
+        var proxAniv = new Date(hoje.getFullYear(), adm.getMonth(), adm.getDate());
+        if(proxAniv < hoje) proxAniv.setFullYear(hoje.getFullYear()+1);
+        var diff = (proxAniv - hoje) / (1000*60*60*24);
+        return diff <= 30;
+      });
+      if(ferias.length) ctx += 'FÉRIAS NOS PRÓXIMOS 30 DIAS: '+ferias.map(function(p){return p.nome;}).join(', ')+'\n';
+    }
+    return 'Você é o Agente de People & RH da Euphoria Creative Agency. '+
+      'Especializado em legislação trabalhista brasileira, CLT, CCT SINAPRO 2026/2027, '+
+      'cálculo de férias, 13º salário, rescisão, PLR, gestão de equipes PJ e CLT. '+
+      'Responda sempre em português brasileiro de forma prática.'+ctx;
+  }
+};
+
+function switchAgentTab(tab, e){
+  document.querySelectorAll('#page-agentes .tab-btn').forEach(function(b){b.classList.remove('active');});
+  document.querySelectorAll('#page-agentes .tab-panel').forEach(function(p){p.classList.remove('active');});
+  document.getElementById('agent-'+tab).classList.add('active');
+  if(e&&e.target)e.target.classList.add('active');
+}
+
+function agentSendSuggestion(msg){
+  var inp = document.getElementById('agent-fin-input');
+  if(inp){ inp.value=msg; agentSend('financeiro'); }
+}
+function agentSendSuggestion2(agentId, msg){
+  var inp = document.getElementById('agent-'+agentId+'-input');
+  if(inp){ inp.value=msg; agentSend(agentId); }
+}
+
+function agentClearChat(agentId){
+  _agentHistory[agentId] = [];
+  var msgs = document.getElementById('agent-'+agentId+'-messages');
+  if(msgs){
+    var first = msgs.children[0];
+    msgs.innerHTML = '';
+    if(first) msgs.appendChild(first);
+  }
+}
+
+async function agentSend(agentId){
+  var inp = document.getElementById('agent-'+agentId+'-input');
+  if(!inp || _agentTyping[agentId]) return;
+  var msg = inp.value.trim();
+  if(!msg) return;
+  inp.value = '';
+  inp.style.height = '48px';
+
+  if(!_agentHistory[agentId]) _agentHistory[agentId] = [];
+
+  var msgs = document.getElementById('agent-'+agentId+'-messages');
+  if(!msgs) return;
+
+  // Add user message
+  var userDiv = document.createElement('div');
+  userDiv.style.cssText = 'background:rgba(255,255,255,0.08);border-radius:12px;padding:12px 16px;font-size:13px;line-height:1.6;align-self:flex-end;max-width:80%;margin-left:auto;';
+  userDiv.textContent = msg;
+  msgs.appendChild(userDiv);
+
+  // Add thinking indicator
+  var thinkDiv = document.createElement('div');
+  thinkDiv.style.cssText = 'background:rgba(255,255,255,0.04);border-radius:12px;padding:12px 16px;font-size:13px;color:var(--text3);';
+  thinkDiv.innerHTML = '<span style="animation:pulse 1.5s infinite">●●●</span>';
+  msgs.appendChild(thinkDiv);
+  msgs.scrollTop = msgs.scrollHeight;
+
+  _agentTyping[agentId] = true;
+  _agentHistory[agentId].push({role:'user', content:msg});
+
+  try {
+    var systemFn = AGENT_SYSTEMS[agentId];
+    var systemPrompt = systemFn ? systemFn() : 'Você é um assistente da Euphoria Creative Agency. Responda em português.';
+
+    var response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: _agentHistory[agentId]
+      })
+    });
+
+    var data = await response.json();
+    var reply = data.content && data.content[0] ? data.content[0].text : 'Erro ao processar resposta.';
+
+    _agentHistory[agentId].push({role:'assistant', content:reply});
+
+    // Replace thinking with response
+    thinkDiv.style.color = 'var(--text2)';
+    thinkDiv.innerHTML = reply.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
+
+  } catch(e) {
+    thinkDiv.style.color = 'var(--neg)';
+    thinkDiv.textContent = 'Erro: '+e.message;
+  }
+
+  _agentTyping[agentId] = false;
+  msgs.scrollTop = msgs.scrollHeight;
+}
 
 // ── ALOCAÇÃO DE HORAS ────────────────────────────────
 var _alocCharts={};
