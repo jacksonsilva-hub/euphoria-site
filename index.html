@@ -1401,7 +1401,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
           <option value="negociacao">Em negociação</option>
           <option value="perdido">Perdido</option>
         </select>
-        <select id="aloc-f-cliente" onchange="alocRenderTabela()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+        <select id="aloc-f-pessoa" onchange="alocRenderTabela()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;max-width:200px">
+          <option value="">Todos os colaboradores</option>
+        </select>
+        <select id="aloc-f-cliente" onchange="alocRenderTabela()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;max-width:200px">
           <option value="">Todos os clientes</option>
         </select>
         <select id="aloc-f-mes" onchange="alocRenderTabela()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
@@ -1420,12 +1423,18 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
         <div style="overflow-x:auto">
           <table class="tbl" style="min-width:900px">
             <thead><tr>
-              <th>Colaborador/Perfil</th><th>Departamento</th><th>Cliente</th><th>Projeto</th>
-              <th style="text-align:right">H/mês</th><th>Período</th>
-              <th style="text-align:right">Custo</th>
-              <th style="text-align:right">Vendido</th>
-              <th style="text-align:right">Margem</th>
-              <th>Status</th><th></th>
+              <th onclick="alocSort('colaborador')" style="cursor:pointer">Colaborador/Perfil <span id="sort-colaborador"></span></th>
+              <th onclick="alocSort('cargo')" style="cursor:pointer">Cargo <span id="sort-cargo"></span></th>
+              <th onclick="alocSort('depto')" style="cursor:pointer">Departamento <span id="sort-depto"></span></th>
+              <th onclick="alocSort('cliente')" style="cursor:pointer">Cliente <span id="sort-cliente"></span></th>
+              <th>Projeto</th>
+              <th onclick="alocSort('horas')" style="text-align:right;cursor:pointer">H/mês <span id="sort-horas"></span></th>
+              <th>Período</th>
+              <th onclick="alocSort('custo')" style="text-align:right;cursor:pointer">Custo <span id="sort-custo"></span></th>
+              <th onclick="alocSort('vendido')" style="text-align:right;cursor:pointer">Vendido <span id="sort-vendido"></span></th>
+              <th onclick="alocSort('margem')" style="text-align:right;cursor:pointer">Margem <span id="sort-margem"></span></th>
+              <th>Status</th>
+              <th></th>
             </tr></thead>
             <tbody id="aloc-table"></tbody>
           </table>
@@ -4115,8 +4124,21 @@ async function agentSend(agentId){
 var _alocCharts={};
 var _alocClientesVBS=[];
 var _alocProjetosVBS=[];
+var _alocSortCol='colaborador';
+var _alocSortDir=1; // 1=asc, -1=desc
 function getAlocData(){return JSON.parse(localStorage.getItem('euphoria_alocacao_v1')||'[]');}
 function saveAlocData(d){localStorage.setItem('euphoria_alocacao_v1',JSON.stringify(d));}
+
+function alocSort(col){
+  if(_alocSortCol===col){ _alocSortDir*=-1; }
+  else { _alocSortCol=col; _alocSortDir=1; }
+  // Update sort indicators
+  ['colaborador','cargo','depto','cliente','horas','custo','vendido','margem'].forEach(function(c){
+    var el=document.getElementById('sort-'+c);
+    if(el) el.textContent = c===col ? (_alocSortDir===1?'↑':'↓') : '';
+  });
+  alocRenderTabela();
+}
 
 // Carrega clientes e projetos do VBS
 async function alocCarregarVBS(){
@@ -4294,6 +4316,14 @@ function alocRemover(id){
 function alocPopularFiltros(){
   alocCarregarCacheVBS();
   alocPopularDatalistsCli();
+  // Popular filtro de pessoas
+  var d=getAlocData();
+  var pessoas=[...new Set(d.map(function(a){return a.colaborador;}).filter(Boolean))].sort();
+  var fPessoa=document.getElementById('aloc-f-pessoa');
+  if(fPessoa){
+    var cur=fPessoa.value;
+    fPessoa.innerHTML='<option value="">Todos os colaboradores</option>'+pessoas.map(function(p){return '<option'+(p===cur?' selected':'')+'>'+p+'</option>';}).join('');
+  }
 }
 
 function alocFiltrar(){
@@ -4301,12 +4331,15 @@ function alocFiltrar(){
   var fStatus=document.getElementById('aloc-f-status');
   var fCli=document.getElementById('aloc-f-cliente');
   var fMes=document.getElementById('aloc-f-mes');
+  var fPessoa=document.getElementById('aloc-f-pessoa');
   var fs=fStatus?fStatus.value:'';
   var fc=fCli?fCli.value:'';
   var fm=fMes?parseInt(fMes.value):0;
+  var fp=fPessoa?fPessoa.value:'';
   return d.filter(function(a){
     if(fs&&a.status!==fs)return false;
     if(fc&&a.cliente!==fc)return false;
+    if(fp&&a.colaborador!==fp)return false;
     if(fm){
       var inicio=a.mesInicio?new Date(a.mesInicio+'-01'):null;
       var fim=a.mesFim?new Date(a.mesFim+'-01'):null;
@@ -4352,16 +4385,47 @@ function alocRenderTabela(){
   var statusLabel={aprovado:'✅ Aprovado',proposta:'📋 Proposta',negociacao:'🔄 Negociação',perdido:'❌ Perdido'};
 
   var absorcaoLabel={'outro_cliente':'→ outro cliente','ovh_agencia':'OVH agência','investimento':'investimento','interno':'interno'};
+
+  // Enrich with cargo from People Analytics
+  var pplMap={};
+  getPplData().forEach(function(p){pplMap[p.nome.toLowerCase()]={cargo:p.cargo||'',custo:pplCustoHora(p)};});
+
+  // Sort
+  d.sort(function(a,b){
+    var va='', vb='';
+    if(_alocSortCol==='colaborador'){va=a.colaborador||'';vb=b.colaborador||'';}
+    else if(_alocSortCol==='cargo'){va=(pplMap[(a.colaborador||'').toLowerCase()]||{}).cargo||'';vb=(pplMap[(b.colaborador||'').toLowerCase()]||{}).cargo||'';}
+    else if(_alocSortCol==='depto'){va=a.depto||'';vb=b.depto||'';}
+    else if(_alocSortCol==='cliente'){va=a.cliente||'';vb=b.cliente||'';}
+    else if(_alocSortCol==='horas'){return (b.horas-a.horas)*_alocSortDir;}
+    else if(_alocSortCol==='custo'){
+      var ca=(pplMap[(a.colaborador||'').toLowerCase()]||{custo:0}).custo*(a.horas||0);
+      var cb=(pplMap[(b.colaborador||'').toLowerCase()]||{custo:0}).custo*(b.horas||0);
+      return (cb-ca)*_alocSortDir;
+    }
+    else if(_alocSortCol==='vendido'){return ((b.valorVendido||0)-(a.valorVendido||0))*_alocSortDir;}
+    else if(_alocSortCol==='margem'){
+      var pla=pplMap[(a.colaborador||'').toLowerCase()]||{custo:0};
+      var plb=pplMap[(b.colaborador||'').toLowerCase()]||{custo:0};
+      var ma=(a.valorVendido||0)-(pla.custo*(a.horas||0));
+      var mb=(b.valorVendido||0)-(plb.custo*(b.horas||0));
+      return (mb-ma)*_alocSortDir;
+    }
+    if(va<vb)return -1*_alocSortDir; if(va>vb)return 1*_alocSortDir; return 0;
+  });
+
   document.getElementById('aloc-table-meta').textContent=d.length+' alocações';
   document.getElementById('aloc-table').innerHTML=d.map(function(a){
     var per=(a.mesInicio||'?')+(a.mesFim?' → '+a.mesFim:'');
-    var custo=getCustoAloc(a);
+    var pplInfo=pplMap[(a.colaborador||'').toLowerCase()]||{cargo:'',custo:0};
+    var custo=pplInfo.custo*(a.horas||0);
     var vendido=a.valorVendido||0;
     var margem=vendido-custo;
     var margemColor=vendido===0?(a.absorcao?'var(--text3)':'var(--neg)'):margem>=0?'var(--pos)':'var(--neg)';
     var vendidoDisplay=vendido===0?(a.absorcao?('<span style="font-size:10px;color:var(--text3)">'+(absorcaoLabel[a.absorcao]||'absorção')+'</span>'):'R$ 0'):('R$ '+Math.round(vendido).toLocaleString('pt-BR'));
     return '<tr>'+
       '<td><strong>'+a.colaborador+'</strong></td>'+
+      '<td style="font-size:11px;color:var(--text2)">'+(pplInfo.cargo||'—')+'</td>'+
       '<td><span class="badge badge-blue">'+(a.depto||'—')+'</span></td>'+
       '<td>'+a.cliente+'</td>'+
       '<td style="font-size:11px;color:var(--text2)">'+(a.projeto||'—')+'</td>'+
@@ -4379,7 +4443,7 @@ function alocRenderTabela(){
         '<button class="btn" style="padding:2px 7px;font-size:10px;color:var(--neg)" onclick="alocRemover(\''+a.id+'\')">✕</button>'+
       '</td>'+
     '</tr>';
-  }).join('')||'<tr><td colspan="11" style="text-align:center;padding:32px;color:var(--text3)">Nenhuma alocação. Clique em "+ Nova Alocação" para começar.</td></tr>';
+  }).join('')||'<tr><td colspan="12" style="text-align:center;padding:32px;color:var(--text3)">Nenhuma alocação. Clique em "+ Nova Alocação" para começar.</td></tr>';
 }
 
 function alocExportCSV(){
@@ -4452,11 +4516,16 @@ function alocRenderColaborador(){
       if(status&&a.status!==status)return false;
       return true;
     }).reduce(function(s,a){
-      var inicio=a.mesInicio?new Date(a.mesInicio+'-01'):new Date(anoAtual,0,1);
-      var fim=a.mesFim?new Date(a.mesFim+'-01'):new Date(anoAtual,11,1);
-      var aMes=inicio.getFullYear()<anoAtual?0:inicio.getMonth();
-      var zMes=fim.getFullYear()>anoAtual?11:fim.getMonth();
-      // Intersecção com o período selecionado
+      // Parse month/year directly to avoid timezone issues
+      function parseMesAno(str, defaultMes, defaultAno){
+        if(!str) return {mes:defaultMes, ano:defaultAno};
+        var parts=str.split('-'); // "2026-01"
+        return {ano:parseInt(parts[0]),mes:parseInt(parts[1])-1}; // 0-indexed month
+      }
+      var ini=parseMesAno(a.mesInicio, 0, anoAtual);
+      var fim=parseMesAno(a.mesFim, 11, anoAtual);
+      var aMes=ini.ano<anoAtual?0:ini.ano>anoAtual?12:ini.mes;
+      var zMes=fim.ano>anoAtual?11:fim.ano<anoAtual?-1:fim.mes;
       var iInicio=Math.max(aMes,mInicio);
       var iFim=Math.min(zMes,mFim);
       if(iFim<iInicio)return s;
@@ -4610,10 +4679,16 @@ function alocRenderCapacidade(){
     alocs.filter(function(a){
       return a.colaborador.toLowerCase()===p.nome.toLowerCase();
     }).forEach(function(a){
-      var inicio=a.mesInicio?new Date(a.mesInicio+'-01'):new Date(anoAtual,0,1);
-      var fim=a.mesFim?new Date(a.mesFim+'-01'):new Date(anoAtual,11,1);
-      var aMes=inicio.getFullYear()<anoAtual?0:inicio.getMonth();
-      var zMes=fim.getFullYear()>anoAtual?11:fim.getMonth();
+      // Parse month/year directly to avoid timezone issues
+      function parseMesAno2(str, defaultMes, defaultAno){
+        if(!str) return {mes:defaultMes, ano:defaultAno};
+        var parts=str.split('-');
+        return {ano:parseInt(parts[0]),mes:parseInt(parts[1])-1};
+      }
+      var ini=parseMesAno2(a.mesInicio, 0, anoAtual);
+      var fim=parseMesAno2(a.mesFim, 11, anoAtual);
+      var aMes=ini.ano<anoAtual?0:ini.ano>anoAtual?12:ini.mes;
+      var zMes=fim.ano>anoAtual?11:fim.ano<anoAtual?-1:fim.mes;
       var iIn=Math.max(aMes,mInicio);
       var iFm=Math.min(zMes,mFim);
       if(iFm<iIn)return;
