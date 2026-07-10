@@ -7430,8 +7430,6 @@ function crmAbrirModal(id){
   _crmEditId=id||null;
   var modal=document.getElementById('crm-modal');
   var title=document.getElementById('crm-modal-title');
-  var fields=['empresa','contato','email','status','tipo','valor','prob','resp','followup','obs'];
-  var defaults={empresa:'',contato:'',email:'',status:'prospect',tipo:'fee',valor:'',prob:'25',resp:'Andressa',followup:'',obs:''};
   if(id){
     var p=_crmData.find(function(x){return x.id==id;});
     if(!p) return;
@@ -7443,7 +7441,10 @@ function crmAbrirModal(id){
     document.getElementById('crm-f-tipo').value=p.tipo||'fee';
     document.getElementById('crm-f-fee').value=p.fee_mensal||'';
     document.getElementById('crm-f-valor').value=p.valor_potencial||'';
-    if(p.fee_mensal) crmCalcValor();
+    // Set meses BEFORE calling crmCalcValor
+    document.getElementById('crm-f-mes-ini').value=p.mes_inicio||1;
+    document.getElementById('crm-f-mes-fim').value=p.mes_fim||12;
+    crmCalcValor();
     document.getElementById('crm-f-prob').value=p.probabilidade||25;
     document.getElementById('crm-f-resp').value=p.responsavel||'Andressa';
     document.getElementById('crm-f-followup').value=p.proximo_followup?p.proximo_followup.substring(0,10):'';
@@ -7457,6 +7458,8 @@ function crmAbrirModal(id){
     document.getElementById('crm-f-tipo').value='fee';
     document.getElementById('crm-f-fee').value='';
     document.getElementById('crm-f-valor').value='';
+    document.getElementById('crm-f-mes-ini').value=1;
+    document.getElementById('crm-f-mes-fim').value=12;
     document.getElementById('crm-f-valor-calc').textContent='R$ 0';
     document.getElementById('crm-f-prob').value='25';
     document.getElementById('crm-f-resp').value='Andressa';
@@ -7482,6 +7485,8 @@ async function crmSalvar(){
     tipo:document.getElementById('crm-f-tipo').value,
     valor_potencial:parseFloat(document.getElementById('crm-f-valor').value)||0,
     fee_mensal:parseFloat(document.getElementById('crm-f-fee').value)||0,
+    mes_inicio:parseInt(document.getElementById('crm-f-mes-ini').value)||1,
+    mes_fim:parseInt(document.getElementById('crm-f-mes-fim').value)||12,
     probabilidade:parseInt(document.getElementById('crm-f-prob').value)||25,
     responsavel:document.getElementById('crm-f-resp').value,
     proximo_followup:document.getElementById('crm-f-followup').value||null,
