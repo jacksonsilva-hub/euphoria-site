@@ -203,6 +203,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     </div>
     <div class="topbar-spacer"></div>
     <div class="topbar-actions" id="topbar-actions"></div>
+    <span id="entity-flag" style="display:none;font-size:11px;color:var(--text3);margin-right:8px"></span>
     <div class="user-badge" id="user-badge" onclick="doLogout()" style="display:none">
       <div class="user-avatar" id="user-avatar">J</div>
       <span id="user-name-badge">Jackson</span>
@@ -226,7 +227,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       <div id="dash-loading" class="loading-area"><div><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div><div style="margin-top:12px;font-size:11px">Carregando dados…</div></div>
       <div id="dash-content" style="display:none">
         <div class="filters" style="margin-bottom:16px">
-          <button id="btn-actual-vbs" class="btn btn-primary" onclick="carregarActualVbs()" style="font-size:11px;padding:5px 14px">↺ Actual do VBS</button>
+          <button id="btn-actual-vbs" class="btn btn-primary btn-vbs" onclick="carregarActualVbs()" style="font-size:11px;padding:5px 14px">↺ Actual do VBS</button>
           <select id="sel-ano" onchange="applyFilters()"><option value="2026" selected>2026</option><option value="2025">2025</option><option value="all">2025+2026</option></select>
           <select id="sel-month" onchange="applyFilters()"><option value="all">Todos os meses</option><option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option><option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option><option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option></select>
           <select id="sel-tipo" onchange="applyFilters()">
@@ -281,7 +282,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
           <option value="2024">2024</option>
         </select>
       </div>
-      <button class="btn btn-primary" onclick="dreCarregarVbs()" style="padding:7px 16px;font-size:12px">↺ Carregar do VBS</button>
+      <button class="btn btn-primary" onclick="dreCarregarVbs()" class="btn-vbs" style="padding:7px 16px;font-size:12px">↺ Carregar do VBS</button>
       <div id="dre-loading" style="display:none;font-size:11px;color:var(--text3);align-self:center">Carregando...</div>
     </div>
     <div style="display:flex;gap:12px;align-items:center">
@@ -351,7 +352,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       <option value="midia">Mídia</option>
       <option value="ci">Custo Interno</option>
     </select>
-    <button class="btn btn-primary" onclick="recCarregar()" style="font-size:11px;padding:5px 14px">↺ Carregar VBS</button>
+    <button class="btn btn-primary" onclick="recCarregar()" class="btn-vbs" style="font-size:11px;padding:5px 14px">↺ Carregar VBS</button>
     <span id="rec-loading" style="font-size:11px;color:var(--text3);display:none">Carregando...</span>
   </div>
 
@@ -1025,7 +1026,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     <div class="tab-panel active" id="people-equipe">
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
         <button class="btn btn-primary" onclick="pplAbrirModal()">+ Novo Colaborador</button>
-        <button class="btn" onclick="pplImportarVBS()" style="font-size:11px">⬇️ Importar do VBS</button>
+        <button class="btn" onclick="pplImportarVBS()" class="btn-vbs" style="font-size:11px">⬇️ Importar do VBS</button>
         <button class="btn" onclick="pplExportExcel()" style="font-size:11px">📊 Exportar Excel</button>
         <select id="ppl-f-depto" onchange="pplRenderTable()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
           <option value="">Todos departamentos</option>
@@ -1201,7 +1202,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
           <option value="032026">Mar 2026</option><option value="042026">Abr 2026</option>
           <option value="052026">Mai 2026</option><option value="062026" selected>Jun 2026</option>
         </select>
-        <button class="btn btn-primary" onclick="pplCarregarUtilization()" style="font-size:11px;padding:5px 14px">↺ Carregar VBS</button>
+        <button class="btn btn-primary" onclick="pplCarregarUtilization()" class="btn-vbs" style="font-size:11px;padding:5px 14px">↺ Carregar VBS</button>
         <span id="util-loading" style="font-size:11px;color:var(--text3);display:none">Carregando...</span>
       </div>
       <div id="util-kpis" class="kpi-grid" style="margin-bottom:20px"></div>
@@ -1414,7 +1415,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
           <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
           <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
         </select>
-        <button class="btn" onclick="alocCarregarVBS()" style="font-size:11px">⬇️ Carregar Clientes/Projetos VBS</button>
+        <button class="btn" onclick="alocCarregarVBS()" class="btn-vbs" style="font-size:11px">⬇️ Carregar Clientes/Projetos VBS</button>
         <span id="aloc-vbs-loading" style="font-size:11px;color:var(--text3);display:none">Carregando...</span>
       </div>
       <div id="aloc-kpis" class="kpi-grid" style="margin-bottom:16px"></div>
@@ -2612,20 +2613,61 @@ function switchFinTab(tab, e) {
 
 // ── AUTH ──────────────────────────────────────────────
 var USERS = [
-  {user:'jackson',email:'jackson.silva@euphoriacreative.com',pass:'euphoria2024',name:'Jackson Silva',role:'admin',initials:'JS'},
-  {user:'tiago.santos',email:'tiago.santos@euphoriacreative.com',pass:'Euphoria2024',name:'Tiago Santos',role:'admin',initials:'TS'},
-  {user:'Andressa.Fukunaga',email:'andressa.fukunaga@euphoriacreative.com',pass:'Euphoria2024',name:'Andressa Fukunaga',role:'admin',initials:'AF'},
-  {user:'admin',email:'admin@euphoriacreative.com',pass:'euphoria2024',name:'Admin',role:'admin',initials:'AD'},
-  {user:'criacao',email:'criacao@euphoriacreative.com',pass:'criacao123',name:'Criação',role:'operacional',initials:'CR'},
-  {user:'atendimento',email:'atendimento@euphoriacreative.com',pass:'atend123',name:'Atendimento',role:'operacional',initials:'AT'},
-  {user:'midia',email:'midia@euphoriacreative.com',pass:'midia123',name:'Mídia',role:'operacional',initials:'MD'},
+  // ── BRASIL ──────────────────────────────────────────
+  {user:'jackson',email:'jackson.silva@euphoriacreative.com',pass:'euphoria2024',name:'Jackson Silva',role:'superadmin',entidade:'BR',initials:'JS'},
+  {user:'tiago.santos',email:'tiago.santos@euphoriacreative.com',pass:'Euphoria2024',name:'Tiago Santos',role:'admin',entidade:'BR',initials:'TS'},
+  {user:'Andressa.Fukunaga',email:'andressa.fukunaga@euphoriacreative.com',pass:'Euphoria2024',name:'Andressa Fukunaga',role:'admin',entidade:'BR',initials:'AF'},
+  {user:'admin',email:'admin@euphoriacreative.com',pass:'euphoria2024',name:'Admin',role:'admin',entidade:'BR',initials:'AD'},
+  {user:'criacao',email:'criacao@euphoriacreative.com',pass:'criacao123',name:'Criação',role:'operacional',entidade:'BR',initials:'CR'},
+  {user:'atendimento',email:'atendimento@euphoriacreative.com',pass:'atend123',name:'Atendimento',role:'operacional',entidade:'BR',initials:'AT'},
+  {user:'midia',email:'midia@euphoriacreative.com',pass:'midia123',name:'Mídia',role:'operacional',entidade:'BR',initials:'MD'},
+  // ── MÉXICO ──────────────────────────────────────────
+  {user:'mexico.admin',email:'admin@euphoriacreative.com.mx',pass:'EuphoriaMX2024',name:'Admin México',role:'admin',entidade:'MX',initials:'MX'},
+  {user:'mexico.ops',email:'ops@euphoriacreative.com.mx',pass:'EuphoriaMX2024',name:'Ops México',role:'operacional',entidade:'MX',initials:'MO'},
 ];
 var PERMISSIONS = {
+  superadmin:['financeiro','growth','crm','timesheet','projetos','people','alocacao','agentes','juridico','ti'],
   admin:['financeiro','growth','crm','timesheet','projetos','people','alocacao','agentes','juridico','ti'],
   gestor:['growth','timesheet','projetos','people'],
   operacional:['timesheet','projetos'],
 };
 var currentUser = null;
+
+// ── CONFIGURAÇÃO POR ENTIDADE ────────────────────────
+var ENTIDADE_CONFIG = {
+  BR: {
+    nome: 'Euphoria Brasil',
+    flag: '🇧🇷',
+    moeda: 'BRL',
+    simbolo: 'R$',
+    locale: 'pt-BR',
+    temVBS: true,
+    departamentos: ['Atendimento','Criação','Estratégia','Mídia','Conteúdo','Social','Produção','Data Insights','Financeiro','People & RH','TI','Diretoria'],
+    cor: '#00c853',
+  },
+  MX: {
+    nome: 'Euphoria México',
+    flag: '🇲🇽',
+    moeda: 'MXN',
+    simbolo: 'MX$',
+    locale: 'es-MX',
+    temVBS: false,
+    departamentos: ['Atención al Cliente','Diseño','Estrategia','Medios','Contenido','Social','Producción','Finanzas','People & RH','TI','Dirección'],
+    cor: '#e53935',
+  },
+};
+
+// Prefixo do localStorage por entidade — garante isolamento total
+function lsKey(key){ return (currentUser&&currentUser.entidade?currentUser.entidade:'BR')+'_'+key; }
+function lsGet(key){ return localStorage.getItem(lsKey(key)); }
+function lsSet(key,val){ localStorage.setItem(lsKey(key),val); }
+function lsRemove(key){ localStorage.removeItem(lsKey(key)); }
+
+// Formatação de moeda por entidade
+function fmtMoeda(v){
+  var cfg=ENTIDADE_CONFIG[currentUser&&currentUser.entidade?currentUser.entidade:'BR'];
+  return cfg.simbolo+' '+Math.round(v).toLocaleString(cfg.locale);
+}
 
 function doLogin() {
   var raw  = (document.getElementById('login-user').value || '').trim().toLowerCase();
@@ -2644,16 +2686,69 @@ function doLogin() {
     return;
   }
   currentUser = found;
+  var cfg = ENTIDADE_CONFIG[found.entidade||'BR'];
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('user-badge').style.display = 'flex';
   document.getElementById('user-name-badge').textContent = found.name.split(' ')[0];
   document.getElementById('user-avatar').textContent = found.initials;
+
+  // Show entity flag in header
+  var flagEl = document.getElementById('entity-flag');
+  if(flagEl){ flagEl.textContent = cfg.flag+' '+cfg.nome; flagEl.style.display='inline'; }
+
+  // Hide VBS button for MX
+  document.querySelectorAll('.btn-vbs').forEach(function(el){
+    el.style.display = cfg.temVBS ? '' : 'none';
+  });
+
+  // Update page title sub
+  var subEl = document.querySelector('.page-sub');
+  if(subEl) subEl.textContent = cfg.nome;
+
   var allowed = PERMISSIONS[found.role] || [];
   document.querySelectorAll('.nav-item[data-page]').forEach(function(el) {
     el.style.display = allowed.includes(el.getAttribute('data-page')) ? 'flex' : 'none';
   });
   goPage(allowed[0] || 'financeiro');
   if (allowed.includes('financeiro')) setTimeout(function(){if(typeof loadData==='function') loadData();},100);
+  // Setup entity-specific UI
+  setTimeout(function(){ setupEntidade(found.entidade||'BR'); }, 200);
+}
+
+function setupEntidade(ent){
+  var cfg = ENTIDADE_CONFIG[ent]||ENTIDADE_CONFIG['BR'];
+  var deptos = cfg.departamentos;
+  var deptoOpts = '<option value="">'+( ent==='MX'?'Todos los departamentos':'Todos departamentos')+'</option>'+
+    deptos.map(function(d){return '<option>'+d+'</option>';}).join('');
+  var deptoOptsModal = '<option value="">'+( ent==='MX'?'Seleccionar...':'Selecione...')+'</option>'+
+    deptos.map(function(d){return '<option>'+d+'</option>';}).join('');
+
+  // Update all department dropdowns
+  ['ppl-f-depto','aloc-f-depto','aloc-cap-depto','aloc-col-depto','org-sel-depto'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) el.innerHTML=deptoOpts;
+  });
+  var pmDepto=document.getElementById('pm-depto');
+  if(pmDepto) pmDepto.innerHTML=deptoOptsModal;
+
+  // Update page header subtitle
+  var pageTitle=document.querySelector('#page-title-sub');
+  if(pageTitle) pageTitle.textContent=cfg.nome;
+
+  // Show/hide VBS elements
+  document.querySelectorAll('.btn-vbs').forEach(function(el){
+    el.style.display = cfg.temVBS?'':'none';
+  });
+
+  // Update currency symbol in labels if needed
+  if(ent==='MX'){
+    document.title='Euphoria OS — México';
+    // Update nav label
+    var logoSub=document.querySelector('.logo-sub');
+    if(logoSub) logoSub.textContent='COMUNICACIÓN MEXICO';
+  } else {
+    document.title='Euphoria OS';
+  }
 }
 
 function doLogout() {
@@ -2767,8 +2862,8 @@ function gCarregarProposta(id) {
 
 // ── TIMESHEET ────────────────────────────────────────
 var chartTSDepto=null, chartTSCli=null;
-function getTSData(){return JSON.parse(localStorage.getItem('euphoria_ts')||'[]');}
-function saveTSData(d){localStorage.setItem('euphoria_ts',JSON.stringify(d));}
+function getTSData(){return JSON.parse(lsGet('euphoria_ts')||'[]');}
+function saveTSData(d){lsSet('euphoria_ts',JSON.stringify(d));}
 
 function switchTSTab(tab,e){
   document.querySelectorAll('#page-timesheet .tab-btn').forEach(function(b){b.classList.remove('active');});
@@ -2841,8 +2936,8 @@ function tsRenderUtil(){
 
 // ── KANBAN ───────────────────────────────────────────
 var KANBAN_COLS=['Briefing','Em andamento','Revisão','Entregue'];
-function getProjData(){return JSON.parse(localStorage.getItem('euphoria_projetos')||'[]');}
-function saveProjData(d){localStorage.setItem('euphoria_projetos',JSON.stringify(d));}
+function getProjData(){return JSON.parse(lsGet('euphoria_projetos')||'[]');}
+function saveProjData(d){lsSet('euphoria_projetos',JSON.stringify(d));}
 function projAdicionar(){
   var nome=document.getElementById('proj-novo-nome').value.trim();
   if(!nome){alert('Informe o nome!');return;}
@@ -2879,10 +2974,10 @@ var _pplHistId = null;
 var _utilCharts = {};
 var _profCharts = {};
 
-function getPplData(){return JSON.parse(localStorage.getItem('euphoria_people_v2')||'[]');}
-function savePplData(d){localStorage.setItem('euphoria_people_v2',JSON.stringify(d));}
-function getPplHist(){return JSON.parse(localStorage.getItem('euphoria_people_hist')||'{}');}
-function savePplHist(d){localStorage.setItem('euphoria_people_hist',JSON.stringify(d));}
+function getPplData(){return JSON.parse(lsGet('euphoria_people_v2')||'[]');}
+function savePplData(d){lsSet('euphoria_people_v2',JSON.stringify(d));}
+function getPplHist(){return JSON.parse(lsGet('euphoria_people_hist')||'{}');}
+function savePplHist(d){lsSet('euphoria_people_hist',JSON.stringify(d));}
 
 function switchPeopleTab(tab,e){
   document.querySelectorAll('#page-people .tab-btn').forEach(function(b){b.classList.remove('active');});
@@ -4126,8 +4221,8 @@ var _alocClientesVBS=[];
 var _alocProjetosVBS=[];
 var _alocSortCol='colaborador';
 var _alocSortDir=1; // 1=asc, -1=desc
-function getAlocData(){return JSON.parse(localStorage.getItem('euphoria_alocacao_v1')||'[]');}
-function saveAlocData(d){localStorage.setItem('euphoria_alocacao_v1',JSON.stringify(d));}
+function getAlocData(){return JSON.parse(lsGet('euphoria_alocacao_v1')||'[]');}
+function saveAlocData(d){lsSet('euphoria_alocacao_v1',JSON.stringify(d));}
 
 function alocSort(col){
   if(_alocSortCol===col){ _alocSortDir*=-1; }
@@ -4809,13 +4904,13 @@ function jurRenderAnalysis(a){
 }
 function jurSalvar(){
   if(!jurCurrentAnalysis)return;
-  var d=JSON.parse(localStorage.getItem('euphoria_juridico')||'[]');
+  var d=JSON.parse(lsGet('euphoria_juridico')||'[]');
   d.unshift(Object.assign({id:Date.now()},jurCurrentAnalysis));
-  localStorage.setItem('euphoria_juridico',JSON.stringify(d)); alert('Contrato salvo!'); jurRenderPainel();
+  lsSet('euphoria_juridico',JSON.stringify(d)); alert('Contrato salvo!'); jurRenderPainel();
 }
 function jurLimpar(){jurCurrentAnalysis=null;document.getElementById('jur-result').style.display='none';document.getElementById('jur-file-input').value='';}
 function jurRenderPainel(){
-  var d=JSON.parse(localStorage.getItem('euphoria_juridico')||'[]');
+  var d=JSON.parse(lsGet('euphoria_juridico')||'[]');
   if(!d.length){document.getElementById('jur-painel-empty').style.display='flex';document.getElementById('jur-painel-list').style.display='none';return;}
   document.getElementById('jur-painel-empty').style.display='none';document.getElementById('jur-painel-list').style.display='block';
   var hoje=new Date();
@@ -4828,10 +4923,10 @@ function jurRenderPainel(){
     return '<tr><td><strong>'+(c.titulo||c.arquivo||'—')+'</strong></td><td>'+(c.cliente||'—')+'</td><td>'+(c.data_inicio||'—')+'</td><td>'+(c.data_fim||'—')+'</td><td style="text-align:right">'+(c.valor_total||'—')+'</td><td><span class="badge '+cls+'">'+st+'</span></td><td><button class="btn" style="padding:2px 8px;font-size:10px" onclick="jurVerContrato('+c.id+')">Ver</button></td></tr>';
   }).join('');
 }
-function jurVerContrato(id){var c=JSON.parse(localStorage.getItem('euphoria_juridico')||'[]').find(function(x){return x.id===id;});if(c){jurCurrentAnalysis=c;jurRenderAnalysis(c);switchJurTab('analisar');}}
+function jurVerContrato(id){var c=JSON.parse(lsGet('euphoria_juridico')||'[]').find(function(x){return x.id===id;});if(c){jurCurrentAnalysis=c;jurRenderAnalysis(c);switchJurTab('analisar');}}
 
 // ── TI ───────────────────────────────────────────────
-function getTIAtivos(){return JSON.parse(localStorage.getItem('euphoria_ti_ativos')||'[]');}
+function getTIAtivos(){return JSON.parse(lsGet('euphoria_ti_ativos')||'[]');}
 function saveTIAtivos(d){localStorage.setItem('euphoria_ti_ativos',JSON.stringify(d));}
 function switchTITab(tab,e){
   document.querySelectorAll('#page-ti .tab-btn').forEach(function(b){b.classList.remove('active');});
@@ -5851,8 +5946,8 @@ function jurLimpar(){document.getElementById('jur-result').style.display='none';
 function jurSelecionarTipo(tipo){jurTipoAtual=tipo;var titulos={cliente:'Contrato Cliente',pj:'Contrato PJ',freela:'Freela/Fornecedor',distrato:'Distrato PJ',aditivo:'Aditivo Contratual',carta:'Carta Proposta'};document.getElementById('jur-form-titulo').textContent=titulos[tipo]||tipo;['form-cliente','form-pj','form-freela','form-distrato','form-aditivo','form-carta'].forEach(function(id){document.getElementById(id).style.display='none';});document.getElementById('jur-tipo-cards').style.display='none';document.getElementById('jur-form-area').style.display='block';document.getElementById('jur-gerar-result').style.display='none';document.getElementById('form-'+tipo).style.display='block';if(tipo==='pj'||tipo==='carta'){jurPopularColab(tipo);}if(tipo==='distrato'){jurPopularDistrato();}if(tipo==='cliente'){jurPopularPropostas();}}
 function jurVoltarTipos(){document.getElementById('jur-tipo-cards').style.display='grid';document.getElementById('jur-form-area').style.display='none';document.getElementById('jur-gerar-result').style.display='none';}
 function jurNovoContrato(){document.getElementById('jur-gerar-result').style.display='none';document.getElementById('jur-form-area').style.display='block';}
-function jurPopularColab(tipo){var people=JSON.parse(localStorage.getItem('euphoria_people_v2')||'[]');var sel=document.getElementById(tipo==='pj'?'pj-colaborador':'carta-colaborador');while(sel.options.length>1)sel.remove(1);people.forEach(function(p){var o=document.createElement('option');o.value=JSON.stringify(p);o.textContent=p.nome+' - '+p.cargo;sel.appendChild(o);});}
-function jurPopularDistrato(){var people=JSON.parse(localStorage.getItem('euphoria_people_v2')||'[]');var sel=document.getElementById('dt-colaborador');while(sel.options.length>1)sel.remove(1);people.forEach(function(p){var o=document.createElement('option');o.value=JSON.stringify(p);o.textContent=p.nome+' - '+p.cargo;sel.appendChild(o);});}
+function jurPopularColab(tipo){var people=JSON.parse(lsGet('euphoria_people_v2')||'[]');var sel=document.getElementById(tipo==='pj'?'pj-colaborador':'carta-colaborador');while(sel.options.length>1)sel.remove(1);people.forEach(function(p){var o=document.createElement('option');o.value=JSON.stringify(p);o.textContent=p.nome+' - '+p.cargo;sel.appendChild(o);});}
+function jurPopularDistrato(){var people=JSON.parse(lsGet('euphoria_people_v2')||'[]');var sel=document.getElementById('dt-colaborador');while(sel.options.length>1)sel.remove(1);people.forEach(function(p){var o=document.createElement('option');o.value=JSON.stringify(p);o.textContent=p.nome+' - '+p.cargo;sel.appendChild(o);});}
 function jurPopularPropostas(){var props=JSON.parse(localStorage.getItem('euphoria_propostas')||'[]');var sel=document.getElementById('cc-proposta');if(!sel)return;while(sel.options.length>1)sel.remove(1);props.forEach(function(p,i){var o=document.createElement('option');o.value=i;o.textContent=p.cliente+' - '+p.data;sel.appendChild(o);});}
 function jurPreencherPJ(val){if(!val)return;try{var p=JSON.parse(val);if(p.nome)document.getElementById('pj-nome').value=p.nome;if(p.cargo)document.getElementById('pj-cargo').value=p.cargo;if(p.salario)document.getElementById('pj-honorarios').value=p.salario;}catch(e){}}
 function jurPreencherDistrato(val){if(!val)return;try{var p=JSON.parse(val);if(p.nome)document.getElementById('dt-nome').value=p.empresa||p.nome;if(p.cpf)document.getElementById('dt-doc').value=p.cnpj||p.cpf;if(p.cargo)document.getElementById('dt-cargo').value=p.cargo;if(p.salario)document.getElementById('dt-honorarios').value=p.salario;if(p.inicio)document.getElementById('dt-inicio-original').value=p.inicio;}catch(e){}}
@@ -5893,7 +5988,7 @@ function jurVerDoc(i){var c=jurContratos[i];document.getElementById('jur-doc-tit
 
 // ── TI ────────────────────────────────────────────────
 var tiFichas=[];
-function tiInit(){var people=JSON.parse(localStorage.getItem('euphoria_people_v2')||'[]');var sel=document.getElementById('ti-out-colaborador');if(sel){while(sel.options.length>1)sel.remove(1);people.forEach(function(p){var o=document.createElement('option');o.value=JSON.stringify(p);o.textContent=p.nome+' - '+(p.depto||'');sel.appendChild(o);});}tiRenderPainel();}
+function tiInit(){var people=JSON.parse(lsGet('euphoria_people_v2')||'[]');var sel=document.getElementById('ti-out-colaborador');if(sel){while(sel.options.length>1)sel.remove(1);people.forEach(function(p){var o=document.createElement('option');o.value=JSON.stringify(p);o.textContent=p.nome+' - '+(p.depto||'');sel.appendChild(o);});}tiRenderPainel();}
 function tiPreencherOut(val){if(!val)return;try{var p=JSON.parse(val);if(p.nome)document.getElementById('ti-out-nome').value=p.nome;if(p.email)document.getElementById('ti-out-email').value=p.email;if(p.tel)document.getElementById('ti-out-tel').value=p.tel;if(p.gestor)document.getElementById('ti-out-gestor').value=p.gestor;}catch(e){}}
 function tiGetAcessos(){var a=[];document.querySelectorAll('#ti-acessos-checks input:checked').forEach(function(cb){a.push(cb.value);});return a.join(', ');}
 function tiGerarEmail(tipo){
@@ -7304,9 +7399,9 @@ function crmFmt(v){ return 'R$ '+Math.round(v||0).toLocaleString('pt-BR'); }
 
 // ── CRM localStorage fallback ────────────────────────────────────────────────
 function crmLocalLoad(){
-  try { return JSON.parse(localStorage.getItem('crm_prospects')||'[]'); } catch(e){ return []; }
+  try { return JSON.parse(lsGet('crm_prospects')||'[]'); } catch(e){ return []; }
 }
-function crmLocalSave(data){ localStorage.setItem('crm_prospects', JSON.stringify(data)); }
+function crmLocalSave(data){ lsSet('crm_prospects', JSON.stringify(data)); }
 function crmLocalNextId(data){ return data.length ? Math.max.apply(null, data.map(function(x){return x.id||0;}))+1 : 1; }
 
 async function crmCarregar(){
@@ -7584,7 +7679,7 @@ function crmSalvarMeta(){
   var ano = document.getElementById('crm-sel-ano').value;
   var val = parseFloat(document.getElementById('crm-meta-input').value)||0;
   _crmMetaBudget = val;
-  localStorage.setItem('crm_meta_'+ano, val);
+  lsSet('crm_meta_'+ano, val);
   crmRenderMetaPainel();
 }
 
@@ -7594,7 +7689,7 @@ async function crmCarregarMeta(){
   if(label) label.textContent = ano;
 
   // Load from localStorage first
-  var saved = localStorage.getItem('crm_meta_'+ano);
+  var saved = lsGet('crm_meta_'+ano);
   if(saved){
     _crmMetaBudget = parseFloat(saved)||0;
     var inp = document.getElementById('crm-meta-input');
@@ -7608,7 +7703,7 @@ async function crmCarregarMeta(){
     _crmMetaBudget = 7764750;
     var inp = document.getElementById('crm-meta-input');
     if(inp) inp.value = 7764750;
-    localStorage.setItem('crm_meta_2026', 7764750);
+    lsSet('crm_meta_2026', 7764750);
     crmRenderMetaPainel();
     return;
   }
@@ -7630,7 +7725,7 @@ async function crmCarregarMeta(){
         _crmMetaBudget = Math.abs(total)*1000;
         var inp = document.getElementById('crm-meta-input');
         if(inp) inp.value = _crmMetaBudget;
-        localStorage.setItem('crm_meta_'+ano, _crmMetaBudget);
+        lsSet('crm_meta_'+ano, _crmMetaBudget);
       }
     }
     crmRenderMetaPainel();
@@ -7732,7 +7827,7 @@ crmCarregar = async function(){
 var _crmResps = ['Andressa','Jackson','Caio'];
 
 function crmCarregarResps(){
-  var saved = localStorage.getItem('crm_responsaveis');
+  var saved = lsGet('crm_responsaveis');
   if(saved){
     try { _crmResps = JSON.parse(saved); } catch(e){}
   }
@@ -7777,7 +7872,7 @@ function crmAdicionarResp(){
   if(!nome) return;
   if(_crmResps.includes(nome)){alert('Responsavel ja cadastrado!');return;}
   _crmResps.push(nome);
-  localStorage.setItem('crm_responsaveis', JSON.stringify(_crmResps));
+  lsSet('crm_responsaveis', JSON.stringify(_crmResps));
   inp.value = '';
   crmRenderResps();
   crmAtualizarSelects();
@@ -7787,7 +7882,7 @@ function crmRemoverResp(nome){
   if(_crmResps.length<=1){alert('Mantenha pelo menos 1 responsavel!');return;}
   if(!confirm('Remover '+nome+'?')) return;
   _crmResps = _crmResps.filter(function(r){return r!==nome;});
-  localStorage.setItem('crm_responsaveis', JSON.stringify(_crmResps));
+  lsSet('crm_responsaveis', JSON.stringify(_crmResps));
   crmRenderResps();
   crmAtualizarSelects();
 }
