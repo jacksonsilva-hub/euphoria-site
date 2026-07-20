@@ -217,7 +217,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       <button class="tab-btn active" onclick="switchFinTab('dashboard',event)">Dashboard P&L</button>
       <button class="tab-btn" onclick="switchFinTab('dre',event)">📊 DRE Comparativo</button>
       <button class="tab-btn" onclick="switchFinTab('receita',event)">💰 Receita</button>
-      <button class="tab-btn btn-manual" onclick="switchFinTab('lancamento',event)">📝 Lançamento Manual</button>
       <button class="tab-btn" onclick="switchFinTab('cr',event)">Contas a Receber</button>
       <button class="tab-btn" onclick="switchFinTab('cp',event)">Contas a Pagar</button>
       <button class="tab-btn" onclick="switchFinTab('cashflow',event)">Fluxo de Caixa</button>
@@ -333,97 +332,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     <div class="chart-title">💰 Distribuição de Resultados — Sócios</div>
     <div style="font-size:11px;color:var(--text3);margin-bottom:16px">Split: 50% distribuição • 20% reserva caixa • 30% reinvestimento</div>
     <div id="dre-dist-content"></div>
-  </div>
-</div>
-
-<!-- ── LANÇAMENTO MANUAL ── -->
-<div class="tab-panel" id="fin-lancamento">
-  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
-    <select id="lanc-ano" onchange="lancRender()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
-      <option value="2026">2026</option><option value="2025">2025</option><option value="2027">2027</option>
-    </select>
-    <select id="lanc-f-cliente" onchange="lancRender()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
-      <option value="">Todos os clientes</option>
-    </select>
-    <button class="btn btn-primary" onclick="lancAbrirModal()" style="font-size:11px">+ Novo Lançamento</button>
-    <button class="btn" onclick="lancExportCSV()" style="font-size:11px">📊 Exportar</button>
-  </div>
-  <div id="lanc-kpis" class="kpi-grid" style="margin-bottom:20px"></div>
-  <div class="charts-row" style="margin-bottom:20px">
-    <div class="chart-card"><div class="chart-title">Receita por Tipo</div><div style="position:relative;height:240px"><canvas id="chartLancTipo"></canvas></div></div>
-    <div class="chart-card chart-full"><div class="chart-title">Receita Mensal</div><div style="position:relative;height:240px"><canvas id="chartLancMensal"></canvas></div></div>
-  </div>
-  <div class="table-card">
-    <div class="table-header"><span class="table-title">Lançamentos</span><span class="table-meta" id="lanc-meta"></span></div>
-    <div style="overflow-x:auto">
-      <table class="tbl" style="min-width:800px">
-        <thead><tr>
-          <th>Cliente</th><th>Mês</th><th>Tipo</th>
-          <th style="text-align:right">Fee</th>
-          <th style="text-align:right">Rep. Prod.</th>
-          <th style="text-align:right">Com. Prod.</th>
-          <th style="text-align:right">Rep. Mídia</th>
-          <th style="text-align:right">Com. Mídia</th>
-          <th style="text-align:right">Receita Líq.</th>
-          <th></th>
-        </tr></thead>
-        <tbody id="lanc-table"></tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL LANÇAMENTO -->
-<div id="lanc-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center">
-  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:28px;width:100%;max-width:640px;max-height:90vh;overflow-y:auto">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
-      <div style="font-family:var(--font-head);font-weight:700;font-size:16px" id="lanc-modal-title">Novo Lançamento</div>
-      <button onclick="lancFecharModal()" style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer">✕</button>
-    </div>
-    <input type="hidden" id="lanc-edit-id">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <div style="grid-column:1/-1">
-        <label class="jur-lbl">CLIENTE</label>
-        <input id="lanc-cliente" type="text" class="field-input" placeholder="Nome do cliente" list="lanc-cli-list">
-        <datalist id="lanc-cli-list"></datalist>
-      </div>
-      <div>
-        <label class="jur-lbl">MÊS</label>
-        <input id="lanc-mes" type="month" class="field-input">
-      </div>
-      <div>
-        <label class="jur-lbl">TIPO</label>
-        <select id="lanc-tipo" class="field-input">
-          <option value="fee">Fee</option>
-          <option value="producao">Produção</option>
-          <option value="midia">Mídia</option>
-          <option value="projeto">Projeto</option>
-          <option value="outros">Outros</option>
-        </select>
-      </div>
-      <div style="grid-column:1/-1;background:var(--bg3);border-radius:8px;padding:12px">
-        <div style="font-size:10px;color:var(--text3);margin-bottom:10px;font-weight:600">VALORES</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-          <div><label class="jur-lbl">FEE</label><input id="lanc-v-fee" type="number" class="field-input" placeholder="0" oninput="lancCalcRL()"></div>
-          <div><label class="jur-lbl">REPASSE PRODUÇÃO</label><input id="lanc-v-rep-prod" type="number" class="field-input" placeholder="0" oninput="lancCalcRL()"></div>
-          <div><label class="jur-lbl">COM. PRODUÇÃO</label><input id="lanc-v-com-prod" type="number" class="field-input" placeholder="0" oninput="lancCalcRL()"></div>
-          <div><label class="jur-lbl">REPASSE MÍDIA</label><input id="lanc-v-rep-mid" type="number" class="field-input" placeholder="0" oninput="lancCalcRL()"></div>
-          <div><label class="jur-lbl">COM. MÍDIA</label><input id="lanc-v-com-mid" type="number" class="field-input" placeholder="0" oninput="lancCalcRL()"></div>
-          <div style="display:flex;flex-direction:column;justify-content:flex-end">
-            <label class="jur-lbl">RECEITA LÍQUIDA</label>
-            <div id="lanc-rl-preview" style="font-size:14px;font-weight:700;color:var(--pos);padding:8px 0">0</div>
-          </div>
-        </div>
-      </div>
-      <div style="grid-column:1/-1">
-        <label class="jur-lbl">OBSERVAÇÃO</label>
-        <input id="lanc-obs" type="text" class="field-input" placeholder="Nota fiscal, referência...">
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
-      <button class="btn" onclick="lancFecharModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="lancSalvar()">💾 Salvar</button>
-    </div>
   </div>
 </div>
 
@@ -2701,7 +2609,6 @@ function switchFinTab(tab, e) {
   if (tab==='cashflow') setTimeout(function(){ renderCashflow(); }, 50);
   if (tab==='dre') setTimeout(function(){ dreRender(); }, 50);
   if (tab==='receita') setTimeout(function(){ recCarregar(); }, 50);
-  if (tab==='lancamento') setTimeout(function(){ lancRender(); }, 50);
 }
 
 // ── AUTH ──────────────────────────────────────────────
@@ -2756,6 +2663,34 @@ function lsGet(key){ return localStorage.getItem(lsKey(key)); }
 function lsSet(key,val){ localStorage.setItem(lsKey(key),val); }
 function lsRemove(key){ localStorage.removeItem(lsKey(key)); }
 
+// Migração única: copia dados sem prefixo para o formato novo BR_
+function migrarLocalStorage(){
+  var ent = currentUser&&currentUser.entidade ? currentUser.entidade : 'BR';
+  var migKey = 'euphoria_migrated_'+ent;
+  if(localStorage.getItem(migKey)) return; // já migrou
+  var keys = [
+    'euphoria_people_v2','euphoria_people_hist',
+    'euphoria_alocacao_v1','euphoria_lancamentos',
+    'crm_prospects','crm_responsaveis',
+    'euphoria_ts','euphoria_projetos','euphoria_juridico','euphoria_ti_ativos',
+    'crm_meta_2025','crm_meta_2026','crm_meta_2027',
+    'euphoria_aloc_clientes','euphoria_aloc_projetos'
+  ];
+  var migrou = 0;
+  keys.forEach(function(key){
+    var prefixed = ent+'_'+key;
+    var old = localStorage.getItem(key);
+    var novo = localStorage.getItem(prefixed);
+    // Só migra se há dado antigo e não há dado novo ainda
+    if(old && !novo){
+      localStorage.setItem(prefixed, old);
+      migrou++;
+    }
+  });
+  localStorage.setItem(migKey, '1');
+  if(migrou > 0) console.log('Migração localStorage: '+migrou+' chaves copiadas para prefixo '+ent+'_');
+}
+
 // Formatação de moeda por entidade
 function fmtMoeda(v){
   var cfg=ENTIDADE_CONFIG[currentUser&&currentUser.entidade?currentUser.entidade:'BR'];
@@ -2779,6 +2714,7 @@ function doLogin() {
     return;
   }
   currentUser = found;
+  migrarLocalStorage();
   var cfg = ENTIDADE_CONFIG[found.entidade||'BR'];
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('user-badge').style.display = 'flex';
@@ -2832,16 +2768,6 @@ function setupEntidade(ent){
   document.querySelectorAll('.btn-vbs').forEach(function(el){
     el.style.display = cfg.temVBS?'':'none';
   });
-  // Highlight manual launch tab for MX (no VBS)
-  var btnManual = document.querySelector('.btn-manual');
-  if(btnManual){
-    btnManual.style.background = !cfg.temVBS ? 'rgba(255,255,255,0.15)' : '';
-    btnManual.style.fontWeight = !cfg.temVBS ? '700' : '';
-  }
-  // Auto-switch to lancamento tab for MX
-  if(!cfg.temVBS && document.getElementById('fin-lancamento')){
-    setTimeout(function(){ switchFinTab('lancamento'); }, 300);
-  }
 
   // Update currency symbol in labels if needed
   if(ent==='MX'){
@@ -7039,162 +6965,6 @@ function dreUploadBudget(event){
 }
 
 // ── DASHBOARD ACTUAL DO VBS ───────────────────────────────────────────────────
-// ── LANÇAMENTO MANUAL ─────────────────────────────────
-var _lancCharts={};
-function getLancData(){return JSON.parse(lsGet('euphoria_lancamentos')||'[]');}
-function saveLancData(d){lsSet('euphoria_lancamentos',JSON.stringify(d));}
-
-function lancCalcRL(){
-  var fee=parseFloat(document.getElementById('lanc-v-fee').value)||0;
-  var rprod=parseFloat(document.getElementById('lanc-v-rep-prod').value)||0;
-  var cprod=parseFloat(document.getElementById('lanc-v-com-prod').value)||0;
-  var rmid=parseFloat(document.getElementById('lanc-v-rep-mid').value)||0;
-  var cmid=parseFloat(document.getElementById('lanc-v-com-mid').value)||0;
-  var rl=fee+cprod+cmid;
-  var cfg=ENTIDADE_CONFIG[currentUser&&currentUser.entidade?currentUser.entidade:'BR'];
-  var el=document.getElementById('lanc-rl-preview');
-  if(el) el.textContent=cfg.simbolo+' '+Math.round(rl).toLocaleString(cfg.locale);
-}
-
-function lancAbrirModal(id){
-  var d=id?getLancData().find(function(x){return x.id===id;}):null;
-  document.getElementById('lanc-edit-id').value=id||'';
-  document.getElementById('lanc-modal-title').textContent=id?'Editar Lançamento':'Novo Lançamento';
-  document.getElementById('lanc-cliente').value=d?d.cliente:'';
-  document.getElementById('lanc-mes').value=d?d.mes:'';
-  document.getElementById('lanc-tipo').value=d?(d.tipo||'fee'):'fee';
-  document.getElementById('lanc-v-fee').value=d?(d.vFee||''):'';
-  document.getElementById('lanc-v-rep-prod').value=d?(d.vRepProd||''):'';
-  document.getElementById('lanc-v-com-prod').value=d?(d.vComProd||''):'';
-  document.getElementById('lanc-v-rep-mid').value=d?(d.vRepMid||''):'';
-  document.getElementById('lanc-v-com-mid').value=d?(d.vComMid||''):'';
-  document.getElementById('lanc-obs').value=d?(d.obs||''):'';
-  // Populate client datalist
-  var clientes=[...new Set(getLancData().map(function(l){return l.cliente;}).filter(Boolean))].sort();
-  document.getElementById('lanc-cli-list').innerHTML=clientes.map(function(c){return '<option value="'+c+'">';}).join('');
-  lancCalcRL();
-  document.getElementById('lanc-modal').style.display='flex';
-}
-function lancFecharModal(){document.getElementById('lanc-modal').style.display='none';}
-
-function lancSalvar(){
-  var cliente=document.getElementById('lanc-cliente').value.trim();
-  var mes=document.getElementById('lanc-mes').value;
-  if(!cliente||!mes){alert('Cliente e mês são obrigatórios!');return;}
-  var id=document.getElementById('lanc-edit-id').value;
-  var obj={
-    id:id||String(Date.now()),
-    cliente:cliente,
-    mes:mes,
-    tipo:document.getElementById('lanc-tipo').value,
-    vFee:parseFloat(document.getElementById('lanc-v-fee').value)||0,
-    vRepProd:parseFloat(document.getElementById('lanc-v-rep-prod').value)||0,
-    vComProd:parseFloat(document.getElementById('lanc-v-com-prod').value)||0,
-    vRepMid:parseFloat(document.getElementById('lanc-v-rep-mid').value)||0,
-    vComMid:parseFloat(document.getElementById('lanc-v-com-mid').value)||0,
-    obs:document.getElementById('lanc-obs').value.trim()
-  };
-  obj.rl=obj.vFee+obj.vComProd+obj.vComMid;
-  obj.fatBruto=obj.vFee+obj.vRepProd+obj.vComProd+obj.vRepMid+obj.vComMid;
-  var d=getLancData();
-  if(id){var idx=d.findIndex(function(x){return x.id===id;});if(idx>=0)d[idx]=obj;else d.push(obj);}
-  else d.push(obj);
-  saveLancData(d);
-  lancFecharModal();
-  lancRender();
-}
-
-function lancRemover(id){
-  if(!confirm('Remover este lançamento?'))return;
-  saveLancData(getLancData().filter(function(x){return x.id!==id;}));
-  lancRender();
-}
-
-function lancRender(){
-  var ano=parseInt(document.getElementById('lanc-ano').value)||2026;
-  var fCli=(document.getElementById('lanc-f-cliente')||{value:''}).value;
-  var d=getLancData().filter(function(l){
-    if(!l.mes)return false;
-    var a=parseInt(l.mes.split('-')[0]);
-    if(a!==ano)return false;
-    if(fCli&&l.cliente!==fCli)return false;
-    return true;
-  });
-
-  // Popular filtro cliente
-  var todos=[...new Set(getLancData().map(function(l){return l.cliente;}).filter(Boolean))].sort();
-  var fEl=document.getElementById('lanc-f-cliente');
-  if(fEl){var cur=fEl.value;fEl.innerHTML='<option value="">Todos os clientes</option>'+todos.map(function(c){return '<option'+(c===cur?' selected':'')+'>'+c+'</option>';}).join('');}
-
-  var cfg=ENTIDADE_CONFIG[currentUser&&currentUser.entidade?currentUser.entidade:'BR'];
-  var fmt=function(v){return v>0?cfg.simbolo+' '+Math.round(v).toLocaleString(cfg.locale):'—';};
-  var meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-
-  var totRL=d.reduce(function(s,l){return s+l.rl;},0);
-  var totFee=d.reduce(function(s,l){return s+l.vFee;},0);
-  var totProd=d.reduce(function(s,l){return s+l.vComProd;},0);
-  var totMid=d.reduce(function(s,l){return s+l.vComMid;},0);
-  var totBruto=d.reduce(function(s,l){return s+l.fatBruto;},0);
-
-  document.getElementById('lanc-kpis').innerHTML=[
-    {label:'Receita Líquida',value:fmt(totRL),sub:ano},
-    {label:'Fee',value:fmt(totFee),sub:(totRL>0?(totFee/totRL*100).toFixed(1):0)+'% da RL'},
-    {label:'Com. Produção',value:fmt(totProd),sub:'receita de produção'},
-    {label:'Com. Mídia',value:fmt(totMid),sub:'receita de mídia'},
-    {label:'Fat. Bruto',value:fmt(totBruto),sub:'gross billing'},
-  ].map(function(k){return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-value" style="font-size:15px">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
-
-  // Chart tipo
-  var tipoMap={};
-  d.forEach(function(l){var t=l.tipo||'outros';if(!tipoMap[t])tipoMap[t]=0;tipoMap[t]+=l.rl;});
-  var c1=document.getElementById('chartLancTipo');
-  if(_lancCharts.tipo)_lancCharts.tipo.destroy();
-  if(Object.keys(tipoMap).length)_lancCharts.tipo=new Chart(c1,{type:'doughnut',data:{labels:Object.keys(tipoMap),datasets:[{data:Object.values(tipoMap),backgroundColor:['#fff','#60a5fa','#a78bfa','#34d399','#fbbf24'],borderColor:'#111',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{color:'#888',font:{size:10},boxWidth:10}}}}});
-
-  // Chart mensal
-  var mesMap={};
-  d.forEach(function(l){var m=parseInt(l.mes.split('-')[1])-1;if(!mesMap[m])mesMap[m]=0;mesMap[m]+=l.rl;});
-  var mesKeys=Object.keys(mesMap).map(Number).sort(function(a,b){return a-b;});
-  var c2=document.getElementById('chartLancMensal');
-  if(_lancCharts.mensal)_lancCharts.mensal.destroy();
-  if(mesKeys.length)_lancCharts.mensal=new Chart(c2,{type:'bar',data:{labels:mesKeys.map(function(m){return meses[m];}),datasets:[{label:'Receita Líquida',data:mesKeys.map(function(m){return Math.round(mesMap[m]);}),backgroundColor:'rgba(255,255,255,0.2)',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#666',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',font:{size:10},callback:function(v){return cfg.simbolo+Math.round(v/1000)+'k';}}}}}});
-
-  document.getElementById('lanc-meta').textContent=d.length+' lançamentos';
-  var tipoLabel={fee:'Fee',producao:'Produção',midia:'Mídia',projeto:'Projeto',outros:'Outros'};
-  document.getElementById('lanc-table').innerHTML=d.sort(function(a,b){return b.mes>a.mes?-1:b.mes<a.mes?1:0;}).map(function(l){
-    var mesLabel=l.mes?meses[parseInt(l.mes.split('-')[1])-1]+'/'+l.mes.split('-')[0]:'—';
-    return '<tr>'+
-      '<td><strong>'+l.cliente+'</strong></td>'+
-      '<td>'+mesLabel+'</td>'+
-      '<td><span class="badge badge-blue">'+(tipoLabel[l.tipo]||l.tipo)+'</span></td>'+
-      '<td style="text-align:right;font-size:11px">'+fmt(l.vFee)+'</td>'+
-      '<td style="text-align:right;font-size:11px">'+fmt(l.vRepProd)+'</td>'+
-      '<td style="text-align:right;font-size:11px">'+fmt(l.vComProd)+'</td>'+
-      '<td style="text-align:right;font-size:11px">'+fmt(l.vRepMid)+'</td>'+
-      '<td style="text-align:right;font-size:11px">'+fmt(l.vComMid)+'</td>'+
-      '<td style="text-align:right;font-weight:700;color:var(--pos)">'+fmt(l.rl)+'</td>'+
-      '<td style="display:flex;gap:4px">'+
-        '<button class="btn" style="padding:2px 7px;font-size:10px" onclick="lancAbrirModal(\''+l.id+'\')">✏️</button>'+
-        '<button class="btn" style="padding:2px 7px;font-size:10px;color:var(--neg)" onclick="lancRemover(\''+l.id+'\')">✕</button>'+
-      '</td>'+
-    '</tr>';
-  }).join('')||'<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--text3)">Nenhum lançamento. Clique em "+ Novo Lançamento" para começar.</td></tr>';
-}
-
-function lancExportCSV(){
-  var d=getLancData();
-  if(!d.length){alert('Sem lançamentos!');return;}
-  var cfg=ENTIDADE_CONFIG[currentUser&&currentUser.entidade?currentUser.entidade:'BR'];
-  var rows=[['Cliente','Mês','Tipo','Fee','Repasse Prod.','Com. Prod.','Repasse Mídia','Com. Mídia','Receita Líq.','Fat. Bruto','Obs']];
-  d.forEach(function(l){rows.push([l.cliente,l.mes,(l.tipo||''),l.vFee,l.vRepProd,l.vComProd,l.vRepMid,l.vComMid,l.rl,l.fatBruto,l.obs||'']);});
-  var csv='\uFEFF'+rows.map(function(r){return r.map(function(v){var s=String(v);if(s.includes(','))s='"'+s+'"';return s;}).join(',');}).join('\r\n');
-  var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-  var url=URL.createObjectURL(blob);
-  var a=document.createElement('a');
-  a.href=url;a.download='Euphoria_Lancamentos_'+(currentUser?currentUser.entidade:'BR')+'_'+new Date().toISOString().slice(0,10)+'.csv';
-  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
-}
-
 // ── MÓDULO RECEITA ────────────────────────────────────
 var _recCharts={};
 var _recDados=[];
