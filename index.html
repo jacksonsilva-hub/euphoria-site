@@ -6998,15 +6998,13 @@ async function dreCarregarBudgetSheets(){
     var mesNum = ['01','02','03','04','05','06','07','08','09','10','11','12'];
 
     function getRow(label){
-      if(!data||!data.values)return null;
-      return data.values.find(function(r){return r[0]&&r[0].toString().toUpperCase().includes(label.toUpperCase());});
+      if(!data||!Array.isArray(data))return null;
+      return data.find(function(r){return r[1]&&r[1].toString().toUpperCase().includes(label.toUpperCase());});
     }
 
     function getVal(row, colIdx){
       if(!row||row.length<=colIdx)return 0;
-      var v=row[colIdx];
-      if(!v)return 0;
-      return parseFloat(String(v).replace(/[^0-9.\-]/g,''))||0;
+      return parseNum(row[colIdx]);
     }
 
     var revRow  = getRow('REVENUE');
@@ -7016,9 +7014,9 @@ async function dreCarregarBudgetSheets(){
 
     if(!revRow){throw new Error('Linha REVENUE não encontrada no Sheets');}
 
-    // Build DRE_DATA from sheets (col 1=Jan, 2=Fev, etc)
+    // Build DRE_DATA from sheets (col 2=Jan, 3=Fev, etc — col 0 vazia, col 1 = label da linha)
     meses.forEach(function(mes, i){
-      var colIdx = i+1;
+      var colIdx = i+2;
       if(!DRE_DATA[mes]) DRE_DATA[mes]={};
       DRE_DATA[mes].b_rb    = Math.abs(getVal(revRow, colIdx))*1000;
       DRE_DATA[mes].b_gm    = Math.abs(getVal(gmRow||[], colIdx))*1000;
@@ -7027,7 +7025,12 @@ async function dreCarregarBudgetSheets(){
     });
 
     if(src) src.textContent = '✅ Budget carregado do Sheets';
-    dreRender();
+    if(window.DRE_DATA_VBS){
+      var anoAtivo=document.getElementById('dre-sel-ano-vbs')?document.getElementById('dre-sel-ano-vbs').value:'2026';
+      dreRenderVbs(anoAtivo);
+    } else {
+      dreRender();
+    }
   } catch(e){
     if(src) src.textContent = '❌ '+e.message;
     console.error('Budget Sheets error:', e);
