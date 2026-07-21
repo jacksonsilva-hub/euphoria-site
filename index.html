@@ -2149,7 +2149,8 @@ function populateClientFilter() {
 function getFilters() {
   return {
     month: document.getElementById('sel-month').value,
-    client: document.getElementById('sel-client').value
+    client: document.getElementById('sel-client').value,
+    tipo: document.getElementById('sel-tipo') ? document.getElementById('sel-tipo').value : 'all'
   };
 }
 
@@ -2214,6 +2215,16 @@ function filterClients(ano) {
   });
 }
 
+var TIPO_FIELD_MAP = {
+  mediaInv: {b:'bMediaInv', a:'aMediaInv'},
+  mediaCom: {b:'bMediaCom', a:'aMediaCom'},
+  prodInv:  {b:'bProdInv',  a:'aProdInv'},
+  prodCom:  {b:'bProdCom',  a:'aProdCom'},
+  projects: {b:'bProjects', a:'aProjects'},
+  fees:     {b:'bFees',     a:'aFees'},
+  rebates:  {b:'bRebates',  a:'aRebates'}
+};
+
 function aggregateClients(rows26, rows25) {
   // Column indices for ALLCLIENTS sheet
   // row[0]=CLIENTE, row[3]=MES, row[4]=ANO
@@ -2222,11 +2233,15 @@ function aggregateClients(rows26, rows25) {
   // Actual: row[22]=MediaInv, row[23]=MediaCom, row[24]=ProdInv, row[25]=ProdCom
   //         row[26]=Projects, row[27]=Fees, row[28]=Rebates, row[37]=NetRev
   var map = {};
+  var blankAgg = function(){
+    return {budgetNet:0,budgetGross:0,bMediaInv:0,bMediaCom:0,bProdInv:0,bProdCom:0,bProjects:0,bFees:0,bRebates:0,
+            aMediaInv:0,aMediaCom:0,aProdInv:0,aProdCom:0,aProjects:0,aFees:0,aRebates:0,actual2026:0,actual2025:0};
+  };
 
   (rows26 || []).forEach(function(row) {
     var c = String(row[0] || '').trim();
     if (!c || c === 'CLIENTE') return;
-    if (!map[c]) map[c] = {budgetNet:0,budgetGross:0,bMediaInv:0,bMediaCom:0,bProdInv:0,bProdCom:0,bProjects:0,bFees:0,bRebates:0,actual2026:0,actual2025:0};
+    if (!map[c]) map[c] = blankAgg();
     map[c].budgetNet    += parseNum(row[20]);
     map[c].budgetGross  += parseNum(row[5])  + parseNum(row[7]);
     map[c].bMediaInv    += parseNum(row[5]);
@@ -2236,13 +2251,20 @@ function aggregateClients(rows26, rows25) {
     map[c].bProjects    += parseNum(row[9]);
     map[c].bFees        += parseNum(row[10]);
     map[c].bRebates     += parseNum(row[11]);
+    map[c].aMediaInv    += parseNum(row[22]);
+    map[c].aMediaCom    += parseNum(row[23]);
+    map[c].aProdInv     += parseNum(row[24]);
+    map[c].aProdCom     += parseNum(row[25]);
+    map[c].aProjects    += parseNum(row[26]);
+    map[c].aFees        += parseNum(row[27]);
+    map[c].aRebates     += parseNum(row[28]);
     map[c].actual2026   += parseNum(row[37]);
   });
 
   (rows25 || []).forEach(function(row) {
     var c = String(row[0] || '').trim();
     if (!c || c === 'CLIENTE') return;
-    if (!map[c]) map[c] = {budgetNet:0,budgetGross:0,bMediaCom:0,bProdCom:0,bProjects:0,bFees:0,bRebates:0,actual2026:0,actual2025:0};
+    if (!map[c]) map[c] = blankAgg();
     map[c].actual2025 += parseNum(row[37]);
   });
 
@@ -2276,14 +2298,38 @@ function renderAll() {
   const f2 = getFilters();
   const rows26 = f2.ano === '2025' ? [] : filterClients(2026);
   const rows25 = f2.ano === '2026' ? [] : filterClients(2025);
-  const clientAgg = aggregateClients(rows26, rows25);
+  let clientAgg = aggregateClients(rows26, rows25);
   const clientCount = clientAgg.filter(c => c.budgetNet > 0).length;
+
+  // Filtro por tipo de receita: Receita Bruta/Gross Margin/EBITDA da planilha de P&L não têm
+  // quebra nativa por tipo (Media Investment, Produção, etc), então aproximamos aplicando a
+  // participação (%) daquele tipo no budget total por cliente. O Detalhamento por cliente usa
+  // o valor real (budget e actual) daquele tipo, sem aproximação.
+  let revMChart = revM, gmMChart = gmM;
+  if (f.tipo !== 'all' && TIPO_FIELD_MAP[f.tipo]) {
+    const tf = TIPO_FIELD_MAP[f.tipo];
+    const sumField = (field) => clientAgg.reduce((s,r) => s + (r[field]||0), 0);
+    const allBFields = Object.values(TIPO_FIELD_MAP).map(x => x.b);
+    const totalBudgetAllTipos = allBFields.reduce((s,fld) => s + sumField(fld), 0);
+    const ratioBudget = totalBudgetAllTipos > 0 ? sumField(tf.b) / totalBudgetAllTipos : 0;
+
+    rev *= ratioBudget; gm *= ratioBudget; ebit *= ratioBudget; pat *= ratioBudget;
+    revMChart = revM.map(v => v * ratioBudget);
+    gmMChart  = gmM.map(v => v * ratioBudget);
+
+    clientAgg = clientAgg.map(function(r){
+      var nr = Object.assign({}, r);
+      nr.budgetNet  = r[tf.b] || 0;
+      nr.actual2026 = r[tf.a] || 0;
+      return nr;
+    });
+  }
 
   // KPIs
   renderKPIs(rev, gm, ebit, pat, clientCount);
 
   // Charts
-  renderMonthlyChart(revM, gmM, mIdx);
+  renderMonthlyChart(revMChart, gmMChart, mIdx);
   renderClientChart(clientAgg);
 
   // Tables
@@ -2294,7 +2340,8 @@ function renderAll() {
   // Table info
   document.getElementById('table-info').textContent =
     clientAgg.length + ' clientes' + (f.month !== 'all' ? ' — ' + MONTHS[mIdx] : '') +
-    (f.client !== 'all' ? ' — ' + f.client : '');
+    (f.client !== 'all' ? ' — ' + f.client : '') +
+    (f.tipo !== 'all' ? ' — ' + f.tipo : '');
 }
 
 function renderKPIs(rev, gm, ebit, pat, clientCount) {
