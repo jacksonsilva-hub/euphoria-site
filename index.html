@@ -295,6 +295,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
           <option value="MARÇO">Março 2026</option>
           <option value="ABRIL">Abril 2026</option>
           <option value="MAIO">Maio 2026</option>
+          <option value="JUNHO">Junho 2026</option>
+          <option value="JULHO">Julho 2026</option>
+          <option value="AGOSTO">Agosto 2026</option>
+          <option value="SETEMBRO">Setembro 2026</option>
+          <option value="OUTUBRO">Outubro 2026</option>
+          <option value="NOVEMBRO">Novembro 2026</option>
+          <option value="DEZEMBRO">Dezembro 2026</option>
         </select>
       </div>
       <div>
@@ -6651,6 +6658,7 @@ function buildCashflowVbs(){
 // ── DRE AUTOMÁTICA VBS ────────────────────────────────────────────────────────
 var MESES_NUM = ['01','02','03','04','05','06','07','08','09','10','11','12'];
 var MESES_NOME = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+var MESES_KEY = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
 
 async function dreCarregarVbs(){
   var ano = document.getElementById('dre-sel-ano-vbs').value;
@@ -6701,13 +6709,22 @@ async function dreCarregarVbs(){
     window.DRE_DATA_VBS = dreVbs;
 
     // Update subtitle
-    var mesesComDados = results.filter(function(r){return r.rows.length>0;}).length;
-    if(subtitle) subtitle.textContent = ano+' — '+mesesComDados+' meses carregados do VBS';
+    var mesesComDadosNum = results.filter(function(r){return r.rows.length>0;}).map(function(r){return r.mes;});
+    if(subtitle) subtitle.textContent = ano+' — '+mesesComDadosNum.length+' meses carregados do VBS';
 
-    // Sync dropdowns
+    // Sync dropdowns: rebuild "Período" com todos os meses que têm dados carregados do VBS
     var mesSel = document.getElementById('dre-sel-mes');
     var viewSel = document.getElementById('dre-sel-view');
-    if(mesSel && !mesSel.value) mesSel.value = 'JANEIRO';
+    if(mesSel){
+      var prevVal = mesSel.value;
+      var opts = mesesComDadosNum.length ? mesesComDadosNum : MESES_NUM;
+      mesSel.innerHTML = opts.map(function(num){
+        var idx = MESES_NUM.indexOf(num);
+        return '<option value="'+MESES_KEY[idx]+'">'+MESES_NOME[idx]+' '+ano+'</option>';
+      }).join('');
+      var prevAindaValido = opts.some(function(num){return MESES_KEY[MESES_NUM.indexOf(num)]===prevVal;});
+      mesSel.value = prevAindaValido ? prevVal : MESES_KEY[MESES_NUM.indexOf(opts[opts.length-1])];
+    }
     if(viewSel && !viewSel.value) viewSel.value = 'mensal';
     // Render with VBS data
     dreRenderVbs(ano);
