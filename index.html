@@ -1384,8 +1384,20 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
         <div><label class="jur-lbl">FLASH</label><input id="pm-ben-flash" type="number" class="field-input" placeholder="0" oninput="pplCalcCusto()"></div>
         <div><label class="jur-lbl">WELLHUB</label><input id="pm-ben-wellhub" type="number" class="field-input" placeholder="0" oninput="pplCalcCusto()"></div>
         <div><label class="jur-lbl">CONTADOR</label><input id="pm-ben-contador" type="number" class="field-input" placeholder="0" oninput="pplCalcCusto()"></div>
-        <div><label class="jur-lbl">DATA ADMISSÃO</label><input id="pm-admissao" type="date" class="field-input"></div>
-        <div><label class="jur-lbl">DATA DESLIGAMENTO</label><input id="pm-desligamento" type="date" class="field-input"></div>
+        <div><label class="jur-lbl">DATA ADMISSÃO</label>
+          <div style="display:flex;gap:6px;position:relative">
+            <input id="pm-admissao-txt" type="text" class="field-input" placeholder="dd/mm/aaaa" maxlength="10" style="flex:1" oninput="pplDateMask(this);pplDateTextToIso('pm-admissao-txt','pm-admissao')">
+            <button type="button" class="btn" style="padding:0 10px" onclick="pplOpenDatePicker('pm-admissao')" title="Abrir calendário">📅</button>
+            <input id="pm-admissao" type="date" style="position:absolute;width:0;height:0;opacity:0;pointer-events:none" onchange="pplIsoToDateText('pm-admissao','pm-admissao-txt')">
+          </div>
+        </div>
+        <div><label class="jur-lbl">DATA DESLIGAMENTO</label>
+          <div style="display:flex;gap:6px;position:relative">
+            <input id="pm-desligamento-txt" type="text" class="field-input" placeholder="dd/mm/aaaa" maxlength="10" style="flex:1" oninput="pplDateMask(this);pplDateTextToIso('pm-desligamento-txt','pm-desligamento')">
+            <button type="button" class="btn" style="padding:0 10px" onclick="pplOpenDatePicker('pm-desligamento')" title="Abrir calendário">📅</button>
+            <input id="pm-desligamento" type="date" style="position:absolute;width:0;height:0;opacity:0;pointer-events:none" onchange="pplIsoToDateText('pm-desligamento','pm-desligamento-txt')">
+          </div>
+        </div>
         <div><label class="jur-lbl">MOTIVO SAÍDA</label>
           <select id="pm-motivo-saida" class="field-input">
             <option value="">—</option><option>Iniciativa própria</option><option>Demissão sem justa causa</option>
@@ -3258,6 +3270,8 @@ function pplAbrirModal(id){
     var key=f.replace('-saida','_saida').replace('ben-medica','ben_medica').replace('ben-flash','ben_flash').replace('ben-wellhub','ben_wellhub').replace('ben-contador','ben_contador');
     el.value=p?(p[key]!==undefined?p[key]:''):'';
   });
+  pplIsoToDateText('pm-admissao','pm-admissao-txt');
+  pplIsoToDateText('pm-desligamento','pm-desligamento-txt');
   if(!p){
     document.getElementById('pm-tipo').value='clt';
     document.getElementById('pm-empresa').value='euphoria';
@@ -3273,6 +3287,45 @@ function pplAbrirModal(id){
   document.getElementById('ppl-modal').style.display='flex';
 }
 function pplFecharModal(){document.getElementById('ppl-modal').style.display='none';}
+
+// ── CAMPOS DE DATA dd/mm/aaaa (editavel) + calendario nativo ──────────────────
+// O input type=date fica oculto e guarda o valor real (ISO, usado pelo resto do
+// codigo); o campo de texto visivel mostra sempre dd/mm/aaaa, independente do
+// idioma/regiao configurado no navegador de quem esta usando o sistema.
+function pplDateMask(el){
+  var v=el.value.replace(/\D/g,'').slice(0,8);
+  if(v.length>4) v=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+  else if(v.length>2) v=v.slice(0,2)+'/'+v.slice(2);
+  el.value=v;
+}
+function pplDateTextToIso(textId, hiddenId){
+  var t=document.getElementById(textId), h=document.getElementById(hiddenId);
+  if(!t||!h) return;
+  var v=t.value;
+  if(v.length===10){
+    var p=v.split('/');
+    var d=parseInt(p[0],10), m=parseInt(p[1],10), y=parseInt(p[2],10);
+    if(d>=1&&d<=31&&m>=1&&m<=12&&y>=1000) h.value=y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+  } else if(!v){
+    h.value='';
+  }
+}
+function pplIsoToDateText(hiddenId, textId){
+  var h=document.getElementById(hiddenId), t=document.getElementById(textId);
+  if(!h||!t) return;
+  if(h.value){
+    var p=h.value.split('-');
+    t.value=p[2]+'/'+p[1]+'/'+p[0];
+  } else t.value='';
+}
+function pplOpenDatePicker(hiddenId){
+  var h=document.getElementById(hiddenId);
+  if(!h) return;
+  if(h.showPicker){ try{ h.showPicker(); return; }catch(e){} }
+  h.style.opacity=1; h.style.width='auto'; h.style.height='auto'; h.style.pointerEvents='auto';
+  h.focus();
+  h.click();
+}
 function pplCalcCusto(){
   var sal=parseFloat(document.getElementById('pm-salario').value)||0;
   var benMedica=parseFloat(document.getElementById('pm-ben-medica').value)||0;
