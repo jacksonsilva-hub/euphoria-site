@@ -1224,8 +1224,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
         <select id="org-sel-gestor" onchange="pplRenderOrg()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
           <option value="">Todos os gestores</option>
         </select>
+        <select id="org-sel-pilar" onchange="pplRenderOrg()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="">Todos os pilares</option>
+          <option>Andressa Fukunaga</option><option>Caio Del Manto</option>
+          <option>Tiago Santos</option><option>Marcelo Rizerio</option>
+        </select>
         <button class="btn" onclick="pplExportOrg()" style="font-size:11px">📥 Exportar PNG</button>
-        <span style="font-size:11px;color:var(--text3)">Hierarquia visual por gestor/líder</span>
+        <span style="font-size:11px;color:var(--text3)">Hierarquia visual por gestor/líder — agrupada por pilar</span>
       </div>
       <div id="org-tree" style="overflow-x:auto;padding:16px"></div>
     </div>
@@ -1350,6 +1355,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
           <select id="pm-lider" class="field-input"><option value="nao">Não</option><option value="sim">Sim</option></select>
         </div>
         <div><label class="jur-lbl">GESTOR (reporta a)</label><input id="pm-gestor" type="text" class="field-input" placeholder="Nome do gestor"></div>
+        <div><label class="jur-lbl">PILAR</label>
+          <select id="pm-pilar" class="field-input">
+            <option value="">—</option>
+            <option>Andressa Fukunaga</option><option>Caio Del Manto</option>
+            <option>Tiago Santos</option><option>Marcelo Rizerio</option>
+          </select>
+        </div>
         <div><label class="jur-lbl">EMPRESA</label>
           <select id="pm-empresa" class="field-input">
             <option value="euphoria">Euphoria</option><option value="visceral">Visceral</option><option value="unapathy">Unapathy</option>
@@ -3239,7 +3251,7 @@ function pplAbrirModal(id){
   document.getElementById('ppl-edit-id').value=id||'';
   document.getElementById('ppl-modal-title').textContent=id?'Editar Colaborador':'Novo Colaborador';
   var p=id?getPplData().find(function(x){return x.id===id;}):null;
-  var fields=['nome','genero','raca','orientacao','tipo','cargo','depto','lider','gestor','empresa','salario','ben-medica','ben-flash','ben-wellhub','ben-contador','recebe13','recebeferias','horas','admissao','desligamento','motivo-saida'];
+  var fields=['nome','genero','raca','orientacao','tipo','cargo','depto','lider','gestor','pilar','empresa','salario','ben-medica','ben-flash','ben-wellhub','ben-contador','recebe13','recebeferias','horas','admissao','desligamento','motivo-saida'];
   fields.forEach(function(f){
     var el=document.getElementById('pm-'+f);
     if(!el)return;
@@ -3306,6 +3318,7 @@ function pplSalvarModal(){
     depto:depto,
     lider:document.getElementById('pm-lider').value,
     gestor:document.getElementById('pm-gestor').value.trim(),
+    pilar:document.getElementById('pm-pilar').value,
     empresa:document.getElementById('pm-empresa').value,
     salario:parseFloat(document.getElementById('pm-salario').value)||0,
     beneficios:benMedica+benFlash+benWellhub+benContador,
@@ -3649,25 +3662,11 @@ function pplRenderCustoPosicao(d,ano){
   }).join('');
 }
 
-function pplRenderOrg(){
-  var todos=getPplData().filter(function(p){return p.status==='ativo';});
-  var d=todos.slice();
-  var fd=document.getElementById('org-sel-depto');
-  if(fd&&fd.value) d=d.filter(function(p){return p.depto===fd.value;});
+var PILARES = ['Andressa Fukunaga','Caio Del Manto','Tiago Santos','Marcelo Rizerio'];
 
-  // Populate gestor filter
-  var fg=document.getElementById('org-sel-gestor');
-  if(fg){
-    var gestores=[...new Set(todos.map(function(p){return p.gestor;}).filter(Boolean))].sort();
-    var curGestor=fg.value;
-    fg.innerHTML='<option value="">Todos os gestores</option>'+gestores.map(function(g){return '<option'+(g===curGestor?' selected':'')+'>'+g+'</option>';}).join('');
-    if(fg.value) d=d.filter(function(p){return p.gestor===fg.value||p.nome===fg.value;});
-  }
-
-  var tree=document.getElementById('org-tree');
-  if(!tree)return;
-  if(!d.length){tree.innerHTML='<div style="color:var(--text3);text-align:center;padding:48px">Nenhum colaborador encontrado.</div>';return;}
-  // Build hierarchy: group by gestor
+// Build hierarchy: group by gestor. Retorna o HTML da arvore para o conjunto d (ja filtrado).
+function pplBuildTreeHtml(d){
+  if(!d.length) return '';
   function renderNode(pessoa,all,depth){
     var reports=all.filter(function(p){return p.gestor&&p.gestor.trim().toLowerCase()===pessoa.nome.trim().toLowerCase()&&p.id!==pessoa.id;});
     var lbl=pessoa.lider==='sim'?'<span style="font-size:9px;background:rgba(251,191,36,.2);color:var(--amber);padding:1px 5px;border-radius:3px;margin-left:4px">LÍDER</span>':'';
@@ -3693,7 +3692,55 @@ function pplRenderOrg(){
   var names=d.map(function(p){return p.nome.trim().toLowerCase();});
   var roots=d.filter(function(p){return !p.gestor||!names.includes(p.gestor.trim().toLowerCase());});
   if(!roots.length)roots=[d[0]];
-  tree.innerHTML='<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:16px">'+roots.map(function(r){return renderNode(r,d,0);}).join('')+'</div>';
+  return '<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:16px">'+roots.map(function(r){return renderNode(r,d,0);}).join('')+'</div>';
+}
+
+function pplRenderOrg(){
+  var todos=getPplData().filter(function(p){return p.status==='ativo';});
+  var d=todos.slice();
+  var fd=document.getElementById('org-sel-depto');
+  if(fd&&fd.value) d=d.filter(function(p){return p.depto===fd.value;});
+
+  // Populate gestor filter
+  var fg=document.getElementById('org-sel-gestor');
+  if(fg){
+    var gestores=[...new Set(todos.map(function(p){return p.gestor;}).filter(Boolean))].sort();
+    var curGestor=fg.value;
+    fg.innerHTML='<option value="">Todos os gestores</option>'+gestores.map(function(g){return '<option'+(g===curGestor?' selected':'')+'>'+g+'</option>';}).join('');
+    if(fg.value) d=d.filter(function(p){return p.gestor===fg.value||p.nome===fg.value;});
+  }
+
+  var fp=document.getElementById('org-sel-pilar');
+  var pilarFiltro=fp?fp.value:'';
+  if(pilarFiltro) d=d.filter(function(p){return p.pilar===pilarFiltro;});
+
+  var tree=document.getElementById('org-tree');
+  if(!tree)return;
+  if(!d.length){tree.innerHTML='<div style="color:var(--text3);text-align:center;padding:48px">Nenhum colaborador encontrado.</div>';return;}
+
+  // Sem filtro especifico de pilar/gestor: agrupa a visao pelos 4 pilares da agencia
+  if(!pilarFiltro && (!fg||!fg.value)){
+    var html='';
+    PILARES.forEach(function(lider){
+      var doPilar=d.filter(function(p){return p.pilar===lider;});
+      if(!doPilar.length) return;
+      html+='<div style="margin-bottom:28px">'
+        +'<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)">Pilar '+lider+' <span style="color:var(--text3);font-weight:400;text-transform:none">('+doPilar.length+' pessoas)</span></div>'
+        +pplBuildTreeHtml(doPilar)
+      +'</div>';
+    });
+    var semPilar=d.filter(function(p){return !p.pilar;});
+    if(semPilar.length){
+      html+='<div style="margin-bottom:28px">'
+        +'<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)">Sem pilar definido <span style="font-weight:400;text-transform:none">('+semPilar.length+' pessoas)</span></div>'
+        +pplBuildTreeHtml(semPilar)
+      +'</div>';
+    }
+    tree.innerHTML=html||'<div style="color:var(--text3);text-align:center;padding:48px">Nenhum colaborador encontrado.</div>';
+    return;
+  }
+
+  tree.innerHTML=pplBuildTreeHtml(d);
 }
 
 // ── HISTÓRICO SALARIAL ───────────────────────────────
@@ -3828,28 +3875,29 @@ function pplCustoNoMes(pessoa, ano, mes){
   return custoBase;
 }
 
-// 13º salário: pago em Dezembro, proporcional aos meses trabalhados no ano (1/12 por mês)
+// 13º salário: total proporcional aos meses trabalhados no ano (1/12 por mês),
+// pago em duas parcelas iguais — 50% em Novembro, 50% em Dezembro
 function pplDecimoTerceiroNoMes(pessoa, ano, mes){
   if(pessoa.recebe13!=='sim')return 0;
-  if(mes!==11)return 0; // Dezembro = índice 11
+  if(mes!==10 && mes!==11)return 0; // Novembro = 10, Dezembro = 11
   var mesesTrabalhados=0;
   for(var m=0;m<12;m++){
     if(pplPessoaAtivaNoMes(pessoa,ano,m))mesesTrabalhados++;
   }
   var salarioAtual=pessoa.salario;
-  return (salarioAtual/12)*mesesTrabalhados;
+  var total13=(salarioAtual/12)*mesesTrabalhados;
+  return total13/2; // metade em cada parcela (Nov e Dez)
 }
 
-// Férias: paga só o adicional de 1/3 no mês de aniversário de admissão
-// Ex: salário R$1.000 → férias = R$333,33 (provisão mensal = R$27,77/mês)
+// Férias: provisão mensal do adicional de 1/3, acumulada todo mês (1/12 avos / 3)
+// em vez de pagar tudo de uma vez no mês de aniversário. Usa o salário vigente
+// naquele mês (histórico de reajustes), nao o salário atual.
+// Ex: salário R$1.000 → provisão = (1000/12)/3 = R$27,77/mês
 function pplFeriasNoMes(pessoa, ano, mes){
   if(pessoa.recebeferias!=='sim')return 0;
-  if(!pessoa.admissao)return 0;
-  var adm=new Date(pessoa.admissao);
-  var mesAniversario=adm.getMonth();
-  if(mes!==mesAniversario)return 0;
   if(!pplPessoaAtivaNoMes(pessoa,ano,mes))return 0;
-  return pessoa.salario*(1/3); // só o adicional de 1/3
+  var sal=pplSalarioNoMes(pessoa, ano, mes);
+  return (sal/12)/3;
 }
 
 function pplPessoaAtivaNoMes(pessoa, ano, mes){
