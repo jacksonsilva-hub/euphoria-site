@@ -1084,6 +1084,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
         <select id="ppl-f-status" onchange="pplRenderTable()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
           <option value="ativo">Ativos</option><option value="desligado">Desligados</option><option value="">Todos</option>
         </select>
+        <select id="ppl-f-cargo" onchange="pplRenderTable()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="">Todas posições</option>
+        </select>
+        <select id="ppl-f-pessoa" onchange="pplRenderTable()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;max-width:200px">
+          <option value="">Todas as pessoas</option>
+        </select>
         <span id="ppl-count" style="font-size:11px;color:var(--text3)"></span>
       </div>
       <div id="ppl-kpis-row" class="kpi-grid" style="margin-bottom:16px"></div>
@@ -1115,6 +1121,19 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
           <option value="3">Abril</option><option value="4">Maio</option><option value="5">Junho</option>
           <option value="6">Julho</option><option value="7">Agosto</option><option value="8">Setembro</option>
           <option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
+        </select>
+        <select id="cm-f-depto" onchange="pplRenderCustoMensal()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="">Todos departamentos</option>
+          <option>Atendimento</option><option>Criação</option><option>Estratégia</option>
+          <option>Mídia</option><option>Conteúdo</option><option>Social</option>
+          <option>Produção</option><option>Data Insights</option>
+          <option>Financeiro</option><option>People & RH</option><option>TI</option><option>Diretoria</option>
+        </select>
+        <select id="cm-f-cargo" onchange="pplRenderCustoMensal()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="">Todas posições</option>
+        </select>
+        <select id="cm-f-pessoa" onchange="pplRenderCustoMensal()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;max-width:200px">
+          <option value="">Todas as pessoas</option>
         </select>
         <button class="tab-btn active" id="cm-view-mensal" onclick="pplCmView('mensal')" style="padding:5px 14px;font-size:11px">Visão Mensal</button>
         <button class="tab-btn" id="cm-view-anual" onclick="pplCmView('anual')" style="padding:5px 14px;font-size:11px">Visão Anual (Rate Card)</button>
@@ -1250,6 +1269,19 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
           <option value="032026">Mar 2026</option><option value="042026">Abr 2026</option>
           <option value="052026">Mai 2026</option><option value="062026" selected>Jun 2026</option>
         </select>
+        <select id="util-f-depto" onchange="pplCarregarUtilization()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="">Todos departamentos</option>
+          <option>Atendimento</option><option>Criação</option><option>Estratégia</option>
+          <option>Mídia</option><option>Conteúdo</option><option>Social</option>
+          <option>Produção</option><option>Data Insights</option>
+          <option>Financeiro</option><option>People & RH</option><option>TI</option><option>Diretoria</option>
+        </select>
+        <select id="util-f-cargo" onchange="pplCarregarUtilization()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="">Todas posições</option>
+        </select>
+        <select id="util-f-pessoa" onchange="pplCarregarUtilization()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;max-width:200px">
+          <option value="">Todas as pessoas</option>
+        </select>
         <button class="btn btn-primary" onclick="pplCarregarUtilization()" class="btn-vbs" style="font-size:11px;padding:5px 14px">↺ Carregar VBS</button>
         <span id="util-loading" style="font-size:11px;color:var(--text3);display:none">Carregando...</span>
       </div>
@@ -1283,6 +1315,19 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
           <option value="012026">Jan 2026</option><option value="022026">Fev 2026</option>
           <option value="032026">Mar 2026</option><option value="042026">Abr 2026</option>
           <option value="052026">Mai 2026</option><option value="062026" selected>Jun 2026</option>
+        </select>
+        <select id="prof-f-depto" onchange="pplCarregarProfitability()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="">Todos departamentos</option>
+          <option>Atendimento</option><option>Criação</option><option>Estratégia</option>
+          <option>Mídia</option><option>Conteúdo</option><option>Social</option>
+          <option>Produção</option><option>Data Insights</option>
+          <option>Financeiro</option><option>People & RH</option><option>TI</option><option>Diretoria</option>
+        </select>
+        <select id="prof-f-cargo" onchange="pplCarregarProfitability()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="">Todas posições</option>
+        </select>
+        <select id="prof-f-pessoa" onchange="pplCarregarProfitability()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;max-width:200px">
+          <option value="">Todas as pessoas</option>
         </select>
         <button class="btn btn-primary" onclick="pplCarregarProfitability()" style="font-size:11px;padding:5px 14px">↺ Carregar</button>
         <span id="prof-loading" style="font-size:11px;color:var(--text3);display:none">Carregando...</span>
@@ -1354,7 +1399,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
         <div><label class="jur-lbl">É LÍDER?</label>
           <select id="pm-lider" class="field-input"><option value="nao">Não</option><option value="sim">Sim</option></select>
         </div>
-        <div><label class="jur-lbl">GESTOR (reporta a)</label><input id="pm-gestor" type="text" class="field-input" placeholder="Nome do gestor"></div>
+        <div><label class="jur-lbl">GESTOR (reporta a)</label>
+          <select id="pm-gestor" class="field-input">
+            <option value="">—</option>
+          </select>
+        </div>
         <div><label class="jur-lbl">PILAR</label>
           <select id="pm-pilar" class="field-input">
             <option value="">—</option>
@@ -1481,6 +1530,16 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
           <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
           <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
           <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+        </select>
+        <select id="aloc-f-depto" onchange="alocRenderTabela()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="">Todos departamentos</option>
+          <option>Atendimento</option><option>Criação</option><option>Estratégia</option>
+          <option>Mídia</option><option>Conteúdo</option><option>Social</option>
+          <option>Produção</option><option>Data Insights</option>
+          <option>Financeiro</option><option>People & RH</option><option>TI</option><option>Diretoria</option>
+        </select>
+        <select id="aloc-f-cargo" onchange="alocRenderTabela()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="">Todas posições</option>
         </select>
         <button class="btn" onclick="alocCarregarVBS()" class="btn-vbs" style="font-size:11px">⬇️ Carregar Clientes/Projetos VBS</button>
         <span id="aloc-vbs-loading" style="font-size:11px;color:var(--text3);display:none">Carregando...</span>
@@ -3258,11 +3317,54 @@ function pplCustoHora(p){
   return h>0?ct/h:0;
 }
 
+// ── FILTROS COMPARTILHADOS: Posição/Pessoa (Equipe, Custo Mensal, Utilization, Rentabilidade) ──
+// Popula os selects "{prefix}-f-cargo" e "{prefix}-f-pessoa" com os valores existentes na base
+function pplPopularFiltrosPessoa(prefix){
+  var d=getPplData();
+  var cargos=[...new Set(d.map(function(p){return p.cargo;}).filter(Boolean))].sort();
+  var nomes=[...new Set(d.map(function(p){return p.nome;}).filter(Boolean))].sort();
+  var fCargo=document.getElementById(prefix+'-f-cargo');
+  if(fCargo){
+    var curC=fCargo.value;
+    fCargo.innerHTML='<option value="">Todas posições</option>'+cargos.map(function(c){return '<option'+(c===curC?' selected':'')+'>'+c+'</option>';}).join('');
+  }
+  var fPessoa=document.getElementById(prefix+'-f-pessoa');
+  if(fPessoa){
+    var curP=fPessoa.value;
+    fPessoa.innerHTML='<option value="">Todas as pessoas</option>'+nomes.map(function(n){return '<option'+(n===curP?' selected':'')+'>'+n+'</option>';}).join('');
+  }
+}
+// Filtra um array de pessoas (getPplData()) pelos selects "{prefix}-f-depto/cargo/pessoa".
+// Retorna {filtered, ativo, nomesSet} — nomesSet serve pra tambem filtrar dados externos
+// (ex: linhas de timesheet do VBS) por nome quando algum desses filtros estiver ativo.
+function pplAplicarFiltrosPessoa(d, prefix){
+  var fDepto=document.getElementById(prefix+'-f-depto');
+  var fCargo=document.getElementById(prefix+'-f-cargo');
+  var fPessoa=document.getElementById(prefix+'-f-pessoa');
+  var vd=fDepto?fDepto.value:'', vc=fCargo?fCargo.value:'', vp=fPessoa?fPessoa.value:'';
+  var ativo=!!(vd||vc||vp);
+  var filtered=d.filter(function(p){
+    if(vd&&p.depto!==vd)return false;
+    if(vc&&p.cargo!==vc)return false;
+    if(vp&&p.nome!==vp)return false;
+    return true;
+  });
+  return {filtered:filtered, ativo:ativo, nomesSet:new Set(filtered.map(function(p){return (p.nome||'').toLowerCase();}))};
+}
+
 // ── MODAL CADASTRO ────────────────────────────────────
 function pplAbrirModal(id){
   document.getElementById('ppl-edit-id').value=id||'';
   document.getElementById('ppl-modal-title').textContent=id?'Editar Colaborador':'Novo Colaborador';
   var p=id?getPplData().find(function(x){return x.id===id;}):null;
+  // Popula o dropdown de Gestor com os colaboradores ativos (exceto a propria pessoa)
+  var gestorSel=document.getElementById('pm-gestor');
+  if(gestorSel){
+    var candidatos=getPplData().filter(function(x){return x.status==='ativo'&&x.id!==id;}).map(function(x){return x.nome;});
+    if(p&&p.gestor&&!candidatos.includes(p.gestor)) candidatos.push(p.gestor); // preserva valor antigo mesmo se a pessoa nao estiver mais ativa/na lista
+    candidatos.sort();
+    gestorSel.innerHTML='<option value="">—</option>'+candidatos.map(function(n){return '<option>'+n+'</option>';}).join('');
+  }
   var fields=['nome','genero','raca','orientacao','tipo','cargo','depto','lider','gestor','pilar','empresa','salario','ben-medica','ben-flash','ben-wellhub','ben-contador','recebe13','recebeferias','horas','admissao','desligamento','motivo-saida'];
   fields.forEach(function(f){
     var el=document.getElementById('pm-'+f);
@@ -3401,17 +3503,24 @@ function pplRemover(id){
 
 // ── TABELA EQUIPE ─────────────────────────────────────
 function pplRenderTable(){
+  pplPopularFiltrosPessoa('ppl');
   var d=getPplData();
   var fDepto=document.getElementById('ppl-f-depto');
   var fTipo=document.getElementById('ppl-f-tipo');
   var fStatus=document.getElementById('ppl-f-status');
+  var fCargo=document.getElementById('ppl-f-cargo');
+  var fPessoa=document.getElementById('ppl-f-pessoa');
   var fd=fDepto?fDepto.value:'';
   var ft=fTipo?fTipo.value:'';
   var fs=fStatus?fStatus.value:'ativo';
+  var fc=fCargo?fCargo.value:'';
+  var fp=fPessoa?fPessoa.value:'';
   var filtered=d.filter(function(p){
     if(fd&&p.depto!==fd)return false;
     if(ft&&p.tipo!==ft)return false;
     if(fs&&p.status!==fs)return false;
+    if(fc&&p.cargo!==fc)return false;
+    if(fp&&p.nome!==fp)return false;
     return true;
   });
   var totalCusto=filtered.reduce(function(s,p){return s+pplCustoTotal(p);},0);
@@ -3968,10 +4077,11 @@ function pplPessoaAtivaNoMes(pessoa, ano, mes){
 }
 
 function pplRenderCustoMensal(){
+  pplPopularFiltrosPessoa('cm');
   var ano=parseInt(document.getElementById('cm-ano').value)||2026;
   var mesFiltroEl=document.getElementById('cm-mes-filtro');
   var mesFiltro=mesFiltroEl&&mesFiltroEl.value!==''?parseInt(mesFiltroEl.value):null;
-  var d=getPplData();
+  var d=pplAplicarFiltrosPessoa(getPplData(),'cm').filtered;
   var meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
   var custoAnoTotal=0;
@@ -4097,7 +4207,9 @@ async function pplCarregarUtilization(){
   var loading=document.getElementById('util-loading');
   if(loading)loading.style.display='inline';
 
-  var d=getPplData().filter(function(p){return p.status==='ativo';});
+  pplPopularFiltrosPessoa('util');
+  var pf=pplAplicarFiltrosPessoa(getPplData().filter(function(p){return p.status==='ativo';}),'util');
+  var d=pf.filtered;
   // Calcular capacidade proporcional ao número de meses
   var mesesCount=pplContarMeses(valDe,valAte);
   var totalCapacity=d.reduce(function(s,p){return s+(parseFloat(p.horas)||160)*mesesCount;},0);
@@ -4123,10 +4235,11 @@ async function pplCarregarUtilization(){
   vbsData.forEach(function(r){
     var name=String(r.Nome_Completo_Funcionario||r.Nome_Abreviado_Funcionario||'').trim();
     var nameKey=name.toLowerCase();
+    if(!name)return;
+    if(pf.ativo&&!pf.nomesSet.has(nameKey))return; // fora do filtro de depto/posição/pessoa
     var cli=String(r.Grupo_Empresarial_Horas_Adm||r.Cliente_Horas_Adm||'Interno').trim();
     if(cli.includes('SEM ')||!cli)cli='Interno';
     var h=(parseFloat(r.Apontamento_Minutos||0))/60;
-    if(!name)return;
     if(!personMap[nameKey])personMap[nameKey]={horas:0,nomeOriginal:name};
     personMap[nameKey].horas+=h;
     if(!clientMap[cli])clientMap[cli]=0;
@@ -4228,7 +4341,9 @@ async function pplCarregarProfitability(){
   var loading=document.getElementById('prof-loading');
   if(loading)loading.style.display='inline';
 
-  var d=getPplData().filter(function(p){return p.status==='ativo';});
+  pplPopularFiltrosPessoa('prof');
+  var pf=pplAplicarFiltrosPessoa(getPplData().filter(function(p){return p.status==='ativo';}),'prof');
+  var d=pf.filtered;
   var mesesCount=pplContarMeses(valDe,valAte);
   var custoTotal=d.reduce(function(s,p){return s+pplCustoTotal(p);},0)*mesesCount;
   var horasTotal=d.reduce(function(s,p){return s+(parseFloat(p.horas)||160);},0)*mesesCount;
@@ -4290,6 +4405,8 @@ async function pplCarregarProfitability(){
   // Agrupa timesheet por CLIENTE REAL (Grupo_Empresarial_Horas_Adm)
   var cliMap={};
   vbsData.forEach(function(r){
+    var nameKey=String(r.Nome_Completo_Funcionario||r.Nome_Abreviado_Funcionario||'').trim().toLowerCase();
+    if(pf.ativo&&!pf.nomesSet.has(nameKey))return; // fora do filtro de depto/posição/pessoa
     // Usa cliente real, não campanha
     var cli=String(r.Grupo_Empresarial_Horas_Adm||r.Cliente_Horas_Adm||'').trim();
     if(!cli||cli.includes('SEM '))cli=null;
@@ -4745,6 +4862,13 @@ function alocPopularFiltros(){
     var cur=fPessoa.value;
     fPessoa.innerHTML='<option value="">Todos os colaboradores</option>'+pessoas.map(function(p){return '<option'+(p===cur?' selected':'')+'>'+p+'</option>';}).join('');
   }
+  // Popular filtro de posição/cargo
+  var cargos=[...new Set(d.map(function(a){return a.cargo;}).filter(Boolean))].sort();
+  var fCargo=document.getElementById('aloc-f-cargo');
+  if(fCargo){
+    var curC=fCargo.value;
+    fCargo.innerHTML='<option value="">Todas posições</option>'+cargos.map(function(c){return '<option'+(c===curC?' selected':'')+'>'+c+'</option>';}).join('');
+  }
 }
 
 function alocFiltrar(){
@@ -4753,14 +4877,20 @@ function alocFiltrar(){
   var fCli=document.getElementById('aloc-f-cliente');
   var fMes=document.getElementById('aloc-f-mes');
   var fPessoa=document.getElementById('aloc-f-pessoa');
+  var fDepto=document.getElementById('aloc-f-depto');
+  var fCargo=document.getElementById('aloc-f-cargo');
   var fs=fStatus?fStatus.value:'';
   var fc=fCli?fCli.value:'';
   var fm=fMes?parseInt(fMes.value):0;
   var fp=fPessoa?fPessoa.value:'';
+  var fdepto=fDepto?fDepto.value:'';
+  var fcargo=fCargo?fCargo.value:'';
   return d.filter(function(a){
     if(fs&&a.status!==fs)return false;
     if(fc&&a.cliente!==fc)return false;
     if(fp&&a.colaborador!==fp)return false;
+    if(fdepto&&a.depto!==fdepto)return false;
+    if(fcargo&&a.cargo!==fcargo)return false;
     if(fm){
       var inicio=a.mesInicio?new Date(a.mesInicio+'-01'):null;
       var fim=a.mesFim?new Date(a.mesFim+'-01'):null;
@@ -4775,7 +4905,6 @@ function alocFiltrar(){
 function alocRenderTabela(){
   alocPopularFiltros();
   var d=alocFiltrar();
-  var total=getAlocData();
   var ppl=getPplData();
   var pplMap={};
   ppl.forEach(function(p){pplMap[p.nome.toLowerCase()]=p;});
@@ -4786,14 +4915,14 @@ function alocRenderTabela(){
     return ch*a.horas;
   }
 
-  var aprovadas=total.filter(function(a){return a.status==='aprovado';});
-  var propostas=total.filter(function(a){return a.status==='proposta';});
-  var negoc=total.filter(function(a){return a.status==='negociacao';});
+  var aprovadas=d.filter(function(a){return a.status==='aprovado';});
+  var propostas=d.filter(function(a){return a.status==='proposta';});
+  var negoc=d.filter(function(a){return a.status==='negociacao';});
   var hAprov=aprovadas.reduce(function(s,a){return s+a.horas;},0);
   var hProp=propostas.reduce(function(s,a){return s+a.horas;},0);
   var hNeg=negoc.reduce(function(s,a){return s+a.horas;},0);
-  var totalVendido=total.reduce(function(s,a){return s+(a.valorVendido||0);},0);
-  var totalCusto=total.reduce(function(s,a){return s+getCustoAloc(a);},0);
+  var totalVendido=d.reduce(function(s,a){return s+(a.valorVendido||0);},0);
+  var totalCusto=d.reduce(function(s,a){return s+getCustoAloc(a);},0);
   var totalMargem=totalVendido-totalCusto;
   document.getElementById('aloc-kpis').innerHTML=[
     {label:'Aprovadas',value:Math.round(hAprov)+'h',sub:'R$ '+Math.round(aprovadas.reduce(function(s,a){return s+(a.valorVendido||0);},0)).toLocaleString('pt-BR')+' vendido'},
