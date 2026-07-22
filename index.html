@@ -230,7 +230,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
         <div class="filters" style="margin-bottom:16px">
           <button id="btn-actual-vbs" class="btn btn-primary btn-vbs" onclick="carregarActualVbs()" style="font-size:11px;padding:5px 14px">↺ Actual do VBS</button>
           <select id="sel-ano" onchange="applyFilters()"><option value="2026" selected>2026</option><option value="2025">2025</option><option value="all">2025+2026</option></select>
-          <select id="sel-month" onchange="applyFilters()"><option value="all">Todos os meses</option><option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option><option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option><option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option></select>
+          <span style="font-size:11px;color:var(--text3)">De:</span>
+          <select id="sel-month-de" onchange="applyFilters()"><option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option><option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option><option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option></select>
+          <span style="font-size:11px;color:var(--text3)">Até:</span>
+          <select id="sel-month-ate" onchange="applyFilters()"><option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option><option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option><option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12" selected>Dezembro</option></select>
           <select id="sel-tipo" onchange="applyFilters()">
             <option value="all">Todos os tipos</option>
             <option value="mediaInv">Media Investment</option>
@@ -350,10 +353,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     <input id="rec-data-de" type="month" value="2026-01" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
     <span style="font-size:11px;color:var(--text3)">Até:</span>
     <input id="rec-data-ate" type="month" value="2026-06" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
-    <select id="rec-f-cliente" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+    <select id="rec-f-cliente" onchange="recRenderizar()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
       <option value="">Todos os clientes</option>
     </select>
-    <select id="rec-f-tipo" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+    <select id="rec-f-tipo" onchange="recRenderizar()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
       <option value="">Todos os tipos</option>
       <option value="fee">Fee</option>
       <option value="producao">Produção</option>
@@ -2147,8 +2150,12 @@ function populateClientFilter() {
 }
 
 function getFilters() {
+  var de  = document.getElementById('sel-month-de')  ? parseInt(document.getElementById('sel-month-de').value)  : 1;
+  var ate = document.getElementById('sel-month-ate') ? parseInt(document.getElementById('sel-month-ate').value) : 12;
+  if (de > ate) { var tmp = de; de = ate; ate = tmp; }
   return {
-    month: document.getElementById('sel-month').value,
+    monthDe: de,
+    monthAte: ate,
     client: document.getElementById('sel-client').value,
     tipo: document.getElementById('sel-tipo') ? document.getElementById('sel-tipo').value : 'all'
   };
@@ -2162,14 +2169,16 @@ function applyFilters() {
     // Sync clientes filters from dashboard filters
     var el;
     el = document.getElementById('cli-ano');    if(el) el.value = document.getElementById('sel-ano').value;
-    el = document.getElementById('cli-month');  if(el) el.value = document.getElementById('sel-month').value;
+    var mDe = document.getElementById('sel-month-de').value, mAte = document.getElementById('sel-month-ate').value;
+    el = document.getElementById('cli-month');  if(el) el.value = (mDe === mAte) ? mDe : 'all';
     el = document.getElementById('cli-tipo');   if(el) el.value = document.getElementById('sel-tipo').value;
     el = document.getElementById('cli-cliente');if(el) el.value = document.getElementById('sel-client').value;
     renderClientesTab();
   }
 }
 function resetFilters() {
-  document.getElementById('sel-month').value = 'all';
+  document.getElementById('sel-month-de').value = '1';
+  document.getElementById('sel-month-ate').value = '12';
   document.getElementById('sel-client').value = 'all';
   renderAll();
 }
@@ -2201,7 +2210,7 @@ function getAnnual(label) {
 
 // ─── CLIENT DATA HELPERS ─────────────────────────────────
 function filterClients(ano) {
-  const { month, client } = getFilters();
+  const { monthDe, monthAte, client } = getFilters();
   return (G.clientes || []).filter((row, i) => {
     if (i === 0 || !row[0]) return false;
     const c = String(row[0] || '').trim();
@@ -2209,8 +2218,9 @@ function filterClients(ano) {
     if (client !== 'all' && c !== client) return false;
     // Year filter: row[4] = ANO
     if (ano && String(row[4] || '').trim() !== String(ano)) return false;
-    // Month filter: row[3] = MES number (1-12)
-    if (month !== 'all' && parseInt(row[3]) !== parseInt(month)) return false;
+    // Month range filter: row[3] = MES number (1-12)
+    const m = parseInt(row[3]);
+    if (m < monthDe || m > monthAte) return false;
     return true;
   });
 }
@@ -2277,7 +2287,7 @@ function aggregateClients(rows26, rows25) {
 function renderAll() {
   if (!G.pl || !G.clientes) return;
   const f = getFilters();
-  const mIdx = f.month !== 'all' ? parseInt(f.month) - 1 : -1;
+  const deIdx = f.monthDe - 1, ateIdx = f.monthAte - 1;
 
   // P&L values
   const revM  = getMonthly('REVENUE');
@@ -2285,15 +2295,12 @@ function renderAll() {
   const ebitM = getMonthly('OPERATING PROFIT/(LOSS) - EBITDA');
   const patM  = getMonthly('PROFIT/(LOSS) AFTER TAX');
 
-  let rev, gm, ebit, pat;
-  if (mIdx >= 0) {
-    rev = revM[mIdx]; gm = gmM[mIdx]; ebit = ebitM[mIdx]; pat = patM[mIdx];
-  } else {
-    rev  = getAnnual('REVENUE');
-    gm   = getAnnual('GROSS MARGIN');
-    ebit = getAnnual('OPERATING PROFIT/(LOSS) - EBITDA');
-    pat  = getAnnual('PROFIT/(LOSS) AFTER TAX');
-  }
+  const isFullYear = deIdx === 0 && ateIdx === 11;
+  const sumRange = (arr, label) => isFullYear ? getAnnual(label) : arr.slice(deIdx, ateIdx + 1).reduce((s,v) => s + v, 0);
+  let rev  = sumRange(revM, 'REVENUE'),
+      gm   = sumRange(gmM, 'GROSS MARGIN'),
+      ebit = sumRange(ebitM, 'OPERATING PROFIT/(LOSS) - EBITDA'),
+      pat  = sumRange(patM, 'PROFIT/(LOSS) AFTER TAX');
 
   const f2 = getFilters();
   const rows26 = f2.ano === '2025' ? [] : filterClients(2026);
@@ -2305,7 +2312,7 @@ function renderAll() {
   // quebra nativa por tipo (Media Investment, Produção, etc), então aproximamos aplicando a
   // participação (%) daquele tipo no budget total por cliente. O Detalhamento por cliente usa
   // o valor real (budget e actual) daquele tipo, sem aproximação.
-  let revMChart = revM, gmMChart = gmM;
+  let revMChart = revM.slice(deIdx, ateIdx + 1), gmMChart = gmM.slice(deIdx, ateIdx + 1);
   if (f.tipo !== 'all' && TIPO_FIELD_MAP[f.tipo]) {
     const tf = TIPO_FIELD_MAP[f.tipo];
     const sumField = (field) => clientAgg.reduce((s,r) => s + (r[field]||0), 0);
@@ -2314,8 +2321,8 @@ function renderAll() {
     const ratioBudget = totalBudgetAllTipos > 0 ? sumField(tf.b) / totalBudgetAllTipos : 0;
 
     rev *= ratioBudget; gm *= ratioBudget; ebit *= ratioBudget; pat *= ratioBudget;
-    revMChart = revM.map(v => v * ratioBudget);
-    gmMChart  = gmM.map(v => v * ratioBudget);
+    revMChart = revMChart.map(v => v * ratioBudget);
+    gmMChart  = gmMChart.map(v => v * ratioBudget);
 
     clientAgg = clientAgg.map(function(r){
       var nr = Object.assign({}, r);
@@ -2329,7 +2336,7 @@ function renderAll() {
   renderKPIs(rev, gm, ebit, pat, clientCount);
 
   // Charts
-  renderMonthlyChart(revMChart, gmMChart, mIdx);
+  renderMonthlyChart(revMChart, gmMChart, MONTHS.slice(deIdx, ateIdx + 1));
   renderClientChart(clientAgg);
 
   // Tables
@@ -2338,8 +2345,10 @@ function renderAll() {
   renderPLFull();
 
   // Table info
+  var periodoLabel = (deIdx === 0 && ateIdx === 11) ? '' :
+    (deIdx === ateIdx ? ' — ' + MONTHS[deIdx] : ' — ' + MONTHS[deIdx] + '–' + MONTHS[ateIdx]);
   document.getElementById('table-info').textContent =
-    clientAgg.length + ' clientes' + (f.month !== 'all' ? ' — ' + MONTHS[mIdx] : '') +
+    clientAgg.length + ' clientes' + periodoLabel +
     (f.client !== 'all' ? ' — ' + f.client : '') +
     (f.tipo !== 'all' ? ' — ' + f.tipo : '');
 }
@@ -2361,18 +2370,15 @@ function renderKPIs(rev, gm, ebit, pat, clientCount) {
     </div>`).join('');
 }
 
-function renderMonthlyChart(revM, gmM, mIdx) {
-  const labels = mIdx >= 0 ? [MONTHS[mIdx]] : MONTHS;
-  const revD   = mIdx >= 0 ? [revM[mIdx]]   : revM;
-  const gmD    = mIdx >= 0 ? [gmM[mIdx]]    : gmM;
+function renderMonthlyChart(revM, gmM, labels) {
   if (chartRC) chartRC.destroy();
   chartRC = new Chart(document.getElementById('chartRevenue'), {
     type: 'bar',
     data: {
       labels,
       datasets: [
-        { label: 'Receita', data: revD, backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 4, borderSkipped: false },
-        { label: 'Gross Margin', data: gmD, backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 4, borderSkipped: false }
+        { label: 'Receita', data: revM, backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 4, borderSkipped: false },
+        { label: 'Gross Margin', data: gmM, backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 4, borderSkipped: false }
       ]
     },
     options: {
@@ -5962,7 +5968,7 @@ function switchPageTab(btn, panelId){
 
 // ── VBS CR/CP ─────────────────────────────────────────
 function toApiDate(iso){if(!iso)return '';var p=iso.split('-');return p[2]+p[1]+p[0];}
-function daysAgo(d){if(!d)return null;return Math.round((new Date()-new Date(d))/86400000);}
+function daysAgo(d){if(!d)return null;return Math.floor((new Date()-new Date(d))/86400000);}
 function fmtVbs(v){var n=parseFloat(v);if(isNaN(n))return '---';return n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});}
 function fmtDateVbs(d){if(!d)return '---';try{return new Date(d).toLocaleDateString('pt-BR');}catch(e){return d;}}
 function badgeVbs(sit){
