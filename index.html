@@ -823,6 +823,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       <select id="crm-sel-view" onchange="crmRenderView()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
         <option value="kanban">Kanban</option>
         <option value="tabela">Tabela</option>
+        <option value="historico">Historico</option>
       </select>
       <select id="crm-sel-status" onchange="crmRenderView()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
         <option value="">Todos os status</option>
@@ -865,6 +866,19 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
             <tbody id="crm-tbody"></tbody>
           </table>
         </div>
+      </div>
+    </div>
+    <div id="crm-historico" style="display:none">
+      <div class="chart-card" style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <div class="chart-title" style="margin:0">Comparativo Semanal</div>
+          <select id="crm-hist-sel-snapshot" onchange="crmRenderComparativo()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:6px;font-size:11px;outline:none;cursor:pointer"></select>
+        </div>
+        <div id="crm-hist-comparativo"></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Log de Alteracoes</div>
+        <div id="crm-hist-log" style="max-height:420px;overflow-y:auto;margin-top:10px"></div>
       </div>
     </div>
 
@@ -953,6 +967,24 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
                   <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
                   <option value="10">Outubro</option><option value="11">Novembro</option><option value="12" selected>Dezembro</option>
                 </select>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-top:8px">
+              <div>
+                <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Invest. Midia (R$, total)</label>
+                <input id="crm-f-inv-midia" type="number" placeholder="0" oninput="crmCalcValor()" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;box-sizing:border-box">
+              </div>
+              <div>
+                <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">% Comissao Midia</label>
+                <input id="crm-f-com-midia" type="number" placeholder="10" oninput="crmCalcValor()" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;box-sizing:border-box">
+              </div>
+              <div>
+                <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Invest. Producao (R$, total)</label>
+                <input id="crm-f-inv-producao" type="number" placeholder="0" oninput="crmCalcValor()" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;box-sizing:border-box">
+              </div>
+              <div>
+                <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">% Comissao Producao</label>
+                <input id="crm-f-com-producao" type="number" placeholder="10" oninput="crmCalcValor()" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;box-sizing:border-box">
               </div>
             </div>
             <div style="margin-top:8px;padding:8px 12px;background:var(--bg3);border-radius:6px;display:flex;justify-content:space-between;align-items:center">
@@ -7640,6 +7672,7 @@ async function crmCarregar(){
     _crmData = localData;
     crmRecalcKpis();
   }
+  crmSnapshotAutoSave();
   crmRenderView();
 }
 
@@ -7676,8 +7709,11 @@ function crmRenderView(){
   var view = document.getElementById('crm-sel-view').value;
   document.getElementById('crm-kanban').style.display = view==='kanban'?'grid':'none';
   document.getElementById('crm-tabela').style.display = view==='tabela'?'block':'none';
+  var histEl = document.getElementById('crm-historico');
+  if(histEl) histEl.style.display = view==='historico'?'block':'none';
   if(view==='kanban') crmRenderKanban();
-  else crmRenderTabela();
+  else if(view==='tabela') crmRenderTabela();
+  else if(view==='historico') crmRenderHistorico();
 }
 
 function crmCard(p){
@@ -7741,11 +7777,18 @@ function crmAbrirModal(id){
     document.getElementById('crm-f-status').value=p.status||'prospect';
     document.getElementById('crm-f-tipo').value=p.tipo||'fee';
     document.getElementById('crm-f-fee').value=p.fee_mensal||'';
-    document.getElementById('crm-f-valor').value=p.valor_potencial||'';
-    // Set meses BEFORE calling crmCalcValor
     document.getElementById('crm-f-mes-ini').value=p.mes_inicio||1;
     document.getElementById('crm-f-mes-fim').value=p.mes_fim||12;
-    crmCalcValor();
+    document.getElementById('crm-f-inv-midia').value=p.investimento_midia||'';
+    document.getElementById('crm-f-com-midia').value=p.comissao_midia||'';
+    document.getElementById('crm-f-inv-producao').value=p.investimento_producao||'';
+    document.getElementById('crm-f-com-producao').value=p.comissao_producao||'';
+    // Mostra o valor potencial REAL ja salvo, sem recalcular (registros antigos podem ter
+    // sido calculados fora dessa formula, e recalcular aqui zerava o valor exibido)
+    var iniM=parseInt(p.mes_inicio||1), fimM=parseInt(p.mes_fim||12);
+    var mesesEdit=fimM>=iniM?(fimM-iniM+1):0;
+    document.getElementById('crm-f-valor').value=p.valor_potencial||0;
+    document.getElementById('crm-f-valor-calc').textContent='R$ '+Math.round(p.valor_potencial||0).toLocaleString('pt-BR')+' ('+mesesEdit+' meses)';
     document.getElementById('crm-f-prob').value=p.probabilidade||25;
     document.getElementById('crm-f-resp').value=p.responsavel||'Andressa';
     document.getElementById('crm-f-followup').value=p.proximo_followup?p.proximo_followup.substring(0,10):'';
@@ -7761,6 +7804,10 @@ function crmAbrirModal(id){
     document.getElementById('crm-f-valor').value='';
     document.getElementById('crm-f-mes-ini').value=1;
     document.getElementById('crm-f-mes-fim').value=12;
+    document.getElementById('crm-f-inv-midia').value='';
+    document.getElementById('crm-f-com-midia').value='';
+    document.getElementById('crm-f-inv-producao').value='';
+    document.getElementById('crm-f-com-producao').value='';
     document.getElementById('crm-f-valor-calc').textContent='R$ 0';
     document.getElementById('crm-f-prob').value='25';
     document.getElementById('crm-f-resp').value='Andressa';
@@ -7778,6 +7825,7 @@ function crmFecharModal(){
 async function crmSalvar(){
   var empresa=document.getElementById('crm-f-empresa').value.trim();
   if(!empresa){alert('Informe o nome da empresa!');return;}
+  var oldP=_crmEditId?_crmData.find(function(x){return x.id==_crmEditId;}):null;
   var data={
     empresa:empresa,
     contato:document.getElementById('crm-f-contato').value,
@@ -7788,6 +7836,10 @@ async function crmSalvar(){
     fee_mensal:parseFloat(document.getElementById('crm-f-fee').value)||0,
     mes_inicio:parseInt(document.getElementById('crm-f-mes-ini').value)||1,
     mes_fim:parseInt(document.getElementById('crm-f-mes-fim').value)||12,
+    investimento_midia:parseFloat(document.getElementById('crm-f-inv-midia').value)||0,
+    comissao_midia:parseFloat(document.getElementById('crm-f-com-midia').value)||0,
+    investimento_producao:parseFloat(document.getElementById('crm-f-inv-producao').value)||0,
+    comissao_producao:parseFloat(document.getElementById('crm-f-com-producao').value)||0,
     probabilidade:parseInt(document.getElementById('crm-f-prob').value)||25,
     responsavel:document.getElementById('crm-f-resp').value,
     proximo_followup:document.getElementById('crm-f-followup').value||null,
@@ -7801,6 +7853,7 @@ async function crmSalvar(){
     if(!r.ok) throw new Error('Server error '+r.status);
     var j=await r.json();
     if(!j.ok) throw new Error(j.error||'Erro ao salvar');
+    crmLogAdd(_crmEditId?'editado':'criado', empresa, (j.data&&j.data.id)||_crmEditId, oldP?crmDiffCampos(oldP,data):[]);
     crmFecharModal();
     crmCarregar();
   } catch(e){
@@ -7816,6 +7869,7 @@ async function crmSalvar(){
     }
     crmLocalSave(local);
     _crmData = crmLocalLoad();
+    crmLogAdd(_crmEditId?'editado':'criado', empresa, data.id, oldP?crmDiffCampos(oldP,data):[]);
     crmFecharModal();
     crmRecalcKpis();
     crmRenderView();
@@ -7824,18 +7878,167 @@ async function crmSalvar(){
 
 async function crmDeletar(id){
   if(!confirm('Deletar este prospect?')) return;
+  var oldP=_crmData.find(function(x){return x.id==id;});
   try {
     var r=await fetch(API+'/api/crm/'+id,{method:'DELETE'});
     if(!r.ok) throw new Error('Server error '+r.status);
     var j=await r.json();
     if(!j.ok) throw new Error(j.error);
+    crmLogAdd('deletado', oldP?oldP.empresa:'', id, []);
     crmCarregar();
   } catch(e){
     // Fallback localStorage
     var local=crmLocalLoad().filter(function(x){return x.id!=id;});
     crmLocalSave(local);
+    crmLogAdd('deletado', oldP?oldP.empresa:'', id, []);
     crmCarregar();
   }
+}
+
+// ── CRM HISTORICO (log de alteracoes + snapshot semanal) ─────────────────────
+var CRM_CAMPOS_LOG = [
+  {k:'status',label:'Status', fmt:function(v){return _crmStatus[v]||v||'—';}},
+  {k:'tipo',label:'Tipo', fmt:function(v){return _crmTipos[v]||v||'—';}},
+  {k:'valor_potencial',label:'Valor', fmt:function(v){return crmFmt(v);}},
+  {k:'probabilidade',label:'Probabilidade', fmt:function(v){return (v||0)+'%';}},
+  {k:'responsavel',label:'Responsavel', fmt:function(v){return v||'—';}},
+  {k:'proximo_followup',label:'Follow-up', fmt:function(v){return v?new Date(v).toLocaleDateString('pt-BR'):'—';}}
+];
+function crmDiffCampos(oldP, newP){
+  var mudancas=[];
+  CRM_CAMPOS_LOG.forEach(function(c){
+    var vOld=oldP?oldP[c.k]:undefined;
+    var vNew=newP[c.k];
+    if(String(vOld||'')!==String(vNew||'')){
+      mudancas.push({campo:c.label, de:c.fmt(vOld), para:c.fmt(vNew)});
+    }
+  });
+  return mudancas;
+}
+
+function crmLogLoad(){ try{ return JSON.parse(lsGet('crm_log')||'[]'); }catch(e){ return []; } }
+function crmLogAdd(acao, empresa, id, mudancas){
+  var log=crmLogLoad();
+  log.unshift({ts:new Date().toISOString(), acao:acao, empresa:empresa||'', id:id, mudancas:mudancas||[], user:(typeof currentUser!=='undefined'&&currentUser&&currentUser.name)||''});
+  if(log.length>300) log=log.slice(0,300);
+  lsSet('crm_log', JSON.stringify(log));
+}
+
+function crmSemanaISO(d){
+  d = d || new Date();
+  var date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  var dayNum = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+  var yearStart = new Date(Date.UTC(date.getUTCFullYear(),0,1));
+  var weekNo = Math.ceil((((date - yearStart) / 86400000) + 1)/7);
+  return date.getUTCFullYear()+'-S'+String(weekNo).padStart(2,'0');
+}
+
+function crmSnapshotsLoad(){ try{ return JSON.parse(lsGet('crm_snapshots')||'[]'); }catch(e){ return []; } }
+function crmSnapshotsSave(snaps){ lsSet('crm_snapshots', JSON.stringify(snaps)); }
+
+function crmSnapshotAutoSave(){
+  if(!_crmData || !_crmData.length) return;
+  var semana=crmSemanaISO();
+  var snaps=crmSnapshotsLoad();
+  if(snaps.length && snaps[0].semana===semana) return; // ja tirou foto essa semana
+  snaps.unshift({semana:semana, ts:new Date().toISOString(), data:JSON.parse(JSON.stringify(_crmData))});
+  if(snaps.length>26) snaps=snaps.slice(0,26);
+  crmSnapshotsSave(snaps);
+}
+
+function crmCompararSnapshot(snapshotData){
+  var oldMap={}; (snapshotData||[]).forEach(function(p){ oldMap[p.id]=p; });
+  var newMap={}; _crmData.forEach(function(p){ newMap[p.id]=p; });
+  var novos=[], removidos=[], alterados=[];
+  _crmData.forEach(function(p){
+    if(!(p.id in oldMap)) novos.push(p);
+    else {
+      var diffs=crmDiffCampos(oldMap[p.id], p);
+      if(diffs.length) alterados.push({p:p, diffs:diffs});
+    }
+  });
+  (snapshotData||[]).forEach(function(op){
+    if(!(op.id in newMap)) removidos.push(op);
+  });
+  var valorAntes=(snapshotData||[]).reduce(function(s,p){return s+parseFloat(p.valor_potencial||0);},0);
+  var valorAgora=_crmData.reduce(function(s,p){return s+parseFloat(p.valor_potencial||0);},0);
+  return {novos:novos, removidos:removidos, alterados:alterados, valorAntes:valorAntes, valorAgora:valorAgora};
+}
+
+function crmRenderHistorico(){
+  crmSnapshotAutoSave();
+  var snaps=crmSnapshotsLoad();
+  var sel=document.getElementById('crm-hist-sel-snapshot');
+  if(sel){
+    var cur=sel.value;
+    if(snaps.length<=1){
+      sel.innerHTML='<option value="">Ainda so ha 1 snapshot (essa semana)</option>';
+    } else {
+      // indice 0 = snapshot desta semana ("agora"); comparamos contra indice 1 em diante
+      sel.innerHTML=snaps.slice(1).map(function(s,i){ return '<option value="'+(i+1)+'">'+s.semana+' ('+new Date(s.ts).toLocaleDateString('pt-BR')+')</option>'; }).join('');
+    }
+    if(cur && sel.querySelector('option[value="'+cur+'"]')) sel.value=cur;
+  }
+  crmRenderComparativo();
+  crmRenderLog();
+}
+
+function crmRenderComparativo(){
+  var box=document.getElementById('crm-hist-comparativo');
+  if(!box) return;
+  var snaps=crmSnapshotsLoad();
+  var idx=parseInt((document.getElementById('crm-hist-sel-snapshot')||{}).value);
+  if(isNaN(idx) || !snaps[idx]){
+    box.innerHTML='<div style="color:var(--text3);font-size:11px;padding:20px;text-align:center">Ainda nao ha snapshots suficientes pra comparar. O sistema tira uma foto automatica do pipeline uma vez por semana — volte daqui uma semana.</div>';
+    return;
+  }
+  var snap=snaps[idx];
+  var cmp=crmCompararSnapshot(snap.data);
+  var delta=cmp.valorAgora-cmp.valorAntes;
+  var html='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">'+
+    '<div class="kpi-card"><div class="kpi-label">Pipeline em '+snap.semana+'</div><div class="kpi-value" style="font-size:16px">'+crmFmt(cmp.valorAntes)+'</div></div>'+
+    '<div class="kpi-card"><div class="kpi-label">Pipeline agora</div><div class="kpi-value" style="font-size:16px">'+crmFmt(cmp.valorAgora)+'</div></div>'+
+    '<div class="kpi-card"><div class="kpi-label">Variacao</div><div class="kpi-value '+(delta>=0?'pos':'neg')+'" style="font-size:16px">'+(delta>=0?'+':'')+crmFmt(delta)+'</div></div>'+
+    '<div class="kpi-card"><div class="kpi-label">Negocios novos</div><div class="kpi-value" style="font-size:16px">'+cmp.novos.length+'</div></div>'+
+  '</div>';
+  if(cmp.novos.length){
+    html+='<div style="font-size:11px;font-weight:600;color:var(--pos);margin-bottom:6px">+ NOVOS NEGOCIOS ('+cmp.novos.length+')</div>';
+    html+=cmp.novos.map(function(p){ return '<div style="font-size:11px;padding:6px 10px;background:var(--bg3);border-radius:6px;margin-bottom:4px"><strong>'+p.empresa+'</strong> — '+crmFmt(p.valor_potencial)+' <span style="color:var(--text3)">('+(_crmStatus[p.status]||p.status)+')</span></div>'; }).join('');
+  }
+  if(cmp.alterados.length){
+    html+='<div style="font-size:11px;font-weight:600;color:var(--amber);margin:12px 0 6px">~ ALTERADOS ('+cmp.alterados.length+')</div>';
+    html+=cmp.alterados.map(function(a){
+      return '<div style="font-size:11px;padding:6px 10px;background:var(--bg3);border-radius:6px;margin-bottom:4px"><strong>'+a.p.empresa+'</strong>: '+a.diffs.map(function(d){return d.campo+' '+d.de+' → '+d.para;}).join(', ')+'</div>';
+    }).join('');
+  }
+  if(cmp.removidos.length){
+    html+='<div style="font-size:11px;font-weight:600;color:var(--neg);margin:12px 0 6px">- REMOVIDOS ('+cmp.removidos.length+')</div>';
+    html+=cmp.removidos.map(function(p){ return '<div style="font-size:11px;padding:6px 10px;background:var(--bg3);border-radius:6px;margin-bottom:4px">'+p.empresa+' — '+crmFmt(p.valor_potencial)+'</div>'; }).join('');
+  }
+  if(!cmp.novos.length && !cmp.alterados.length && !cmp.removidos.length){
+    html+='<div style="color:var(--text3);font-size:11px;padding:20px;text-align:center">Nenhuma mudanca desde '+snap.semana+'.</div>';
+  }
+  box.innerHTML=html;
+}
+
+function crmRenderLog(){
+  var box=document.getElementById('crm-hist-log');
+  if(!box) return;
+  var log=crmLogLoad();
+  if(!log.length){ box.innerHTML='<div style="color:var(--text3);font-size:11px;padding:20px;text-align:center">Nenhuma alteracao registrada ainda.</div>'; return; }
+  var acaoLabel={criado:'criou',editado:'editou',deletado:'removeu'};
+  var acaoCor={criado:'var(--pos)',editado:'var(--amber)',deletado:'var(--neg)'};
+  box.innerHTML=log.slice(0,150).map(function(l){
+    var dt=new Date(l.ts);
+    var quando=dt.toLocaleDateString('pt-BR')+' as '+dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    var det=l.mudancas&&l.mudancas.length?l.mudancas.map(function(d){return d.campo+': '+d.de+' → '+d.para;}).join(', '):'';
+    return '<div style="font-size:11px;padding:8px 10px;border-bottom:1px solid var(--border)">'+
+      '<span style="color:var(--text3)">'+quando+'</span> — '+(l.user?'<strong>'+l.user+'</strong> ':'')+
+      '<span style="color:'+(acaoCor[l.acao]||'var(--text)')+'">'+(acaoLabel[l.acao]||l.acao)+'</span> <strong>'+(l.empresa||'—')+'</strong>'+
+      (det?'<div style="color:var(--text3);margin-top:2px">'+det+'</div>':'')+
+    '</div>';
+  }).join('');
 }
 
 // ── CRM CHURN ────────────────────────────────────────────────────────────────
@@ -8113,7 +8316,12 @@ function crmCalcValor(){
   var ini = parseInt(document.getElementById('crm-f-mes-ini').value)||1;
   var fim = parseInt(document.getElementById('crm-f-mes-fim').value)||12;
   var meses = fim >= ini ? (fim - ini + 1) : 0;
-  var total = fee * meses;
+  var invMidia = parseFloat((document.getElementById('crm-f-inv-midia')||{}).value)||0;
+  var comMidia = parseFloat((document.getElementById('crm-f-com-midia')||{}).value)||0;
+  var invProducao = parseFloat((document.getElementById('crm-f-inv-producao')||{}).value)||0;
+  var comProducao = parseFloat((document.getElementById('crm-f-com-producao')||{}).value)||0;
+  // Fee mensal x meses do periodo + comissao (%) sobre o investimento TOTAL de midia/producao
+  var total = (fee * meses) + (invMidia * comMidia/100) + (invProducao * comProducao/100);
   var calcEl = document.getElementById('crm-f-valor-calc');
   var hidEl = document.getElementById('crm-f-valor');
   if(calcEl) calcEl.textContent = 'R$ ' + Math.round(total).toLocaleString('pt-BR') + ' (' + meses + ' meses)';
