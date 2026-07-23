@@ -671,6 +671,42 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       </div>
     </div>
   </div>
+
+  <!-- PROJEÇÃO DE FLUXO DE CAIXA (CR + CP + Folha + Pipeline CRM) -->
+  <div class="table-card" style="margin-top:16px">
+    <div class="table-header">
+      <span class="table-title">Projeção de Fluxo de Caixa</span>
+      <span class="table-meta">CR + CP + Folha + Pipeline CRM</span>
+    </div>
+    <div style="padding:14px 16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+      <label style="font-size:11px;color:var(--text3)">Meses à frente:</label>
+      <select id="cfp-meses" onchange="cfProjetar()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+        <option value="3">3 meses</option>
+        <option value="6" selected>6 meses</option>
+        <option value="12">12 meses</option>
+      </select>
+      <label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" id="cfp-incluir-pipeline" checked onchange="cfProjetar()"> Incluir Pipeline CRM (ponderado por probabilidade)
+      </label>
+      <button class="btn btn-primary" onclick="cfProjetar()" style="font-size:11px;padding:6px 14px">↺ Projetar</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:0 16px 16px" id="cfp-kpis"></div>
+    <div style="padding:0 16px 16px"><div style="position:relative;height:260px"><canvas id="chartCFProjecao"></canvas></div></div>
+    <div style="overflow-x:auto;padding:0 16px 16px">
+      <table class="tbl">
+        <thead><tr>
+          <th>Mês</th>
+          <th style="text-align:right">+ Entradas (CR)</th>
+          <th style="text-align:right">+ Pipeline Ponderado</th>
+          <th style="text-align:right">- Saídas (CP)</th>
+          <th style="text-align:right">- Custo Equipe</th>
+          <th style="text-align:right">Saldo do Mês</th>
+          <th style="text-align:right">Saldo Acumulado</th>
+        </tr></thead>
+        <tbody id="cfp-tbody"><tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text3)">Clique em Gerar Fluxo e depois em Projetar</td></tr></tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
 <div class="tab-panel" id="fin-clientes">
@@ -7003,6 +7039,114 @@ function buildCashflowVbs(){
   var view=document.getElementById('cf-sel-view')?document.getElementById('cf-sel-view').value:'mensal';
   if(view==='quarter') cfBuildQuarter(filtered.cr, filtered.cp);
   else cfBuildMensal(filtered.cr, filtered.cp);
+  cfProjetar();
+}
+
+// ── PROJEÇÃO DE FLUXO DE CAIXA (CR + CP + Folha + Pipeline CRM) ───────────────
+// Junta 3 fontes: Contas a Receber/Pagar (confirmado), custo de equipe do People
+// Analytics (recorrente, via pplCustoNoMes) e o Pipeline do CRM ponderado por
+// probabilidade (upside especulativo, espalhado pelos meses do negócio).
+async function cfProjetar(){
+  var saldoInicial=parseFloat(document.getElementById('cf-saldo-inicial').value)||0;
+  var nMeses=parseInt((document.getElementById('cfp-meses')||{}).value)||6;
+  var incluirPipeline=(document.getElementById('cfp-incluir-pipeline')||{}).checked;
+
+  if(incluirPipeline&&(!window._crmData||!window._crmData.length)){
+    try{ await crmCarregar(); }catch(e){ console.warn('cfProjetar: falha ao carregar CRM', e); }
+  }
+
+  var crAll=window._crRows||[], cpAll=window._cpRows||[];
+  var pplAtivos=getPplData().filter(function(p){return p.status==='ativo';});
+  var crmDeals=(window._crmData||[]).filter(function(c){return c.status!=='perdido';});
+
+  var hoje=new Date();
+  var mesesLabels=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  var meses=[];
+  for(var i=0;i<nMeses;i++){
+    var d=new Date(hoje.getFullYear(),hoje.getMonth()+i,1);
+    meses.push({ano:d.getFullYear(),mes:d.getMonth(),label:mesesLabels[d.getMonth()]+'/'+d.getFullYear()});
+  }
+  function chave(ano,mes){return ano+'-'+String(mes+1).padStart(2,'0');}
+
+  var crPorMes={};
+  crAll.forEach(function(x){var dt=x.Data_Vencimento_CR;if(!dt)return;var k=dt.substring(0,7);crPorMes[k]=(crPorMes[k]||0)+parseFloat(x.Valor_Aberto_CR||0);});
+  var cpPorMes={};
+  cpAll.forEach(function(x){var dt=x.Data_Vencimento_CP;if(!dt)return;var k=dt.substring(0,7);cpPorMes[k]=(cpPorMes[k]||0)+Math.abs(parseFloat(x.Valor_Aberto_CP||0));});
+
+  var pipelinePorMes={};
+  if(incluirPipeline){
+    crmDeals.forEach(function(c){
+      var v=parseFloat(c.valor_potencial||0)*parseFloat(c.probabilidade||0)/100;
+      if(v<=0)return;
+      var ini=parseInt(c.mes_inicio||1), fim=parseInt(c.mes_fim||12);
+      if(fim<ini)fim=ini;
+      var nMesesDeal=fim-ini+1;
+      var valorMes=v/nMesesDeal;
+      var ano=parseInt(c.ano)||hoje.getFullYear();
+      for(var m=ini;m<=fim;m++){
+        var k=chave(ano,m-1);
+        pipelinePorMes[k]=(pipelinePorMes[k]||0)+valorMes;
+      }
+    });
+  }
+
+  var custoPorMes={};
+  meses.forEach(function(mo){
+    var total=0;
+    pplAtivos.forEach(function(p){ if(pplPessoaAtivaNoMes(p,mo.ano,mo.mes)) total+=pplCustoNoMes(p,mo.ano,mo.mes); });
+    custoPorMes[chave(mo.ano,mo.mes)]=total;
+  });
+
+  var saldoAcum=saldoInicial;
+  var rows=meses.map(function(mo){
+    var k=chave(mo.ano,mo.mes);
+    var rec=crPorMes[k]||0, pipe=pipelinePorMes[k]||0, pag=cpPorMes[k]||0, custo=custoPorMes[k]||0;
+    var saldoMes=rec+pipe-pag-custo;
+    saldoAcum+=saldoMes;
+    return {label:mo.label,rec:rec,pipe:pipe,pag:pag,custo:custo,saldoMes:saldoMes,saldoAcum:saldoAcum};
+  });
+
+  var fmt=function(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR');};
+  var saldoFinal=rows.length?rows[rows.length-1].saldoAcum:saldoInicial;
+  var mediaSaidaMes=rows.reduce(function(s,r){return s+r.pag+r.custo;},0)/Math.max(1,rows.length);
+  var runway=mediaSaidaMes>0?(saldoInicial/mediaSaidaMes).toFixed(1)+' meses':'—';
+  var mesNegativo=rows.find(function(r){return r.saldoAcum<0;});
+
+  var kpiEl=document.getElementById('cfp-kpis');
+  if(kpiEl) kpiEl.innerHTML=[
+    {label:'Saldo Hoje',value:fmt(saldoInicial),sub:'ponto de partida'},
+    {label:'Saldo Projetado ('+nMeses+'m)',value:fmt(saldoFinal),sub:incluirPipeline?'com pipeline ponderado':'só confirmado (CR/CP/folha)',cls:saldoFinal>=0?'pos':'neg'},
+    {label:'Runway',value:runway,sub:'saldo hoje ÷ saída média mensal'},
+    {label:'Alerta',value:mesNegativo?mesNegativo.label:'Nenhum',sub:mesNegativo?'1º mês com saldo negativo':'caixa positivo no período',cls:mesNegativo?'neg':'pos'},
+  ].map(function(k){return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-value '+(k.cls||'')+'" style="font-size:15px">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
+
+  var c=document.getElementById('chartCFProjecao');
+  if(c&&c.getContext('2d')){
+    if(window.chartCFProjInst){try{window.chartCFProjInst.destroy();}catch(e){}}
+    window.chartCFProjInst=new Chart(c,{data:{
+      labels:rows.map(function(r){return r.label;}),
+      datasets:[
+        {type:'bar',label:'Entradas (CR)',data:rows.map(function(r){return r.rec;}),backgroundColor:'rgba(110,231,183,0.6)',stack:'fluxo',borderRadius:2},
+        {type:'bar',label:'Pipeline Ponderado',data:rows.map(function(r){return r.pipe;}),backgroundColor:'rgba(96,165,250,0.4)',stack:'fluxo',borderRadius:2},
+        {type:'bar',label:'Saídas (CP)',data:rows.map(function(r){return -r.pag;}),backgroundColor:'rgba(248,113,113,0.6)',stack:'fluxo',borderRadius:2},
+        {type:'bar',label:'Custo Equipe',data:rows.map(function(r){return -r.custo;}),backgroundColor:'rgba(251,191,36,0.5)',stack:'fluxo',borderRadius:2},
+        {type:'line',label:'Saldo Acumulado',data:rows.map(function(r){return r.saldoAcum;}),borderColor:'#fff',backgroundColor:'transparent',tension:0.3,pointRadius:3}
+      ]
+    },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#888',font:{size:10}}}},scales:{x:{stacked:true,grid:{display:false},ticks:{color:'#666',font:{size:10}}},y:{stacked:true,grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#666',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}}}}}});
+  }
+
+  var tbody=document.getElementById('cfp-tbody');
+  if(tbody) tbody.innerHTML=rows.map(function(r){
+    return '<tr>'+
+      '<td><strong>'+r.label+'</strong></td>'+
+      '<td style="text-align:right;color:var(--pos)">'+fmt(r.rec)+'</td>'+
+      '<td style="text-align:right;color:#60a5fa">'+fmt(r.pipe)+'</td>'+
+      '<td style="text-align:right;color:var(--neg)">-'+fmt(r.pag)+'</td>'+
+      '<td style="text-align:right;color:var(--amber)">-'+fmt(r.custo)+'</td>'+
+      '<td style="text-align:right;'+(r.saldoMes>=0?'color:var(--pos)':'color:var(--neg)')+'">'+(r.saldoMes>=0?'+':'')+fmt(r.saldoMes)+'</td>'+
+      '<td style="text-align:right;font-weight:700;'+(r.saldoAcum>=0?'color:var(--pos)':'color:var(--neg)')+'">'+fmt(r.saldoAcum)+'</td>'+
+    '</tr>';
+  }).join('')||'<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text3)">Sem dados — clique em Gerar Fluxo</td></tr>';
 }
 
 // ── DRE AUTOMÁTICA VBS ────────────────────────────────────────────────────────
