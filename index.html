@@ -215,6 +215,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
   <!-- FINANCEIRO -->
   <div class="page active" id="page-financeiro">
     <div class="tab-nav">
+      <button class="tab-btn" onclick="switchFinTab('painel',event)">🌅 Painel Diário</button>
       <button class="tab-btn active" onclick="switchFinTab('dashboard',event)">Dashboard P&L</button>
       <button class="tab-btn" onclick="switchFinTab('dre',event)">📊 DRE Comparativo</button>
       <button class="tab-btn" onclick="switchFinTab('receita',event)">💰 Receita</button>
@@ -223,6 +224,42 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       <button class="tab-btn" onclick="switchFinTab('cashflow',event)">Fluxo de Caixa</button>
       <button class="tab-btn" onclick="switchFinTab('clientes',event)">Clientes</button>
       <button class="tab-btn" onclick="switchFinTab('pl',event)">P&L Completo</button>
+    </div>
+    <div class="tab-panel" id="fin-painel">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="font-size:12px;color:var(--text3)" id="painel-data-hoje"></div>
+        <button class="btn btn-primary" onclick="renderPainelDiario()" style="font-size:11px;padding:6px 14px">↺ Atualizar</button>
+      </div>
+      <div class="kpi-grid" style="margin-bottom:20px" id="painel-kpis"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div class="table-card">
+          <div class="table-header"><span class="table-title">Vencendo essa semana — A Receber</span></div>
+          <div style="overflow-x:auto;max-height:260px;overflow-y:auto">
+            <table class="tbl"><thead><tr><th>Cliente</th><th>Vencimento</th><th style="text-align:right">Valor</th></tr></thead>
+            <tbody id="painel-cr-semana"><tr><td colspan="3" style="text-align:center;padding:16px;color:var(--text3)">Carregue Contas a Receber primeiro</td></tr></tbody></table>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="table-header"><span class="table-title">Vencendo essa semana — A Pagar</span></div>
+          <div style="overflow-x:auto;max-height:260px;overflow-y:auto">
+            <table class="tbl"><thead><tr><th>Fornecedor</th><th>Vencimento</th><th style="text-align:right">Valor</th></tr></thead>
+            <tbody id="painel-cp-semana"><tr><td colspan="3" style="text-align:center;padding:16px;color:var(--text3)">Carregue Contas a Pagar primeiro</td></tr></tbody></table>
+          </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="table-card">
+          <div class="table-header"><span class="table-title">Maiores Variações Budget vs Actual</span></div>
+          <div style="overflow-x:auto;max-height:300px;overflow-y:auto">
+            <table class="tbl"><thead><tr><th>Cliente</th><th style="text-align:right">Budget</th><th style="text-align:right">Actual</th><th style="text-align:right">Var %</th></tr></thead>
+            <tbody id="painel-variacoes"><tr><td colspan="4" style="text-align:center;padding:16px;color:var(--text3)">Carregue o Dashboard P&L primeiro</td></tr></tbody></table>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="table-header"><span class="table-title">Pipeline CRM — Últimas Alterações</span></div>
+          <div id="painel-pipeline-log" style="max-height:300px;overflow-y:auto"></div>
+        </div>
+      </div>
     </div>
     <div class="tab-panel active" id="fin-dashboard">
       <div id="dash-loading" class="loading-area"><div><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div><div style="margin-top:12px;font-size:11px">Carregando dados…</div></div>
@@ -2344,7 +2381,8 @@ function getFilters() {
     monthDe: de,
     monthAte: ate,
     client: document.getElementById('sel-client').value,
-    tipo: document.getElementById('sel-tipo') ? document.getElementById('sel-tipo').value : 'all'
+    tipo: document.getElementById('sel-tipo') ? document.getElementById('sel-tipo').value : 'all',
+    ano: document.getElementById('sel-ano') ? document.getElementById('sel-ano').value : '2026'
   };
 }
 
@@ -2857,6 +2895,7 @@ function switchFinTab(tab, e) {
   if (tab==='cashflow') setTimeout(function(){ renderCashflow(); }, 50);
   if (tab==='dre') setTimeout(function(){ dreRender(); }, 50);
   if (tab==='receita') setTimeout(function(){ recCarregar(); }, 50);
+  if (tab==='painel') setTimeout(function(){ renderPainelDiario(); }, 50);
 }
 
 // ── AUTH ──────────────────────────────────────────────
@@ -7892,6 +7931,92 @@ function gerarFinancialHighlights(){
   var win=window.open('','_blank');
   win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Financial Highlights</title><style>'+css+'</style></head><body>'+body+'</body></html>');
   win.document.close();
+}
+
+// ── PAINEL DIÁRIO DO CFO ──────────────────────────────────────────────────────
+// Visão rápida pra abrir de manhã: posição de caixa, títulos vencendo essa
+// semana (CR/CP), maiores variações de budget vs actual, e o que mudou no
+// Pipeline CRM recentemente (log de alterações ja existente).
+function renderPainelDiario(){
+  var hoje=new Date();
+  var elData=document.getElementById('painel-data-hoje');
+  if(elData) elData.textContent=hoje.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+
+  var saldoInicial=parseFloat((document.getElementById('cf-saldo-inicial')||{}).value)||0;
+  var crAll=window._crRows||[], cpAll=window._cpRows||[];
+  var fmt=function(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR');};
+
+  // "Essa semana" = vence entre hoje e os proximos 7 dias (daysAgo negativo = no futuro, 0 = hoje)
+  function estaNaSemana(dtStr){
+    if(!dtStr) return false;
+    var d=daysAgo(dtStr);
+    return d!==null && d<=0 && d>=-7;
+  }
+  var crSemana=crAll.filter(function(x){return estaNaSemana(x.Data_Vencimento_CR)&&parseFloat(x.Valor_Aberto_CR||0)>0;});
+  var cpSemana=cpAll.filter(function(x){return estaNaSemana(x.Data_Vencimento_CP)&&Math.abs(parseFloat(x.Valor_Aberto_CP||0))>0;});
+  var totalCrSemana=crSemana.reduce(function(s,x){return s+parseFloat(x.Valor_Aberto_CR||0);},0);
+  var totalCpSemana=cpSemana.reduce(function(s,x){return s+Math.abs(parseFloat(x.Valor_Aberto_CP||0));},0);
+  var saldo7d=saldoInicial+totalCrSemana-totalCpSemana;
+
+  var kpiEl=document.getElementById('painel-kpis');
+  if(kpiEl) kpiEl.innerHTML=[
+    {label:'Saldo Bancário',value:fmt(saldoInicial),sub:'informado em Fluxo de Caixa'},
+    {label:'A Receber essa semana',value:fmt(totalCrSemana),sub:crSemana.length+' títulos'},
+    {label:'A Pagar essa semana',value:fmt(totalCpSemana),sub:cpSemana.length+' títulos',cls:'neg'},
+    {label:'Saldo em 7 dias',value:fmt(saldo7d),sub:'projeção simples',cls:saldo7d>=0?'pos':'neg'},
+  ].map(function(k){return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-value '+(k.cls||'')+'" style="font-size:16px">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
+
+  var crTb=document.getElementById('painel-cr-semana');
+  if(crTb) crTb.innerHTML=crSemana.length?crSemana.slice().sort(function(a,b){return new Date(a.Data_Vencimento_CR)-new Date(b.Data_Vencimento_CR);}).map(function(x){
+    var d=daysAgo(x.Data_Vencimento_CR);
+    var tag=d===0?' (hoje)':(' (em '+Math.abs(d)+'d)');
+    return '<tr><td>'+(x.Nome_Cliente_CR||'—')+'</td><td>'+fmtDateVbs(x.Data_Vencimento_CR)+tag+'</td><td style="text-align:right;color:var(--pos)">'+fmt(x.Valor_Aberto_CR)+'</td></tr>';
+  }).join(''):'<tr><td colspan="3" style="text-align:center;padding:16px;color:var(--text3)">Nada vencendo essa semana</td></tr>';
+
+  var cpTb=document.getElementById('painel-cp-semana');
+  if(cpTb) cpTb.innerHTML=cpSemana.length?cpSemana.slice().sort(function(a,b){return new Date(a.Data_Vencimento_CP)-new Date(b.Data_Vencimento_CP);}).map(function(x){
+    var d=daysAgo(x.Data_Vencimento_CP);
+    var tag=d===0?' (hoje)':(' (em '+Math.abs(d)+'d)');
+    return '<tr><td>'+(x.Nome_Terceiro_CP||'—')+'</td><td>'+fmtDateVbs(x.Data_Vencimento_CP)+tag+'</td><td style="text-align:right;color:var(--neg)">'+fmt(Math.abs(x.Valor_Aberto_CP))+'</td></tr>';
+  }).join(''):'<tr><td colspan="3" style="text-align:center;padding:16px;color:var(--text3)">Nada vencendo essa semana</td></tr>';
+
+  var varTb=document.getElementById('painel-variacoes');
+  if(varTb){
+    if(G.pl&&G.clientes){
+      var rows26=filterClients(2026);
+      var agg=aggregateClients(rows26,[]);
+      var comAmbos=agg.filter(function(c){return c.budgetNet>0&&c.actual2026>0;}).map(function(c){
+        return {client:c.client,budget:c.budgetNet,actual:c.actual2026,varPct:(c.actual2026-c.budgetNet)/c.budgetNet*100};
+      }).sort(function(a,b){return Math.abs(b.varPct)-Math.abs(a.varPct);}).slice(0,10);
+      varTb.innerHTML=comAmbos.length?comAmbos.map(function(r){
+        return '<tr><td>'+r.client+'</td><td style="text-align:right">'+fmt(r.budget)+'</td><td style="text-align:right">'+fmt(r.actual)+'</td>'+
+          '<td style="text-align:right;'+(r.varPct>=0?'color:var(--pos)':'color:var(--neg)')+'">'+(r.varPct>=0?'+':'')+r.varPct.toFixed(1)+'%</td></tr>';
+      }).join(''):'<tr><td colspan="4" style="text-align:center;padding:16px;color:var(--text3)">Nenhum cliente com budget e actual no período</td></tr>';
+    } else {
+      varTb.innerHTML='<tr><td colspan="4" style="text-align:center;padding:16px;color:var(--text3)">Carregue o Dashboard P&L primeiro</td></tr>';
+    }
+  }
+
+  var pipeEl=document.getElementById('painel-pipeline-log');
+  if(pipeEl){
+    var log=(typeof crmLogLoad==='function')?crmLogLoad():[];
+    if(!log.length){
+      pipeEl.innerHTML='<div style="color:var(--text3);font-size:11px;padding:20px;text-align:center">Nenhuma alteração registrada no Pipeline CRM ainda.</div>';
+    } else {
+      var acaoLabel={criado:'criou',editado:'editou',deletado:'removeu'};
+      var acaoCor={criado:'var(--pos)',editado:'var(--amber)',deletado:'var(--neg)'};
+      pipeEl.innerHTML=log.slice(0,10).map(function(l){
+        var dt=new Date(l.ts);
+        var quando=dt.toLocaleDateString('pt-BR')+' às '+dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+        var det=l.mudancas&&l.mudancas.length?l.mudancas.map(function(d){return d.campo+': '+d.de+' → '+d.para;}).join(', '):'';
+        return '<div style="font-size:11px;padding:8px 10px;border-bottom:1px solid var(--border)">'+
+          '<span style="color:var(--text3)">'+quando+'</span> — '+(l.user?'<strong>'+l.user+'</strong> ':'')+
+          '<span style="color:'+(acaoCor[l.acao]||'var(--text)')+'">'+(acaoLabel[l.acao]||l.acao)+'</span> <strong>'+(l.empresa||'—')+'</strong>'+
+          (det?'<div style="color:var(--text3);margin-top:2px">'+det+'</div>':'')+
+        '</div>';
+      }).join('');
+    }
+  }
 }
 
 function recRenderizar(){
