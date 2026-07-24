@@ -2533,7 +2533,9 @@ function renderAll() {
   const rows26 = f2.ano === '2025' ? [] : filterClients(2026);
   const rows25 = f2.ano === '2026' ? [] : filterClients(2025);
   let clientAgg = aggregateClients(rows26, rows25);
-  const clientCount = clientAgg.filter(c => c.budgetNet > 0).length;
+  const clientCount = f2.ano === '2025'
+    ? clientAgg.filter(c => c.actual2025 > 0).length
+    : clientAgg.filter(c => c.budgetNet > 0).length;
 
   // Filtro por tipo de receita: Receita Bruta/Gross Margin/EBITDA da planilha de P&L não têm
   // quebra nativa por tipo (Media Investment, Produção, etc), então aproximamos aplicando a
@@ -2559,8 +2561,21 @@ function renderAll() {
     });
   }
 
+  // Receita Bruta/Gross Margin/EBITDA acima vêm da aba de Budget do Sheets, que só tem
+  // dados de 2026. Para ano=2025 não existe fonte de custo/EBITDA real por ano no sistema,
+  // então usamos a Receita Actual real dos clientes (mesmo total já usado na tabela abaixo,
+  // vindo do VBS) e deixamos Gross Margin/EBITDA marcados como indisponíveis, em vez de
+  // mostrar o Budget 2026 sem rótulo. Essa base não tem quebra por mês, então o gráfico
+  // mensal fica zerado (sem dado) ao invés de mostrar o Budget 2026 disfarçado de 2025.
+  if (f2.ano === '2025') {
+    rev  = clientAgg.reduce(function(s,r){ return s + (r.actual2025||0); }, 0);
+    gm   = null; ebit = null; pat = null;
+    revMChart = revMChart.map(function(){ return 0; });
+    gmMChart  = gmMChart.map(function(){ return 0; });
+  }
+
   // KPIs
-  renderKPIs(rev, gm, ebit, pat, clientCount);
+  renderKPIs(rev, gm, ebit, pat, clientCount, f2.ano);
 
   // Charts
   renderMonthlyChart(revMChart, gmMChart, MONTHS.slice(deIdx, ateIdx + 1));
@@ -2580,13 +2595,13 @@ function renderAll() {
     (f.tipo !== 'all' ? ' — ' + f.tipo : '');
 }
 
-function renderKPIs(rev, gm, ebit, pat, clientCount) {
-  const gmPct   = rev > 0 ? gm / rev : 0;
-  const ebitPct = rev > 0 ? ebit / rev : 0;
+function renderKPIs(rev, gm, ebit, pat, clientCount, anoFiltro) {
+  const gmPct   = (rev > 0 && gm !== null)   ? gm / rev   : 0;
+  const ebitPct = (rev > 0 && ebit !== null) ? ebit / rev : 0;
   const cards = [
-    { label: 'Receita Bruta',  value: fmt(rev),  sub: 'Budget 2026' },
-    { label: 'Gross Margin',   value: fmt(gm),   sub: pct(gmPct) + ' de margem', cls: gmPct > 0 ? 'pos' : 'neg' },
-    { label: 'EBITDA',         value: fmt(ebit), sub: pct(ebitPct) + ' de margem', cls: ebitPct > 0 ? 'pos' : 'neg' },
+    { label: 'Receita Bruta',  value: fmt(rev),  sub: anoFiltro === '2025' ? 'Actual 2025' : 'Budget 2026' },
+    { label: 'Gross Margin',   value: gm   === null ? '—' : fmt(gm),   sub: gm   === null ? 'Sem dado real por ano' : pct(gmPct) + ' de margem',   cls: gm   === null ? '' : (gmPct   > 0 ? 'pos' : 'neg') },
+    { label: 'EBITDA',         value: ebit === null ? '—' : fmt(ebit), sub: ebit === null ? 'Sem dado real por ano' : pct(ebitPct) + ' de margem', cls: ebit === null ? '' : (ebitPct > 0 ? 'pos' : 'neg') },
     { label: 'Clientes Ativos',value: String(clientCount), sub: 'com budget no período' }
   ];
   document.getElementById('kpi-grid').innerHTML = cards.map(k =>
@@ -2624,7 +2639,7 @@ function renderMonthlyChart(revM, gmM, labels) {
 
 function renderClientChart(agg) {
   if (!document.getElementById('chartClients')) return;
-  const top = agg.filter(r => r.budgetNet > 0 || r.actual2026 > 0).sort((a,b)=>(b.budgetNet||b.actual2026)-(a.budgetNet||a.actual2026)).slice(0, 10);
+  const top = agg.filter(r => r.budgetNet > 0 || r.actual2026 > 0 || r.actual2025 > 0).sort((a,b)=>(b.budgetNet||b.actual2026||b.actual2025)-(a.budgetNet||a.actual2026||a.actual2025)).slice(0, 10);
   if (chartCL) chartCL.destroy();
   chartCL = new Chart(document.getElementById('chartClients'), {
     type: 'bar',
@@ -2632,7 +2647,7 @@ function renderClientChart(agg) {
       labels: top.map(r => r.client),
       datasets: [{
         label: 'Budget Net Revenue',
-        data: top.map(r => r.budgetNet || r.actual2026),
+        data: top.map(r => r.budgetNet || r.actual2026 || r.actual2025),
         backgroundColor: top.map((_, i) => COLORS[i % COLORS.length] + 'CC'),
         borderRadius: 4, borderSkipped: false
       }]
@@ -6510,6 +6525,275 @@ function populateCPDropdown(rows){
 
 // ── JURÍDICO ──────────────────────────────────────────
 var jurContratos=[];var jurTipoAtual=null;var jurDocAtual=null;
+
+// Dados fixos da Euphoria (constantes em todos os modelos, conforme os contratos reais)
+var JUR_EUPHORIA={
+  nome:'EUPHORIA PUBLICIDADE LTDA',
+  cnpj:'47.882.625/0001-98',
+  endereco:'Avenida Doutor Chucri Zaidan, n. 1550, Conj. 2715 e 2716, Vila São Francisco (Zona Sul), São Paulo - SP, CEP: 04711-130',
+  representante:'Caio Sales Horta Del Manto',
+  representanteCpf:'302.764.508-09',
+  testemunhaNome:'Andressa Senatti Fukunaga',
+  testemunhaRg:'47.080.149-9',
+  testemunhaCpf:'381.935.628-28'
+};
+var JUR_MESES=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+function jurFmtDataExtenso(iso){
+  if(!iso) return '____ de ______________ de ______';
+  var d=new Date(iso+'T12:00:00');
+  return d.getDate()+' de '+JUR_MESES[d.getMonth()]+' de '+d.getFullYear();
+}
+function jurFmtDataCurta(iso){
+  if(!iso) return '__/__/____';
+  var d=new Date(iso+'T12:00:00');
+  return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+}
+function jurFmtMoeda(v){
+  var n=typeof v==='number'?v:parseNum(String(v||''));
+  return (n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+// ── MOLDES DOS CONTRATOS (texto real dos modelos da Euphoria, com placeholders) ──
+function jurTemplateCliente(d){
+  var repClause=d.rep?('neste ato representada por '+d.rep+(d.repCpf?', inscrito(a) no CPF/MF sob o nº '+d.repCpf:'')):'neste ato representada na forma do seu ato constitutivo';
+  var dataIni=jurFmtDataExtenso(d.inicio);
+  var honor=jurFmtMoeda(d.honorarios);
+  return 'CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE MARKETING E PUBLICIDADE.\n\n\n'+
+'Pelo presente instrumento e na melhor forma de Direito, de um lado:\n\n'+
+(d.empresa||'[RAZÃO SOCIAL DO CLIENTE]')+', pessoa jurídica de direito privado inscrita no CNPJ/MF sob nº '+(d.cnpj||'[CNPJ]')+', com sede em '+(d.endereco||'[ENDEREÇO]')+', '+repClause+', doravante denominada simplesmente "CONTRATANTE";\n\n'+
+'E, de outro lado:\n\n'+
+JUR_EUPHORIA.nome+', pessoa jurídica de direito privado inscrita no CNPJ/MF sob nº '+JUR_EUPHORIA.cnpj+', com sede na '+JUR_EUPHORIA.endereco+', neste ato representada na forma do seu contrato social, doravante denominada simplesmente "CONTRATADA";\n\n'+
+'Sendo que CONTRATADA e CONTRATANTE poderão ser doravante referidas individualmente como "Parte" e conjuntamente como "Partes", as Partes têm entre si justo e acertado celebrar o presente Contrato de Prestação de Serviços (doravante definido simplesmente como "CONTRATO"), de acordo com os seguintes termos e condições:\n\n\n'+
+'CLÁUSULA 1 – OBJETO E ASPECTOS DOS SERVIÇOS\n\n'+
+'O presente Instrumento tem por objeto a prestação de serviços pela CONTRATADA à CONTRATANTE, os quais serão desempenhados com lealdade, zelo e eficiência (os "Serviços").\n\n'+
+'Os Serviços a serem prestados pela CONTRATADA compreendem: '+(d.servicos||'as descritas no Anexo I do presente instrumento')+'.\n\n'+
+'Os Serviços poderão ser alterados mediante comum acordo entre as Partes, por meio de instrumento escrito, devendo o Preço específico decorrente da respectiva mudança ser acordado previamente entre as Partes.\n\n'+
+'Os Serviços serão prestados pela CONTRATADA no seu estabelecimento comercial, preferencialmente, eventualmente poderão prestar os serviços presencialmente na sede social da CONTRATANTE, ou em outro local que venha a ser acordado pelas Partes, conforme necessário para o bom andamento dos trabalhos.\n\n'+
+'A CONTRATADA não garante a obtenção de resultados financeiros, administrativos e/ou de qualquer natureza decorrentes da implantação e/ou desenvolvimento dos Serviços, uma vez que suas obrigações, nos termos da legislação vigente, são de meio e não de fim.\n\n\n'+
+'CLÁUSULA 2 – OUTRAS OBRIGAÇÕES DAS PARTES\n\n'+
+'Durante a vigência deste Instrumento e sem prejuízo das demais obrigações nele previstas, a CONTRATADA se compromete e se obriga a: despender seus melhores esforços na prestação dos Serviços, utilizando-se das melhores práticas, métodos e técnicas aplicáveis, sempre visando à satisfação dos interesses da CONTRATANTE; ser responsável pela prestação de serviços, pelos serviços desenvolvidos por seus colaboradores, bem como pelas ações e/ou omissões destes; seguir rigorosamente as regras de segurança, os preceitos legais e as melhores práticas de mercado aplicáveis à execução dos Serviços; usar adequadamente todos os bens materiais e imateriais disponibilizados pela CONTRATANTE; responsabilizar-se pela manutenção e guarda das informações obtidas em razão deste Contrato; assumir inteira responsabilidade pela boa execução dos Serviços, refazendo os que forem julgados mal executados; assumir integral responsabilidade por perdas e danos causados à CONTRATANTE em razão de negligência, imprudência ou imperícia; solicitar prévia e expressa autorização da CONTRATANTE para tudo o que não estiver incluso no objeto deste Contrato; envidar esforços para preservar a imagem da CONTRATANTE; respeitar as obras intelectuais e direitos de terceiros; manter a CONTRATANTE informada sobre a execução dos Serviços; e cumprir com os prazos e cronogramas definidos no Anexo I.\n\n'+
+'Durante a vigência deste Instrumento, a CONTRATANTE se compromete e se obriga a: aceitar os Serviços executados pela CONTRATADA sempre que estiverem de acordo com as normas referidas neste Instrumento; aplicar os princípios da boa-fé e da lealdade; disponibilizar materiais e equipamentos necessários à prestação dos serviços; fornecer os documentos e informações necessários à execução dos Serviços; e pagar, pontualmente, todos os valores previstos na Cláusula 3 e correspondente Anexo I.\n\n\n'+
+'CLÁUSULA 3 – PREÇO E FORMA DE PAGAMENTO\n\n'+
+'Pela prestação dos Serviços, a CONTRATANTE pagará à CONTRATADA o valor de R$ '+honor+', descrito no Anexo I do presente instrumento, no prazo de 30 dias corridos após a emissão da nota.\n\n'+
+'Além dos valores dos serviços constantes do Anexo I, a CONTRATANTE pagará à CONTRATADA o equivalente a 10% (dez por cento) sobre o valor da produção, a título "Comissionamento de Produção".\n\n'+
+'Comissionamento de Produção é o documento emitido pela CONTRATADA e encaminhado à CONTRATANTE, contendo a discriminação dos serviços e/ou dos materiais necessários à prestação de serviços internos, serviços de terceiros, preços correspondentes e custos da CONTRATADA.\n\n'+
+'O início da prestação dos Serviços dependerá da emissão da nota de pagamento da 1ª (primeira) parcela pela CONTRATADA à CONTRATANTE, de acordo com o cronograma descrito no Anexo I.\n\n'+
+'Para a cobrança do Preço, a CONTRATADA encaminhará à CONTRATANTE as respectivas Notas Fiscais de Serviços ou documento fiscal adequado, com antecedência de 10 (dez) dias da data do vencimento de cada parcela, nos termos do Anexo I.\n\n'+
+'Caso a CONTRATADA deixe de apresentar as notas fiscais dentro do prazo estipulado no Anexo I, os pagamentos não serão realizados pela CONTRATANTE, prorrogando-se a data do vencimento pelo mesmo período do atraso do envio da fatura/nota fiscal, sem que isso acarrete qualquer multa ou ônus para a CONTRATANTE.\n\n'+
+'Todo e qualquer atraso da CONTRATANTE no pagamento do Preço acarretará a incidência de multa correspondente a 2% (dois por cento) sobre o valor em atraso, acrescidos de juros de mora de 1% (um por cento) ao mês, tudo incidente pro rata die.\n\n'+
+'É facultado à CONTRATADA o direito de suspender a execução dos Serviços na hipótese de atraso no pagamento por culpa exclusiva e injustificável da CONTRATANTE por prazo superior a 45 (quarenta e cinco) dias corridos.\n\n'+
+'Despesas suportadas pela CONTRATADA para a execução dos Serviços, atendendo a interesses específicos da CONTRATANTE, dependerão de autorização prévia e expressa da CONTRATANTE e somente serão reembolsadas mediante a apresentação dos comprovantes e notas fiscais originais correspondentes.\n\n'+
+'Todos os tributos e encargos fiscais devidos em razão deste Contrato serão de exclusiva responsabilidade do contribuinte definido pela legislação tributária, sendo certo que cada Parte reterá e arcará com o pagamento e recolhimento dos valores a que esteja obrigada por lei.\n\n\n'+
+'CLÁUSULA 4 - CONFIDENCIALIDADE\n\n'+
+'A CONTRATADA reconhece e concorda que, durante a vigência deste Contrato, poderá ter acesso a informações confidenciais reveladas pela CONTRATANTE (as "Informações Confidenciais"), incluindo, mas não limitado a, bancos de dados e rede, informações de clientes, informações de caráter financeiro, operacional, técnico, planos, pesquisas, informações de produtos e projetos existentes e futuros, programas de computador, fórmulas, modelos, informações de fornecedores, equipamentos, relatórios, previsões, preços, custos e dados de pessoal, métodos, técnicas e segredos comerciais.\n\n'+
+'A CONTRATADA concorda em usar as Informações Confidenciais unicamente para os propósitos deste Contrato e a protegê-las empregando, no mínimo, o mesmo cuidado que emprega para suas próprias informações de natureza similar, não podendo vendê-las, transferi-las, publicá-las, revelá-las ou de qualquer forma dispor delas em favor de terceiros, exceto seus diretores, executivos, empregados e prepostos que necessitem dessas informações para os propósitos deste Contrato.\n\n'+
+'No menor prazo possível após o recebimento de notificação escrita pela CONTRATANTE (em nenhuma hipótese após 5 dias), a CONTRATADA deve entregar à CONTRATANTE todos os materiais que contenham Informações Confidenciais ou declarar que foram destruídos com segurança.\n\n'+
+'As obrigações de sigilo e confidencialidade aqui assumidas continuarão em vigor por toda a vigência do contrato e pelo período de 1 (um) ano após o seu encerramento, mesmo em caso de rescisão ou resilição antecipada.\n\n\n'+
+'CLÁUSULA 5 - PROPRIEDADE INTELECTUAL\n\n'+
+'5.1. As Partes aceitam e concordam que todas as obras, designs, materiais, conceitos criativos e demais materiais que forem desenvolvidos ou criados pela CONTRATADA, frutos dos Serviços, para uso exclusivo da CONTRATANTE, terão seus direitos patrimoniais cedidos à CONTRATANTE, em caráter permanente, irrevogável, irretratável e universal, sem qualquer pagamento adicional além do Preço previsto neste instrumento e Anexos.\n\n'+
+'A CONTRATADA reconhece a CONTRATANTE como única, legítima e exclusiva titular dos Direitos de Propriedade Intelectual, podendo fazer qualquer uso deles, sendo que o Preço já inclui e é reconhecido como justa e suficiente contraprestação por essa cessão, em caráter irrevogável e irretratável.\n\n'+
+'A CONTRATADA responsabiliza-se, perante a CONTRATANTE e quaisquer terceiros, pela autoria e originalidade de todos os materiais aplicados no desenvolvimento dos Serviços, garantindo a não violação de direitos de propriedade intelectual e marca de terceiros, isentando a CONTRATANTE de qualquer responsabilidade e demandas de terceiros, assumindo todas as despesas que a CONTRATANTE venha a suportar, incluindo indenizações e honorários advocatícios.\n\n\n'+
+'CLÁUSULA 6 – PROTEÇÃO DE DADOS\n\n'+
+'6.1. As Partes declaram entender que deverão preservar e proteger os dados pessoais dos funcionários, colaboradores, prepostos e demais pessoas físicas envolvidas na relação contratual, na forma da Lei 13.709/2018 (LGPD).\n\n'+
+'6.2. A CONTRATADA se compromete a notificar a CONTRATANTE, no prazo de 48 (quarenta e oito) horas da ciência, sobre qualquer solicitação de titulares para exercer seus direitos de acordo com a legislação de proteção de dados.\n\n'+
+'6.3. As Partes manterão registro das operações de tratamento de dados pessoais, adotando medidas de segurança técnicas e organizacionais destinadas a proteger os dados contra destruição, perda, alteração, difusão ou acesso não autorizado.\n\n'+
+'6.4. A CONTRATADA deverá eliminar todos os dados tratados no âmbito deste Contrato, incluindo cópias existentes, no prazo de 90 (noventa) dias de terminada a relação contratual, salvo prazos e hipóteses previstos em lei.\n\n'+
+'6.5. Cada Parte será individualmente responsável por incidentes envolvendo a segurança dos dados pessoais e deverá informar imediatamente a Parte contrária, adotando as medidas necessárias para mitigar danos e evitar novos incidentes.\n\n\n'+
+'CLÁUSULA 7 – PRAZO, VIGÊNCIA E RESCISÃO\n\n'+
+'7.1. O Contrato é celebrado por prazo determinado, apresentando como termo inicial '+dataIni+' e vigerá por aproximadamente '+(d.duracao||'4 (quatro) meses')+' ("Prazo").\n\n'+
+'7.1.1. As Partes poderão aditar e/ou renovar o Contrato por escrito, pactuando os Serviços adicionais ou a prorrogação do Prazo. O presente Contrato só será considerado aditado e/ou prorrogado com a assinatura do aditamento por ambas as Partes.\n\n'+
+'7.2. O presente Contrato poderá ser rescindido, sem justa causa, por qualquer das Partes, mediante simples denúncia por escrito à outra Parte com antecedência mínima de 30 (trinta) dias corridos, arcando a Parte que rescindiu o Contrato com todos os encargos referentes a este período, sem quaisquer penalidades, ônus e/ou multas.\n\n'+
+'7.3. As Partes poderão considerar rescindido o presente Contrato, de pleno direito, independentemente de notificação judicial ou extrajudicial, quando: (i) ocorrer qualquer infração de obrigação assumida neste Instrumento, não sanada em até 15 (quinze) dias do recebimento de notificação escrita; (ii) houver pedido de recuperação judicial/extrajudicial, falência ou insolvência civil de qualquer das Partes; ou (iii) ocorrer cessão dos direitos e obrigações a terceiros sem anuência prévia e por escrito da outra Parte.\n\n\n'+
+'INEXISTÊNCIA DE EXCLUSIVIDADE\n\n'+
+'Este Contrato não estabelece exclusividade entre as Partes, podendo a CONTRATADA prestar serviços para terceiros assim como a CONTRATANTE contratar serviços similares de terceiros. Nos casos em que a CONTRATADA vier a prestar serviços para empresas do mesmo ramo e/ou concorrentes da CONTRATANTE, deverá assegurar o mais completo e absoluto sigilo sobre quaisquer dados e informações confiadas em razão da execução deste contrato.\n\n\n'+
+'INEXISTÊNCIA DE RELAÇÕES TRABALHISTAS\n\n'+
+'Este Contrato não cria relação de sociedade, associação, representação, mandato ou emprego entre as Partes. Fica expressamente convencionado que não há vínculo empregatício entre a CONTRATANTE e os funcionários/contratados da CONTRATADA, eximindo a CONTRATANTE de quaisquer responsabilidades, ações judiciais ou reclamações trabalhistas relacionadas, incluindo honorários advocatícios. A CONTRATADA se compromete ao perfeito cumprimento das leis e encargos trabalhistas, previdenciários e securitários de todo o seu pessoal, inclusive quanto a horas-extras e férias.\n\n\n'+
+'CLÁUSULA 8 - DISPOSIÇÕES GERAIS\n\n'+
+'8.1. Anticorrupção. As Partes comprometem-se a observar e cumprir rigorosamente todas as leis aplicáveis contra práticas de suborno e corrupção, incluindo a atual legislação brasileira de anticorrupção (Lei n. 12.846/2013).\n\n'+
+'8.2. Notificações. Todas as comunicações previstas neste Instrumento serão realizadas por escrito e entregues pessoalmente, por carta ou por e-mail, com comprovante de recebimento.\n\n'+
+'8.3. Autonomia das Partes. As Partes declaram ser independentes e autônomas, não havendo qualquer vínculo trabalhista, mandato, sociedade, associação, parceria, consórcio, joint-venture ou representação comercial entre elas.\n\n'+
+'8.4. Efeito Vinculante. Este Instrumento constitui uma obrigação legal, válida e vinculante, obrigando as Partes e seus sucessores a qualquer título, em caráter irrevogável e irretratável, ao seu fiel cumprimento.\n\n'+
+'8.5. Acordo Integral. Este Instrumento reflete a íntegra dos entendimentos e acordos assumidos entre as Partes, revogando e substituindo qualquer entendimento anterior sobre o mesmo objeto.\n\n'+
+'8.6. Alteração. Este instrumento somente poderá ser validamente alterado, modificado ou aditado mediante instrumento escrito devidamente assinado pelas Partes.\n\n'+
+'8.7. Cessão. Nem este Instrumento nem quaisquer direitos ou obrigações nele previstos poderão ser cedidos por qualquer das Partes sem o expresso consentimento por escrito das outras Partes.\n\n'+
+'8.8. Indenização. A Parte que infringir quaisquer das cláusulas constantes do presente Contrato deverá indenizar a Parte contrária pelas perdas e danos a que der causa.\n\n'+
+'8.9. Não Solicitação. Durante a vigência deste Contrato e pelo prazo de 2 (dois) anos contados da rescisão, as Partes assumem a obrigação de não apresentar proposta de trabalho a qualquer empregado ou administrador da outra Parte, sob pena de multa pré-fixada de R$ 20.000,00 (vinte mil reais) por empregado solicitado/cooptado.\n\n'+
+'8.10. Lei Aplicável e Foro. Este Contrato será regido e interpretado de acordo com as leis da República Federativa do Brasil. As Partes elegem o foro da Comarca de São Paulo, Estado de São Paulo, com exclusão de qualquer outro, por mais privilegiado que seja.\n\n\n'+
+'E, por estarem assim justas e contratadas, as Partes assinam o presente CONTRATO em 2 (duas) vias de igual teor e forma, na presença de 2 (duas) testemunhas.\n\n\n'+
+'São Paulo, '+jurFmtDataExtenso(new Date().toISOString().slice(0,10))+'.\n\n\n\n'+
+'_______________________________\n'+(d.empresa||'[RAZÃO SOCIAL DO CLIENTE]')+'\n'+(d.rep||'[Nome do representante legal]')+'\n\n\n'+
+'_______________________________\n'+JUR_EUPHORIA.nome+'\n'+JUR_EUPHORIA.representante+'\n\n\n'+
+'Testemunhas:\n\n'+
+'______________________________\nNome: ______\nCPF: ______\n\n\n'+
+'________________________________\nNome: '+JUR_EUPHORIA.testemunhaNome+'\nCPF: '+JUR_EUPHORIA.testemunhaCpf+'\n\n\n'+
+'ANEXO I\n\n'+
+'1. Serviços e Escopo\n'+(d.servicos||'[Descrever escopo dos serviços]')+'\n\n'+
+'2. Preço dos Serviços, condições de faturamento e pagamento\n'+
+'Investimento: R$ '+honor+' (custos em Reais, considerando impostos).\n'+
+'Comissão para gestão de terceiros: 10%.\n'+
+'Condição de pagamento: 30 dias.\n'+
+'Não estão incluídos custos de produção (compra de imagem, som, vídeo etc.), custos de ferramentas e despesas de viagem, salvo acordo em contrário.\n';
+}
+
+function jurTemplatePJ(d){
+  var dataIni=jurFmtDataCurta(d.inicio);
+  var honor=jurFmtMoeda(d.honorarios);
+  return 'INSTRUMENTO PARTICULAR DE PRESTAÇÃO DE SERVIÇOS\n\n\n'+
+'Pelo presente instrumento e na melhor forma de direito, as partes, de um lado:\n\n'+
+JUR_EUPHORIA.nome+', pessoa jurídica de direito privado, inscrita no CNPJ/ME sob o nº '+JUR_EUPHORIA.cnpj+', com sede na cidade de São Paulo, Estado de São Paulo, na '+JUR_EUPHORIA.endereco+', neste ato representada por seu apoderado, Sr. '+JUR_EUPHORIA.representante+', inscrito no CPF/ME sob o nº '+JUR_EUPHORIA.representanteCpf+' ("CONTRATANTE"),\n\n'+
+'e, de outro lado, '+(d.empresa||d.nome||'[RAZÃO SOCIAL / NOME]')+', pessoa jurídica de direito privado, inscrita no CNPJ/ME sob o nº '+(d.cnpj||'[CNPJ]')+', com sede em '+(d.endereco||'[ENDEREÇO]')+', neste ato representada por seu sócio '+(d.nome||'[NOME]')+', inscrito no CPF/ME sob o nº '+(d.cpf||'[CPF]')+' ("CONTRATADA").\n\n'+
+'CONTRATANTE e CONTRATADA são individualmente denominadas "Parte" e conjuntamente denominadas "Partes".\n\n\n'+
+'DAS CONSIDERAÇÕES INICIAIS\n\n'+
+'Considerando que a CONTRATANTE tem interesse em contratar a CONTRATADA para a prestação dos serviços objeto do presente Contrato;\n\n'+
+'Considerando que a CONTRATADA possui profissionais especializados capazes de agregar grande valor ao objeto deste Contrato;\n\n'+
+'Considerando que está a ser observada toda a principiologia regente dos Contratos, estabelecida no Código Civil Brasileiro, especialmente a boa-fé objetiva e a autonomia de vontade das Partes;\n\n'+
+'Considerando ainda que a CONTRATADA possui capacidade econômica compatível com a execução dos serviços, bem como atende os demais requisitos previstos em lei para o seu funcionamento;\n\n'+
+'RESOLVEM AS PARTES, por seus representantes legais ao final assinados, celebrar o presente Contrato de Prestação de Serviços ("Contrato"), que se regerá pela legislação aplicável à espécie, em especial ao estabelecido pela Lei 6.019/74, com as alterações trazidas pela Lei 13.429/17, observando fielmente as Cláusulas e condições a seguir expostas, as quais mutuamente aceitam e se outorgam.\n\n\n'+
+'CLÁUSULA PRIMEIRA – DO OBJETO\n\n'+
+'Pelo presente instrumento e na melhor forma de direito, a CONTRATANTE resolve contratar a CONTRATADA para prestar serviços de '+(d.cargo||'[DESCRIÇÃO DO CARGO/SERVIÇO]')+'.\n\n\n'+
+'CLÁUSULA SEGUNDA – DOS SERVIÇOS\n\n'+
+'A CONTRATADA prestará os serviços descritos à CONTRATANTE e suas subsidiárias, bem como todas as empresas pertencentes ao mesmo grupo econômico. Havendo qualquer alteração ou retificação do objeto contratual, fica convencionado entre as Partes a necessidade de celebração de Termo Aditivo.\n\n'+
+'Os serviços contratados poderão ser executados tanto nas dependências da CONTRATANTE como em outro local, desde que haja prévio acordo entre as partes. A CONTRATADA possui autonomia formal, organizacional, administrativa, finalística e operacional para execução dos serviços, não havendo subordinação jurídica dos cotistas da CONTRATADA ou de seus prepostos à CONTRATANTE.\n\n'+
+'Nos termos do disposto no artigo 4º-A da Lei 6.019/74, alterado pela Lei 13.429/17, o objeto do presente contrato pode ser a execução de serviços ligados a qualquer atividade da CONTRATANTE, sem que isso desnature a natureza de prestação de serviços.\n\n\n'+
+'CLÁUSULA TERCEIRA – DA VIGÊNCIA\n\n'+
+'Acordam as Partes que o presente Contrato terá início em '+dataIni+' e terá prazo determinado de 2 (dois) anos, sendo renovado automaticamente por igual período, exceto se qualquer das Partes se manifestar contrariamente à renovação automática, mediante notificação encaminhada à outra Parte com no mínimo 30 (trinta) dias de antecedência do encerramento do Contrato.\n\n\n'+
+'CLÁUSULA QUARTA – DO PAGAMENTO\n\n'+
+'Em contraprestação aos SERVIÇOS ora acordados, a CONTRATADA fará jus ao recebimento de honorários mensais correspondentes a R$ '+honor+', com vencimento sempre no último dia útil do mês relativo à prestação dos serviços.\n\n'+
+'O pagamento será efetuado pela CONTRATANTE através de depósito bancário. Não efetivado o respectivo pagamento na data aprazada, sobre a quantia devida incidirá juros de mora de 1% (um por cento) ao mês ou fração, além de multa de 2% (dois por cento), corrigido monetariamente com base no IGP/FGV, pro rata die.\n\n\n'+
+'CLÁUSULA QUINTA – DAS OBRIGAÇÕES DAS PARTES\n\n'+
+'Além de outras obrigações previstas neste contrato, a CONTRATADA se obriga a: seguir os protocolos e diretrizes determinados pela legislação e pela CONTRATANTE no que se refere aos Serviços; dar ciência à CONTRATANTE, imediatamente e por escrito, de qualquer anormalidade que verificar na execução dos SERVIÇOS; responder por eventuais infrações à legislação; e contratar, remunerar, fiscalizar, dirigir, controlar e organizar o trabalho realizado por seus cotistas ou prepostos.\n\n'+
+'Além de outras obrigações previstas neste contrato, a CONTRATANTE se obriga a arcar com todas as despesas necessárias à efetivação dos SERVIÇOS, incluindo despesas gerais e de viagens, caso necessário, podendo optar pelo reembolso direto, faturamento (com incidência de impostos), ou compra direta.\n\n\n'+
+'CLÁUSULA SEXTA – DOS DIREITOS AUTORAIS\n\n'+
+'Todos os trabalhos elaborados pela CONTRATADA, incluindo todo material utilizado, políticas, procedimentos, melhorias, ideias, conceitos, criações, ou quaisquer direitos suscetíveis ou não a registro perante órgãos de propriedade industrial ou intelectual no Brasil ou no exterior, serão de propriedade exclusiva da CONTRATANTE, mesmo após o término ou vigência do presente contrato.\n\n\n'+
+'CLÁUSULA SÉTIMA – DA RESPONSABILIDADE TRABALHISTA / CÍVEL / CRIMINAL\n\n'+
+'Nenhum preposto, representante, sócio ou empregado da CONTRATADA, destacado para prestação dos SERVIÇOS, terá qualquer tipo de vínculo trabalhista ou previdenciário com a CONTRATANTE, devendo a CONTRATADA estar em dia com suas obrigações tributárias e trabalhistas, emitindo e enviando trimestralmente Certidões Negativas tributárias e distribuidor de processos judiciais.\n\n\n'+
+'CLÁUSULA OITAVA – DA RESCISÃO\n\n'+
+'Dar-se-á por rescindido o presente contrato se as partes infringirem qualquer uma das suas cláusulas, pelo que se pagará à parte inocente as correspondentes perdas e danos. Qualquer das partes poderá rescindir o presente Contrato mediante prévia notificação de 30 (trinta) dias, sem que isso acarrete qualquer tipo de penalidade contratual ou direito de indenização.\n\n\n'+
+'CLÁUSULA NONA – DA CONFIDENCIALIDADE\n\n'+
+'Tendo em vista que durante a prestação dos Serviços a CONTRATADA terá acesso a informações confidenciais e exclusivas sobre negócios, operações, finanças, políticas e estratégias da CONTRATANTE, a CONTRATADA tomará todas as precauções necessárias para salvaguardar a confidencialidade dessas informações e não utilizará, copiará, divulgará ou de qualquer outra forma revelará, no todo ou em parte, qualquer informação confidencial a terceiros.\n\n'+
+'A CONTRATADA informará imediatamente à CONTRATANTE acerca de qualquer ordem judicial ou requisição de autoridade competente exigindo a revelação de informações confidenciais.\n\n\n'+
+'CLÁUSULA DÉCIMA – DISPOSIÇÕES FINAIS\n\n'+
+'A CONTRATADA e seus cotistas declaram que tiveram a assistência de advogado de sua confiança para analisar os termos do presente contrato, estando plenamente cientes do inteiro teor de todas as cláusulas aqui apostadas.\n\n'+
+'As Partes, de comum acordo, estabelecem que qualquer divergência, controvérsia ou litígio decorrente da interpretação ou execução deste contrato será resolvido por meio de Mediação e Arbitragem, na cidade de São Paulo – Capital, com renúncia expressa de qualquer outro foro, conforme a Lei nº 9.307/96.\n\n'+
+'E por assim estarem certas, justas e contratadas, as partes firmam o presente instrumento em 3 (três) vias de igual teor e forma, na presença de 2 (duas) testemunhas.\n\n\n'+
+'São Paulo (SP), '+jurFmtDataCurta(new Date().toISOString().slice(0,10))+'\n\n\n\n\n'+
+JUR_EUPHORIA.nome+'\np. '+JUR_EUPHORIA.representante+'\n\n\n\n'+
+(d.empresa||d.nome||'[RAZÃO SOCIAL / NOME]')+'\np. '+(d.nome||'[NOME]')+'\n\n\n\n'+
+'TESTEMUNHA:\n\n\n'+
+'Nome: '+JUR_EUPHORIA.testemunhaNome+' RG: '+JUR_EUPHORIA.testemunhaRg+'\n'+
+'CPF/MF: '+JUR_EUPHORIA.testemunhaCpf+'\n';
+}
+
+function jurTemplateFreela(d){
+  var dataIni=jurFmtDataCurta(d.inicio);
+  var valor=jurFmtMoeda(d.valor);
+  return 'CONTRATO DE PRESTAÇÃO DE SERVIÇOS AUTÔNOMOS (FREELANCER)\n\n\n'+
+'Pelo presente instrumento particular, de um lado:\n\n'+
+JUR_EUPHORIA.nome+', pessoa jurídica de direito privado, inscrita no CNPJ/ME sob o nº '+JUR_EUPHORIA.cnpj+', com sede na '+JUR_EUPHORIA.endereco+', neste ato representada por '+JUR_EUPHORIA.representante+' ("CONTRATANTE"),\n\n'+
+'e, de outro lado, '+(d.nome||'[NOME/RAZÃO SOCIAL]')+', inscrito(a) no CPF/CNPJ sob o nº '+(d.doc||'[CPF/CNPJ]')+' ("CONTRATADO"),\n\n'+
+'resolvem as Partes celebrar o presente Contrato de Prestação de Serviços, mediante as cláusulas e condições a seguir:\n\n\n'+
+'CLÁUSULA PRIMEIRA – DO OBJETO\n\n'+
+'O presente instrumento tem por objeto a prestação, pelo CONTRATADO, do seguinte serviço: '+(d.servico||'[DESCRIÇÃO DO SERVIÇO]')+'.\n\n\n'+
+'CLÁUSULA SEGUNDA – DO PRAZO\n\n'+
+'Os serviços terão início em '+dataIni+' e prazo de execução de '+(d.prazo||'[PRAZO]')+', podendo ser prorrogado mediante acordo escrito entre as Partes.\n\n\n'+
+'CLÁUSULA TERCEIRA – DO VALOR E PAGAMENTO\n\n'+
+'Pela prestação dos serviços, a CONTRATANTE pagará ao CONTRATADO o valor de R$ '+valor+', mediante depósito bancário, contra a apresentação de recibo ou nota fiscal correspondente.\n\n\n'+
+'CLÁUSULA QUARTA – DA AUTONOMIA E INEXISTÊNCIA DE VÍNCULO\n\n'+
+'O CONTRATADO presta os serviços objeto deste Contrato de forma autônoma e eventual, não havendo qualquer vínculo empregatício, de subordinação, habitualidade ou exclusividade com a CONTRATANTE, sendo o CONTRATADO responsável por seus próprios encargos tributários, previdenciários e trabalhistas.\n\n\n'+
+'CLÁUSULA QUINTA – DA PROPRIEDADE INTELECTUAL\n\n'+
+'Todos os materiais, criações e demais entregáveis produzidos pelo CONTRATADO no âmbito deste Contrato serão de propriedade exclusiva da CONTRATANTE, cedidos em caráter definitivo, irrevogável e irretratável, sem qualquer pagamento adicional além do valor previsto na Cláusula Terceira.\n\n\n'+
+'CLÁUSULA SEXTA – DA CONFIDENCIALIDADE\n\n'+
+'O CONTRATADO se compromete a manter sigilo sobre todas as informações confidenciais a que tiver acesso em razão da prestação dos serviços, não as divulgando a terceiros, mesmo após o término deste Contrato.\n\n\n'+
+'CLÁUSULA SÉTIMA – DA RESCISÃO\n\n'+
+'O presente Contrato poderá ser rescindido por qualquer das Partes, mediante notificação escrita com antecedência mínima de 15 (quinze) dias, sem prejuízo do pagamento pelos serviços já prestados até a data da rescisão.\n\n\n'+
+'CLÁUSULA OITAVA – DO FORO\n\n'+
+'As Partes elegem o foro da Comarca de São Paulo, Estado de São Paulo, para dirimir quaisquer questões oriundas deste Contrato, com renúncia a qualquer outro, por mais privilegiado que seja.\n\n\n'+
+'E por estarem assim justas e contratadas, as Partes assinam o presente instrumento em 2 (duas) vias de igual teor e forma.\n\n\n'+
+'São Paulo, '+jurFmtDataExtenso(new Date().toISOString().slice(0,10))+'.\n\n\n\n'+
+'_______________________________\n'+JUR_EUPHORIA.nome+'\n'+JUR_EUPHORIA.representante+'\n\n\n'+
+'_______________________________\n'+(d.nome||'[NOME/RAZÃO SOCIAL]')+'\n';
+}
+
+function jurTemplateDistrato(d){
+  var dtRescisao=jurFmtDataCurta(d.rescisao);
+  var dtOriginal=jurFmtDataCurta(d.inicioOriginal);
+  var valor=jurFmtMoeda(d.valor);
+  return 'INSTRUMENTO PARTICULAR DE DISTRATO DO CONTRATO DE PRESTAÇÃO DE SERVIÇOS E OUTRAS AVENÇAS\n\n\n'+
+'Pelo presente instrumento particular de distrato do contrato de prestação de serviços e outras avenças ("Distrato") e na melhor forma de direito, as partes abaixo nomeadas e qualificadas:\n\n'+
+JUR_EUPHORIA.nome+', empresa registrada no Brasil sob o CNPJ '+JUR_EUPHORIA.cnpj+', com sede na '+JUR_EUPHORIA.endereco+', neste ato representada na forma prevista por sua estrutura e documentação societária ("EUPHORIA"); e\n\n'+
+(d.nome||'[NOME/RAZÃO SOCIAL]')+', inscrito(a) no CPF/CNPJ sob o nº '+(d.doc||'[CPF/CNPJ]')+(d.cargo?', que prestou serviços na função de '+d.cargo:'')+' ("PRESTADOR").\n\n'+
+'EUPHORIA e PRESTADOR designados em conjunto como "Partes" e, individualmente, como "Parte".\n\n\n'+
+'PREMISSAS\n\n'+
+'CONSIDERANDO QUE em '+dtOriginal+', as Partes formalizaram um Contrato de Prestação de Serviços, no qual foi acordada a prestação de serviços pelo PRESTADOR à EUPHORIA ("Contrato de Prestação de Serviços");\n\n'+
+'CONSIDERANDO QUE as Partes, de comum acordo, resolvem na presente data rescindir o contrato de prestação de serviços firmado;\n\n'+
+'CONSIDERANDO QUE as Partes resolvem terminar as relações mantidas durante o período em que o PRESTADOR prestou os serviços à EUPHORIA, os quais foram realizados até o dia '+dtRescisao+'.\n\n'+
+'As Partes, neste ato, outorgam reciprocamente entre si a mais plena, ampla, geral, irrevogável e irretratável quitação, para nada mais reclamarem uns dos outros, seja a que título for e a qualquer tempo.\n\n'+
+'Sem prejuízo do disposto no presente Distrato, o PRESTADOR se compromete a devolver todas as informações recebidas da EUPHORIA quando da realização da prestação de serviços, de clientes e/ou fornecedores da EUPHORIA, em condições confidenciais ou não, listas ou compilações de clientes reais ou potenciais, dados sobre taxas, vendas, técnicos, negociação ou informação financeira interna da EUPHORIA.\n\n'+
+'O PRESTADOR se compromete, ainda, a manter estritamente confidencial e não usar ou revelar, direta ou indiretamente, a terceiros, qualquer informação confidencial ou segredos comerciais relativos às disposições que conduziram ao Contrato de Prestação de Serviços.\n\n'+
+'Por este Distrato, as Partes dão por extintas quaisquer tratativas, acordos, propostas ou negócios anteriormente firmados referentes ao objeto do Contrato de Prestação de Serviços, o qual é extinto de pleno direito neste ato.\n\n'+
+'As Partes expressamente aceitam e reconhecem que, a partir desta data, não haverá quaisquer obrigações resultantes do Contrato de Prestação de Serviços que possam ser reclamadas por uma Parte à outra.\n\n'+
+'O presente distrato é celebrado em caráter irrevogável e irretratável, renunciando as Partes, expressamente, à faculdade do arrependimento.\n\n\n'+
+'EUPHORIA declara o pagamento de R$ '+valor+', detalhado acima, em caráter de rescisão de contrato, na conta bancária indicada pelo PRESTADOR'+(d.banco?' ('+d.banco+')':'')+'.\n\n'+
+'Qualquer aviso ou notificação relativa ao presente distrato será dado às Partes mediante entrega pessoal, contra recibo, ou por via postal através de carta registrada nos endereços constantes do preâmbulo deste Distrato.\n\n'+
+'As Partes concordam que os termos e condições do Contrato de Prestação de Serviços e do presente Distrato deverão permanecer confidenciais, não podendo ser divulgados a terceiros sem autorização prévia e por escrito da outra Parte, exceto se exigido por lei ou autoridade competente.\n\n'+
+'As Partes elegem o foro da Comarca de São Paulo, Estado de São Paulo, como o único competente para dirimir quaisquer questões oriundas do presente Distrato, com expressa renúncia a qualquer outro, por mais privilegiado que seja.\n\n'+
+'E, por estarem assim justas e contratadas, as Partes assinam este Distrato em 3 (três) vias de igual teor e forma, para um só efeito, na presença das testemunhas abaixo.\n\n\n'+
+'São Paulo (SP), '+dtRescisao+'\n\n\n\n'+
+JUR_EUPHORIA.nome+'\np. '+JUR_EUPHORIA.representante+'\n\n\n\n'+
+(d.nome||'[NOME/RAZÃO SOCIAL]')+'\np. '+(d.nome||'[NOME]')+'\n\n\n\n'+
+'Testemunha:\n\n\n'+
+'Nome: '+JUR_EUPHORIA.testemunhaNome+' RG: '+JUR_EUPHORIA.testemunhaRg+'\n'+
+'CPF/MF: '+JUR_EUPHORIA.testemunhaCpf+'\n';
+}
+
+function jurTemplateCarta(d){
+  var dataHoje=jurFmtDataExtenso(new Date().toISOString().slice(0,10));
+  var dataInicio=jurFmtDataExtenso(d.inicio);
+  var salario=jurFmtMoeda(d.salario);
+  return 'São Paulo, '+dataHoje+'.\n\n\n'+
+'Estimado(a) '+(d.nome||'[NOME DO CANDIDATO]')+',\n\n'+
+'Depois do processo de entrevistas realizado pela equipe da Euphoria Creative, gostaríamos de formalizar uma proposta de trabalho para atuar no nosso time a partir do dia '+dataInicio+'. Esta posição tem um grande valor estratégico para a empresa, clientes e a todas as metas que queremos atingir no futuro. Para isso, nossa proposta está baseada no seguinte pacote:\n\n'+
+'Regime de Contratação: Prestador de Serviços (PJ).\n'+
+'Cargo: '+(d.cargo||'[CARGO]')+'.\n'+
+'Salário Base: R$ '+salario+' + 13º e 1/3 de férias.\n'+
+'Flash Benefício: R$ '+jurFmtMoeda(d.flash||0)+' mensais referentes a vale-refeição/vale-transporte, disponibilizados na modalidade "cartão de crédito".\n'+
+'Benefício Wellhub (Gympass): A Euphoria cobre a mensalidade para o acesso à plataforma Gympass, conforme o plano escolhido pelo colaborador.\n'+
+'Plano de saúde: '+(d.plano||'Care Plus Soho 30')+', sem descontos, 100% pago pela empresa (sem dependentes). Qualquer dependente incluído no plano é pago 100% pelo colaborador.\n'+
+'Pacote contabilidade: 100% pago pela agência para emissão de notas fiscais (inclui abertura de empresa e honorários de contabilidade; não inclui alteração de endereço, fechamento de empresa ou alteração de dados cadastrais).\n'+
+(d.obs?'Benefícios adicionais: '+d.obs+'.\n':'')+
+'Código de Conduta: A empresa espera que seus prestadores de serviço cumpram as leis do Brasil e respeitem as regras trabalhistas do país, não se comprometendo com nenhum emprego, atividade ou negócio que tenha conflito com os clientes e/ou modelo de trabalho da Euphoria Creative.\n\n'+
+'A partir dessa proposta, gostaríamos de confirmar seu interesse em se juntar ao time, para que possamos iniciar os trâmites legais de contratação dos seus serviços. Caso esteja de acordo com essa oferta, pedimos que assine este documento digitalmente.\n\n\n'+
+'De acordo: ________________________ '+(d.nome||'[NOME DO CANDIDATO]')+'\n\n'+
+'* A oferta atual é válida assim que temos esse documento assinado e enviado pelo candidato com tempo hábil para os trâmites de contratação.\n';
+}
+
+function jurTemplateAditivo(d){
+  var dtOriginal=jurFmtDataCurta(d.dataOriginal);
+  var dtVigor=jurFmtDataCurta(d.dataVigor);
+  var clausulasTexto=(d.clausulas||[]).map(function(c,i){
+    return (i+1)+'. A '+c.nome+' passa a vigorar com a seguinte redação:\n\n"'+c.texto+'"\n';
+  }).join('\n');
+  return d.numero+' ADITIVO AO CONTRATO DE PRESTAÇÃO DE SERVIÇOS\n\n\n'+
+'Pelo presente instrumento particular, de um lado:\n\n'+
+JUR_EUPHORIA.nome+', pessoa jurídica de direito privado, inscrita no CNPJ/ME sob o nº '+JUR_EUPHORIA.cnpj+', com sede na '+JUR_EUPHORIA.endereco+', neste ato representada por '+JUR_EUPHORIA.representante+', inscrito no CPF/ME sob o nº '+JUR_EUPHORIA.representanteCpf+' ("CONTRATANTE"),\n\n'+
+'e, de outro lado, '+(d.nome||'[NOME/RAZÃO SOCIAL]')+', inscrito(a) no CNPJ/CPF sob o nº '+(d.doc||'[CNPJ/CPF]')+(d.rep?', neste ato representada por '+d.rep+(d.repCpf?', inscrito no CPF sob o nº '+d.repCpf:''):'')+' ("CONTRATADA"),\n\n'+
+'RESOLVEM as Partes, de comum acordo, celebrar o presente '+d.numero+' ADITIVO ao Contrato de Prestação de Serviços firmado entre as Partes em '+dtOriginal+' ("Contrato Original"), mediante as cláusulas e condições a seguir:\n\n\n'+
+'CLÁUSULA PRIMEIRA – DO OBJETO\n\n'+
+'O presente Aditivo tem por objeto alterar as cláusulas do Contrato Original conforme descrito abaixo, permanecendo inalteradas todas as demais disposições não expressamente modificadas por este instrumento.\n\n\n'+
+'CLÁUSULA SEGUNDA – DAS ALTERAÇÕES\n\n'+
+(clausulasTexto||'[Nenhuma cláusula informada]')+'\n\n'+
+'CLÁUSULA TERCEIRA – DA VIGÊNCIA\n\n'+
+'O presente Aditivo entra em vigor em '+dtVigor+', permanecendo válidas e em pleno vigor todas as demais cláusulas e condições do Contrato Original não alteradas por este instrumento.\n\n\n'+
+'E por estarem assim justas e contratadas, as Partes assinam o presente Aditivo em 2 (duas) vias de igual teor e forma, na presença de 2 (duas) testemunhas.\n\n\n'+
+'São Paulo, '+jurFmtDataExtenso(new Date().toISOString().slice(0,10))+'.\n\n\n\n'+
+'_______________________________\n'+JUR_EUPHORIA.nome+'\n'+JUR_EUPHORIA.representante+'\n\n\n'+
+'_______________________________\n'+(d.nome||'[NOME/RAZÃO SOCIAL]')+'\n\n\n'+
+'Testemunhas:\n\n'+
+'______________________________\nNome: ______\nCPF: ______\n\n\n'+
+'________________________________\nNome: '+JUR_EUPHORIA.testemunhaNome+'\nCPF: '+JUR_EUPHORIA.testemunhaCpf+'\n';
+}
+
+var JUR_TEMPLATES={cliente:jurTemplateCliente,pj:jurTemplatePJ,freela:jurTemplateFreela,distrato:jurTemplateDistrato,aditivo:jurTemplateAditivo,carta:jurTemplateCarta};
 function jurAnalisar(file){if(!file)return;document.getElementById('jur-loading').style.display='block';document.getElementById('jur-result').style.display='none';document.getElementById('jur-file-name').textContent=file.name;var reader=new FileReader();reader.onload=function(e){var text=e.target.result||'';var prompt='Voce e um advogado especialista em contratos brasileiros. Analise o contrato abaixo e forneca um resumo estruturado em portugues com os topicos:\n1. RESUMO GERAL\n2. VIGENCIA E RENOVACAO\n3. VALORES E PAGAMENTO\n4. MULTAS E PENALIDADES\n5. OBRIGACOES DAS PARTES\n6. CONFIDENCIALIDADE\n7. ALERTAS E PONTOS DE ATENCAO\n\nContrato:\n\n'+text.slice(0,15000);fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})}).then(function(r){return r.json();}).then(function(data){var a=data.content&&data.content[0]?data.content[0].text:'Erro';document.getElementById('jur-analysis-content').textContent=a;document.getElementById('jur-loading').style.display='none';document.getElementById('jur-result').style.display='block';}).catch(function(e){document.getElementById('jur-loading').style.display='none';document.getElementById('jur-result').style.display='block';document.getElementById('jur-analysis-content').textContent='Erro: '+e.message;});};reader.readAsText(file,'utf-8');}
 function jurSalvarAnalise(){jurContratos.push({tipo:'analise',nome:document.getElementById('jur-file-name').textContent,analise:document.getElementById('jur-analysis-content').textContent,data:new Date().toLocaleDateString('pt-BR')});jurRenderPainel();alert('Salvo!');}
 function jurLimpar(){document.getElementById('jur-result').style.display='none';document.getElementById('jur-file-input').value='';}
@@ -6523,11 +6807,12 @@ function jurPreencherPJ(val){if(!val)return;try{var p=JSON.parse(val);if(p.nome)
 function jurPreencherDistrato(val){if(!val)return;try{var p=JSON.parse(val);if(p.nome)document.getElementById('dt-nome').value=p.empresa||p.nome;if(p.cpf)document.getElementById('dt-doc').value=p.cnpj||p.cpf;if(p.cargo)document.getElementById('dt-cargo').value=p.cargo;if(p.salario)document.getElementById('dt-honorarios').value=p.salario;if(p.inicio)document.getElementById('dt-inicio-original').value=p.inicio;}catch(e){}}
 function jurPreencherCarta(val){if(!val)return;try{var p=JSON.parse(val);if(p.nome)document.getElementById('carta-nome').value=p.nome;if(p.cargo)document.getElementById('carta-cargo').value=p.cargo;if(p.salario)document.getElementById('carta-salario').value=p.salario;}catch(e){}}
 function jurAddClausula(){var d=document.createElement('div');d.className='ad-row';d.style.cssText='display:grid;grid-template-columns:200px 1fr auto;gap:8px;margin-bottom:8px';d.innerHTML='<input type="text" placeholder="Ex: Clausula 4a" class="field-input ad-clausula-nome"><input type="text" placeholder="Nova redacao..." class="field-input ad-clausula-texto"><button class="btn" onclick="this.parentElement.remove()" style="padding:5px 9px">x</button>';document.getElementById('ad-clausulas').appendChild(d);}
-async function jurGerarContrato(tipo){
+function jurGerarContrato(tipo){
   var dados=jurColetarDados(tipo);if(!dados)return;
   document.getElementById('jur-form-area').style.display='none';document.getElementById('jur-gerar-loading').style.display='block';document.getElementById('jur-gerar-result').style.display='none';
-  try{var res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:jurMontarPrompt(tipo,dados)}]})});
-  var data=await res.json();var texto=data.content&&data.content[0]?data.content[0].text:'Erro';
+  try{
+  var montar=JUR_TEMPLATES[tipo];if(!montar)throw new Error('Tipo de documento desconhecido: '+tipo);
+  var texto=montar(dados);
   jurDocAtual={tipo:tipo,dados:dados,texto:texto};
   var titulos={cliente:'Contrato de Prestacao de Servicos',pj:'Contrato PJ',freela:'Contrato Freela',distrato:'Distrato',aditivo:'Aditivo Contratual',carta:'Carta Proposta'};
   document.getElementById('jur-doc-titulo').textContent=(titulos[tipo]||tipo)+' - '+(dados.nome||dados.empresa||'');
@@ -6544,14 +6829,6 @@ else if(tipo==='distrato'){d.nome=document.getElementById('dt-nome').value;d.doc
 else if(tipo==='aditivo'){d.tipoOriginal=document.getElementById('ad-tipo-original').value;d.numero=document.getElementById('ad-numero').value;d.nome=document.getElementById('ad-nome').value;d.doc=document.getElementById('ad-doc').value;d.rep=document.getElementById('ad-rep').value;d.repCpf=document.getElementById('ad-rep-cpf').value;d.dataOriginal=document.getElementById('ad-data-original').value;d.dataVigor=document.getElementById('ad-data-vigor').value;d.clausulas=[];document.querySelectorAll('.ad-clausula-nome').forEach(function(el,i){var t=document.querySelectorAll('.ad-clausula-texto')[i];if(el.value&&t&&t.value)d.clausulas.push({nome:el.value,texto:t.value});});if(!d.nome||!d.clausulas.length){alert('Preencha o Nome e ao menos uma clausula');return null;}}
 else if(tipo==='carta'){d.nome=document.getElementById('carta-nome').value;d.cargo=document.getElementById('carta-cargo').value;d.salario=document.getElementById('carta-salario').value;d.inicio=document.getElementById('carta-inicio').value;d.flash=document.getElementById('carta-flash').value;d.plano=document.getElementById('carta-plano').value;d.obs=document.getElementById('carta-obs').value;if(!d.nome||!d.cargo){alert('Preencha Nome e Cargo');return null;}}
 return d;}
-function jurMontarPrompt(tipo,d){var base='Voce e um assistente juridico da Euphoria Publicidade LTDA (CNPJ 47.882.625/0001-98). Gere um contrato formal em portugues brasileiro. Retorne APENAS o texto do contrato.\n\n';
-if(tipo==='cliente')return base+'Gere INSTRUMENTO PARTICULAR DE PRESTACAO DE SERVICOS:\n- CONTRATANTE: EUPHORIA PUBLICIDADE LTDA\n- CONTRATADA: '+d.empresa+', CNPJ '+d.cnpj+', rep. por '+d.rep+' (CPF '+d.repCpf+'), '+d.endereco+'\n- Servicos: '+d.servicos+'\n- Honorarios: R$ '+d.honorarios+' mensais\n- Inicio: '+d.inicio+'\n- Testemunha: Andressa Senatti Fukunaga, RG 47.080.149-9, CPF 381.935.628-28';
-if(tipo==='pj')return base+'Gere INSTRUMENTO PARTICULAR DE PRESTACAO DE SERVICOS (PJ):\n- CONTRATANTE: EUPHORIA PUBLICIDADE LTDA\n- CONTRATADA: '+(d.empresa||d.nome)+', CNPJ '+d.cnpj+', rep. por '+d.nome+' (CPF '+d.cpf+')\n- Cargo: '+d.cargo+'\n- Honorarios: R$ '+d.honorarios+'\n- Inicio: '+d.inicio+'\n- Testemunha: Andressa Senatti Fukunaga, RG 47.080.149-9, CPF 381.935.628-28';
-if(tipo==='freela')return base+'Gere INSTRUMENTO PARTICULAR DE PRESTACAO DE SERVICOS (freela):\n- CONTRATANTE: EUPHORIA PUBLICIDADE LTDA\n- CONTRATADO: '+d.nome+', doc '+d.doc+'\n- Servico: '+d.servico+'\n- Valor: R$ '+d.valor+'\n- Prazo: '+d.prazo;
-if(tipo==='distrato'){var dtR=d.rescisao?new Date(d.rescisao).toLocaleDateString('pt-BR'):'';var dtO=d.inicioOriginal?new Date(d.inicioOriginal).toLocaleDateString('pt-BR'):'';return base+'Gere DISTRATO DE CONTRATO DE PRESTACAO DE SERVICOS:\n- CONTRATANTE: EUPHORIA PUBLICIDADE LTDA\n- CONTRATADO: '+d.nome+', doc '+d.doc+(d.cargo?', cargo: '+d.cargo:'')+'\n- Honorarios: R$ '+(d.honorarios||'---')+'\n- Contrato original: '+dtO+'\n- Rescisao: '+dtR+'\n- Valor rescisao: R$ '+(d.valor||'0,00')+'\n- Conta: '+(d.banco||'a informar')+'\n- Testemunha: Andressa Senatti Fukunaga, RG 47.080.149-9, CPF 381.935.628-28';}
-if(tipo==='aditivo'){var clas=d.clausulas.map(function(c){return '- '+c.nome+': '+c.texto;}).join('\n');return base+'Gere '+d.numero+' ADITIVO CONTRATUAL:\n- CONTRATANTE: EUPHORIA PUBLICIDADE LTDA (rep. CAIO SALES HORTA DEL MANTO, CPF 302.764.508-09)\n- CONTRATADA: '+d.nome+', doc '+d.doc+', rep. por '+d.rep+' (CPF '+d.repCpf+')\n- Contrato original: '+(d.dataOriginal?new Date(d.dataOriginal).toLocaleDateString('pt-BR'):'')+'\n- Clausulas a alterar:\n'+clas+'\n- Testemunha: Andressa Senatti Fukunaga, RG 47.080.149-9, CPF 381.935.628-28';}
-if(tipo==='carta'){return base+'Gere CARTA PROPOSTA de trabalho:\nSao Paulo, '+new Date().toLocaleDateString('pt-BR')+'.\nEstimado(a) '+d.nome+',\nCargo: '+d.cargo+'\nSalario: R$ '+d.salario+'\nInicio: '+(d.inicio?new Date(d.inicio).toLocaleDateString('pt-BR'):'')+'\nFlash: R$ '+(d.flash||'---')+'\nPlano: '+(d.plano||'Care Plus Soho 30')+'\n'+(d.obs?d.obs:'');}
-return base+'Contrato: '+JSON.stringify(d);}
 function jurDownloadDoc(){if(!jurDocAtual)return;var blob=new Blob([jurDocAtual.texto],{type:'text/plain;charset=utf-8'});var a=document.createElement('a');a.download=(jurDocAtual.tipo||'Contrato')+'_'+(jurDocAtual.dados.nome||jurDocAtual.dados.empresa||'Euphoria').replace(/\s+/g,'_')+'.txt';a.href=URL.createObjectURL(blob);a.click();}
 function jurRenderPainel(){var e=document.getElementById('jur-painel-empty'),l=document.getElementById('jur-painel-list');if(!jurContratos.length){if(e)e.style.display='flex';if(l)l.style.display='none';return;}if(e)e.style.display='none';if(l)l.style.display='block';document.getElementById('jur-painel-ct').textContent=jurContratos.length+' docs';document.getElementById('jur-painel-table').innerHTML=jurContratos.map(function(c,i){return '<tr><td>'+c.tipo+'</td><td>'+c.nome+'</td><td>'+c.data+'</td><td>'+(c.valor||'---')+'</td><td><button class="btn" style="padding:3px 8px;font-size:10px" onclick="jurVerDoc('+i+')">Ver</button></td></tr>';}).join('');}
 function jurVerDoc(i){var c=jurContratos[i];document.getElementById('jur-doc-titulo').textContent=c.nome;document.getElementById('jur-doc-preview').textContent=c.texto||c.analise||'';}
