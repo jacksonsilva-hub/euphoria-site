@@ -230,6 +230,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
         <div style="font-size:12px;color:var(--text3)" id="painel-data-hoje"></div>
         <button class="btn btn-primary" onclick="renderPainelDiario()" style="font-size:11px;padding:6px 14px">↺ Atualizar</button>
       </div>
+      <div id="painel-alertas" style="margin-bottom:20px"></div>
       <div class="kpi-grid" style="margin-bottom:20px" id="painel-kpis"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
         <div class="table-card">
@@ -7933,6 +7934,79 @@ function gerarFinancialHighlights(){
   win.document.close();
 }
 
+// ── ALERTAS DE RISCO ───────────────────────────────────────────────────────────
+// Regras: (1) CR vencido ha mais de 15 dias, (2) CP dos proximos 15 dias que
+// excede o saldo bancario informado, (3) cliente com actual 30%+ abaixo do
+// budget. Mostrado no topo do Painel Diario.
+var ALERTA_DIAS_CR_VENCIDO=15;
+var ALERTA_DIAS_CP_HORIZONTE=15;
+var ALERTA_VARIACAO_BUDGET_PCT=-30;
+
+function calcularAlertasRisco(crAll, cpAll, saldoInicial){
+  var alertas=[];
+
+  var crVencidos=(crAll||[]).filter(function(x){
+    var d=daysAgo(x.Data_Vencimento_CR);
+    return d!==null && d>ALERTA_DIAS_CR_VENCIDO && parseFloat(x.Valor_Aberto_CR||0)>0;
+  });
+  if(crVencidos.length){
+    var totalVencido=crVencidos.reduce(function(s,x){return s+parseFloat(x.Valor_Aberto_CR||0);},0);
+    var nomes=[...new Set(crVencidos.map(function(x){return x.Nome_Cliente_CR||'—';}))];
+    alertas.push({nivel:'alto',
+      titulo:crVencidos.length+' título(s) vencido(s) há mais de '+ALERTA_DIAS_CR_VENCIDO+' dias',
+      valores:[totalVencido], sufixo:' — '+nomes.slice(0,3).join(', ')+(nomes.length>3?' e mais '+(nomes.length-3):''),
+      prefixo:'Total em atraso: '});
+  }
+
+  var cpHorizonte=(cpAll||[]).filter(function(x){
+    var d=daysAgo(x.Data_Vencimento_CP);
+    return d!==null && d<=0 && d>=-ALERTA_DIAS_CP_HORIZONTE && Math.abs(parseFloat(x.Valor_Aberto_CP||0))>0;
+  });
+  var totalCpHorizonte=cpHorizonte.reduce(function(s,x){return s+Math.abs(parseFloat(x.Valor_Aberto_CP||0));},0);
+  if(totalCpHorizonte>0 && totalCpHorizonte>saldoInicial){
+    alertas.push({nivel:'alto',
+      titulo:'Saldo pode não cobrir as contas a pagar dos próximos '+ALERTA_DIAS_CP_HORIZONTE+' dias',
+      prefixo:'Saldo atual ', valores:[saldoInicial], sufixo:' vs '+fmtBRL(totalCpHorizonte)+' a pagar no período'});
+  }
+
+  if(G && G.pl && G.clientes){
+    try{
+      var rows26=filterClients(2026);
+      var agg=aggregateClients(rows26,[]);
+      agg.filter(function(c){return c.budgetNet>0 && c.actual2026>0;}).forEach(function(c){
+        var varPct=(c.actual2026-c.budgetNet)/c.budgetNet*100;
+        if(varPct<=ALERTA_VARIACAO_BUDGET_PCT){
+          alertas.push({nivel:'medio', titulo:c.client+' está '+Math.abs(varPct).toFixed(0)+'% abaixo do budget',
+            prefixo:'Budget '+fmtBRL(c.budgetNet)+' vs Actual ', valores:[c.actual2026], sufixo:''});
+        }
+      });
+    }catch(e){ console.warn('calcularAlertasRisco: falha ao avaliar clientes', e); }
+  }
+
+  return alertas;
+}
+
+function fmtBRL(v){ return 'R$ '+Math.round(v).toLocaleString('pt-BR'); }
+
+function renderAlertasRisco(crAll, cpAll, saldoInicial){
+  var el=document.getElementById('painel-alertas');
+  if(!el) return;
+  var alertas=calcularAlertasRisco(crAll, cpAll, saldoInicial);
+  if(!alertas.length){
+    el.innerHTML='<div class="table-card" style="padding:14px 16px;border-left:3px solid var(--pos)"><strong style="color:var(--pos)">✓ Nenhum alerta de risco no momento.</strong></div>';
+    return;
+  }
+  var corBorda={alto:'var(--neg)',medio:'var(--amber)'};
+  var iconeNivel={alto:'🔴',medio:'🟡'};
+  el.innerHTML=alertas.map(function(a){
+    var detalhe=a.prefixo+a.valores.map(fmtBRL).join(', ')+a.sufixo;
+    return '<div class="table-card" style="padding:12px 16px;border-left:3px solid '+corBorda[a.nivel]+';margin-bottom:8px">'+
+      '<div style="font-size:12px;font-weight:700">'+iconeNivel[a.nivel]+' '+a.titulo+'</div>'+
+      '<div style="font-size:11px;color:var(--text3);margin-top:3px">'+detalhe+'</div>'+
+    '</div>';
+  }).join('');
+}
+
 // ── PAINEL DIÁRIO DO CFO ──────────────────────────────────────────────────────
 // Visão rápida pra abrir de manhã: posição de caixa, títulos vencendo essa
 // semana (CR/CP), maiores variações de budget vs actual, e o que mudou no
@@ -7945,6 +8019,8 @@ function renderPainelDiario(){
   var saldoInicial=parseFloat((document.getElementById('cf-saldo-inicial')||{}).value)||0;
   var crAll=window._crRows||[], cpAll=window._cpRows||[];
   var fmt=function(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR');};
+
+  renderAlertasRisco(crAll, cpAll, saldoInicial);
 
   // "Essa semana" = vence entre hoje e os proximos 7 dias (daysAgo negativo = no futuro, 0 = hoje)
   function estaNaSemana(dtStr){
