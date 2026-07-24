@@ -204,6 +204,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     <div class="topbar-spacer"></div>
     <div class="topbar-actions" id="topbar-actions"></div>
     <span id="entity-flag" style="display:none;font-size:11px;color:var(--text3);margin-right:8px"></span>
+    <button id="btn-print-generico" onclick="imprimirAbaAtual()" style="display:none;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text3);padding:4px 10px;border-radius:6px;font-size:10px;cursor:pointer;margin-right:6px" title="Imprimir ou salvar em PDF a tela atual">🖨️ Imprimir</button>
     <button id="btn-backup" onclick="backupExportar()" ondblclick="backupImportar()" style="display:none;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text3);padding:4px 10px;border-radius:6px;font-size:10px;cursor:pointer;margin-right:6px" title="Clique: exportar backup | Duplo clique: importar backup">💾 Backup</button>
     <div class="user-badge" id="user-badge" onclick="doLogout()" style="display:none">
       <div class="user-avatar" id="user-avatar">J</div>
@@ -3014,6 +3015,8 @@ function doLogin() {
   if(flagEl){ flagEl.textContent = cfg.flag+' '+cfg.nome; flagEl.style.display='inline'; }
   var btnBkp = document.getElementById('btn-backup');
   if(btnBkp) btnBkp.style.display='inline-block';
+  var btnPrint = document.getElementById('btn-print-generico');
+  if(btnPrint) btnPrint.style.display='inline-block';
 
   // Hide VBS button for MX
   document.querySelectorAll('.btn-vbs').forEach(function(el){
@@ -8005,6 +8008,57 @@ function renderAlertasRisco(crAll, cpAll, saldoInicial){
       '<div style="font-size:11px;color:var(--text3);margin-top:3px">'+detalhe+'</div>'+
     '</div>';
   }).join('');
+}
+
+// ── PRINT / PDF GENÉRICO ───────────────────────────────────────────────────────
+// Botão "🖨️ Imprimir" na barra superior: imprime a tela (aba) ativa no momento,
+// qualquer que ela seja. Clona o conteúdo visível, remove o que não faz sentido
+// impresso (gráficos em canvas, filtros, botões) e reaplica um layout claro
+// (impressão em papel/PDF fica melhor em fundo branco do que no tema escuro).
+function imprimirAbaAtual(){
+  var activePage=document.querySelector('.page.active');
+  var container=activePage?activePage.querySelector('.tab-panel.active'):null;
+  if(!container) container=activePage;
+  if(!container){ alert('Nada para imprimir nessa tela.'); return; }
+
+  var clone=container.cloneNode(true);
+  clone.querySelectorAll('canvas, button, select, input, textarea, .filters').forEach(function(el){ el.remove(); });
+  // Remove containers que ficaram vazios depois da limpeza acima (ex: div que só tinha um canvas)
+  Array.from(clone.querySelectorAll('div')).reverse().forEach(function(el){
+    if(!el.children.length && !el.textContent.trim()) el.remove();
+  });
+
+  var titulo=(document.getElementById('topbar-title')||{}).textContent||'Euphoria OS';
+  var sub=(document.getElementById('topbar-sub')||{}).textContent||'';
+
+  var css='body{font-family:Arial,sans-serif;color:#111;padding:40px;max-width:1100px;margin:0 auto}'+
+    '.hdr{display:flex;align-items:center;gap:16px;margin-bottom:8px}'+
+    '.hdr img{width:140px}'+
+    '.hdr h1{font-size:20px;margin:0}'+
+    '.hdr .sub{font-size:12px;color:#666}'+
+    '.meta{font-size:11px;color:#999;margin-bottom:24px;border-bottom:2px solid #111;padding-bottom:12px}'+
+    '.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}'+
+    '.kpi-card{background:#f5f5f5;border:1px solid #eee;border-radius:8px;padding:12px}'+
+    '.kpi-label{font-size:9px;color:#999;text-transform:uppercase;margin-bottom:4px}'+
+    '.kpi-value{font-size:16px;font-weight:700;color:#111}'+
+    '.kpi-sub{font-size:10px;color:#666}'+
+    '.pos{color:#0a8a4a!important}.neg{color:#c0392b!important}.amber{color:#b8860b!important}'+
+    'table{width:100%;border-collapse:collapse;margin-bottom:20px;font-size:11px}'+
+    'th{background:#111;color:#fff;padding:6px 8px;text-align:left;font-size:9px;text-transform:uppercase}'+
+    'td{padding:6px 8px;border-bottom:1px solid #eee;color:#111}'+
+    '.table-card{margin-bottom:20px}'+
+    '.table-title{font-size:13px;font-weight:700}'+
+    '.badge{border:1px solid #ccc;border-radius:4px;padding:1px 6px;font-size:9px}'+
+    '@media print{.np{display:none}}';
+
+  var body='<div class="hdr"><img src="'+LOGO+'"><div><h1>'+titulo+'</h1><div class="sub">'+sub+'</div></div></div>'+
+    '<div class="meta">Gerado em '+new Date().toLocaleString('pt-BR')+' — Euphoria Creative Agency, documento interno</div>'+
+    clone.outerHTML+
+    '<div style="text-align:center;padding:24px"><button class="np" onclick="window.print()" style="background:#111;color:#fff;border:none;padding:12px 28px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:700">🖨 Imprimir / Salvar PDF</button></div>';
+
+  var win=window.open('','_blank');
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+titulo+'</title><style>'+css+'</style></head><body>'+body+'</body></html>');
+  win.document.close();
 }
 
 // ── PAINEL DIÁRIO DO CFO ──────────────────────────────────────────────────────
