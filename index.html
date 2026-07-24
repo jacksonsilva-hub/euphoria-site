@@ -229,6 +229,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       <div id="dash-content" style="display:none">
         <div class="filters" style="margin-bottom:16px">
           <button id="btn-actual-vbs" class="btn btn-primary btn-vbs" onclick="carregarActualVbs()" style="font-size:11px;padding:5px 14px">↺ Actual do VBS</button>
+          <button class="btn" onclick="gerarFinancialHighlights()" style="font-size:11px;padding:5px 14px">🖨️ Financial Highlights</button>
           <select id="sel-ano" onchange="applyFilters()"><option value="2026" selected>2026</option><option value="2025">2025</option><option value="all">2025+2026</option></select>
           <span style="font-size:11px;color:var(--text3)">De:</span>
           <select id="sel-month-de" onchange="applyFilters()"><option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option><option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option><option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option></select>
@@ -7769,6 +7770,127 @@ function recImprimirMensal(){
 
   var win=window.open('','_blank');
   win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório de Faturamento Mensal</title><style>'+css+'</style></head><body>'+body+'</body></html>');
+  win.document.close();
+}
+
+// ── FINANCIAL HIGHLIGHTS (apresentação executiva pros sócios) ────────────────
+function gerarFinancialHighlights(){
+  if(!G.pl || !G.clientes){ alert('Carregue os dados do Dashboard primeiro (clique em "↺ Actual do VBS" na aba Financeiro).'); return; }
+
+  var revM=getMonthly('REVENUE'), gmM=getMonthly('GROSS MARGIN'), ebitM=getMonthly('OPERATING PROFIT/(LOSS) - EBITDA'), patM=getMonthly('PROFIT/(LOSS) AFTER TAX');
+  var revAnnual=revM.reduce(function(s,v){return s+v;},0);
+  var gmAnnual=gmM.reduce(function(s,v){return s+v;},0);
+  var ebitAnnual=ebitM.reduce(function(s,v){return s+v;},0);
+  var patAnnual=patM.reduce(function(s,v){return s+v;},0);
+  var gmPct=revAnnual>0?(gmAnnual/revAnnual*100):0;
+  var ebitPct=revAnnual>0?(ebitAnnual/revAnnual*100):0;
+
+  var rows26=filterClients(2026);
+  var clientAgg=aggregateClients(rows26,[]);
+  var topClientes=clientAgg.filter(function(c){return c.budgetNet>0;}).sort(function(a,b){return b.budgetNet-a.budgetNet;}).slice(0,8);
+  var totalBudgetClientes=clientAgg.reduce(function(s,c){return s+(c.budgetNet||0);},0);
+
+  var pplAtivos=getPplData().filter(function(p){return p.status==='ativo';});
+  var custoEquipeMes=pplAtivos.reduce(function(s,p){return s+pplCustoTotal(p);},0);
+  var headcount=pplAtivos.length;
+  var cltCount=pplAtivos.filter(function(p){return p.tipo==='clt';}).length;
+  var pjCount=pplAtivos.filter(function(p){return p.tipo==='pj';}).length;
+
+  var crmDeals=(window._crmData||[]);
+  var pipelineAberto=crmDeals.filter(function(c){return c.status!=='ganho'&&c.status!=='perdido';}).reduce(function(s,c){return s+parseFloat(c.valor_potencial||0);},0);
+  var pipelineGanho=crmDeals.filter(function(c){return c.status==='ganho';}).reduce(function(s,c){return s+parseFloat(c.valor_potencial||0);},0);
+  var pipelinePerdido=crmDeals.filter(function(c){return c.status==='perdido';}).reduce(function(s,c){return s+parseFloat(c.valor_potencial||0);},0);
+  var winRateBase=pipelineGanho+pipelinePerdido;
+  var winRate=winRateBase>0?(pipelineGanho/winRateBase*100):0;
+
+  var saldoAtual=parseFloat((document.getElementById('cf-saldo-inicial')||{}).value)||0;
+
+  var fmtR=function(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR');};
+
+  var meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  var maxRev=Math.max.apply(null, revM.concat([1]));
+  var barsHtml=meses.map(function(mLabel,i){
+    var pct=revM[i]>0?Math.max(2,Math.round((revM[i]/maxRev)*100)):0;
+    return '<div class="mbar"><div class="mbar-track"><div class="mbar-fill" style="height:'+pct+'%"></div></div><div class="mbar-label">'+mLabel+'</div></div>';
+  }).join('');
+
+  var clientesHtml=topClientes.map(function(c,i){
+    var share=totalBudgetClientes>0?(c.budgetNet/totalBudgetClientes*100):0;
+    return '<tr><td>'+(i+1)+'</td><td>'+c.client+'</td><td align="right">'+fmtR(c.budgetNet)+'</td><td align="right">'+share.toFixed(1)+'%</td></tr>';
+  }).join('');
+
+  var css='body{font-family:Arial,sans-serif;color:#111;margin:0}'+
+    '.cover{background:#111;color:#fff;padding:80px 60px;min-height:600px;display:flex;flex-direction:column;justify-content:center}'+
+    '.cover .logo{width:220px;margin-bottom:40px}'+
+    '.cover h1{font-size:36px;margin:0 0 8px}'+
+    '.cover .sub{font-size:15px;color:#999}'+
+    '.section{padding:48px 60px;page-break-before:always;max-width:1000px;margin:0 auto}'+
+    '.section h2{font-size:20px;border-bottom:2px solid #111;padding-bottom:10px;margin-bottom:24px}'+
+    '.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}'+
+    '.kpi-box{background:#f5f5f5;border-radius:8px;padding:16px}'+
+    '.kpi-box label{font-size:10px;color:#999;text-transform:uppercase;display:block;margin-bottom:6px}'+
+    '.kpi-box span{font-size:20px;font-weight:700;display:block}'+
+    '.kpi-box small{font-size:11px;color:#666}'+
+    '.mbar-chart{display:flex;align-items:flex-end;gap:8px;height:180px;margin-bottom:20px}'+
+    '.mbar{flex:1;display:flex;flex-direction:column;align-items:center;height:100%}'+
+    '.mbar-track{width:100%;height:150px;display:flex;align-items:flex-end;background:#f0f0f0;border-radius:3px 3px 0 0}'+
+    '.mbar-fill{width:100%;background:#111;border-radius:3px 3px 0 0}'+
+    '.mbar-label{font-size:10px;color:#666;margin-top:6px}'+
+    'table{width:100%;border-collapse:collapse;margin-bottom:20px}'+
+    'th{background:#111;color:#fff;padding:8px 10px;text-align:right;font-size:10px;text-transform:uppercase}'+
+    'th:nth-child(-n+2){text-align:left}'+
+    'td{padding:8px 10px;border-bottom:1px solid #eee;font-size:12px;text-align:right}'+
+    'td:nth-child(-n+2){text-align:left}'+
+    '.footer{padding:20px 60px;font-size:11px;color:#999;border-top:1px solid #eee}'+
+    '@media print{.np{display:none}}';
+
+  var body='<div class="cover">'+
+      '<img src="'+LOGO+'" class="logo">'+
+      '<h1>Financial Highlights</h1>'+
+      '<div class="sub">Euphoria Creative Agency &mdash; Apresentação para os sócios<br>Gerado em '+new Date().toLocaleDateString('pt-BR')+'</div>'+
+    '</div>'+
+
+    '<div class="section">'+
+      '<h2>Visão Geral 2026 (Budget)</h2>'+
+      '<div class="kpi-grid">'+
+        '<div class="kpi-box"><label>Receita Bruta</label><span>'+fmtR(revAnnual)+'</span><small>ano completo</small></div>'+
+        '<div class="kpi-box"><label>Gross Margin</label><span>'+fmtR(gmAnnual)+'</span><small>'+gmPct.toFixed(1)+'% da receita</small></div>'+
+        '<div class="kpi-box"><label>EBITDA</label><span>'+fmtR(ebitAnnual)+'</span><small>'+ebitPct.toFixed(1)+'% da receita</small></div>'+
+        '<div class="kpi-box"><label>Lucro Líquido</label><span>'+fmtR(patAnnual)+'</span><small>após impostos</small></div>'+
+      '</div>'+
+      '<div class="mbar-chart">'+barsHtml+'</div>'+
+      '<div style="font-size:11px;color:#999;text-align:center">Receita Bruta mensal (Budget)</div>'+
+    '</div>'+
+
+    '<div class="section">'+
+      '<h2>Top Clientes</h2>'+
+      '<table><thead><tr><th>#</th><th>Cliente</th><th>Budget Net Rev</th><th>% da carteira</th></tr></thead>'+
+      '<tbody>'+clientesHtml+'</tbody></table>'+
+    '</div>'+
+
+    '<div class="section">'+
+      '<h2>Equipe &amp; Pipeline Comercial</h2>'+
+      '<div class="kpi-grid">'+
+        '<div class="kpi-box"><label>Headcount Ativo</label><span>'+headcount+'</span><small>'+cltCount+' CLT · '+pjCount+' PJ</small></div>'+
+        '<div class="kpi-box"><label>Custo Equipe/mês</label><span>'+fmtR(custoEquipeMes)+'</span><small>folha consolidada</small></div>'+
+        '<div class="kpi-box"><label>Pipeline em Aberto</label><span>'+fmtR(pipelineAberto)+'</span><small>prospects + negociação</small></div>'+
+        '<div class="kpi-box"><label>Win Rate</label><span>'+winRate.toFixed(0)+'%</span><small>'+fmtR(pipelineGanho)+' convertido</small></div>'+
+      '</div>'+
+    '</div>'+
+
+    '<div class="section">'+
+      '<h2>Posição de Caixa</h2>'+
+      '<div class="kpi-grid">'+
+        '<div class="kpi-box"><label>Saldo Bancário Atual</label><span>'+fmtR(saldoAtual)+'</span><small>informado em Fluxo de Caixa</small></div>'+
+      '</div>'+
+      '<div style="font-size:11px;color:#999">Para a projeção completa (Contas a Receber/Pagar, custo de equipe e pipeline ponderado), veja a aba Fluxo de Caixa.</div>'+
+    '</div>'+
+
+    '<div class="footer"><strong>Euphoria Creative Agency</strong> — Documento confidencial, uso interno</div>'+
+    '<div style="text-align:center;padding:20px"><button class="np" onclick="window.print()" style="background:#111;color:#fff;border:none;padding:12px 28px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:700">🖨 Imprimir / Salvar PDF</button></div>';
+
+  var win=window.open('','_blank');
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Financial Highlights</title><style>'+css+'</style></head><body>'+body+'</body></html>');
   win.document.close();
 }
 
