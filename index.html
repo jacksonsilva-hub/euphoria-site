@@ -178,6 +178,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     <div class="nav-item active" onclick="goPage('financeiro')" data-page="financeiro"><span class="nav-icon">💰</span><span class="nav-label">Financeiro</span></div>
     <div class="nav-item" onclick="goPage('growth')" data-page="growth"><span class="nav-icon">📈</span><span class="nav-label">Growth</span></div>
     <div class="nav-item" onclick="goPage('crm')" data-page="crm"><span class="nav-icon">🎯</span><span class="nav-label">Pipeline CRM</span></div>
+    <div class="nav-item" onclick="goPage('midia')" data-page="midia"><span class="nav-icon">📡</span><span class="nav-label">Mídia</span></div>
     <div class="sidebar-section-label">Operações</div>
     <div class="nav-item" onclick="goPage('timesheet')" data-page="timesheet"><span class="nav-icon">⏱️</span><span class="nav-label">Timesheet</span></div>
     <div class="nav-item" onclick="goPage('projetos')" data-page="projetos"><span class="nav-icon">📋</span><span class="nav-label">Projetos</span></div>
@@ -1153,6 +1154,64 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
           <button class="btn" onclick="crmFecharModal()">Cancelar</button>
           <button class="btn btn-primary" onclick="crmSalvar()">Salvar</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MÍDIA -->
+  <div class="page" id="page-midia">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+      <div>
+        <div style="font-size:20px;font-weight:700">Mídia</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:4px">Investimento planejado (Budget) vs. faturado (VBS) por veículo e conta</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <select id="midia-sel-ano" onchange="midiaCarregar()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
+          <option value="2026" selected>2026</option>
+          <option value="2025">2025</option>
+        </select>
+        <span style="font-size:11px;color:var(--text3)">De:</span>
+        <select id="midia-sel-mes-de" onchange="midiaRenderTudo()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
+          <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option><option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option><option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+        </select>
+        <span style="font-size:11px;color:var(--text3)">Até:</span>
+        <select id="midia-sel-mes-ate" onchange="midiaRenderTudo()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
+          <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option><option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option><option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12" selected>Dezembro</option>
+        </select>
+        <button class="btn btn-primary" id="midia-btn-carregar" onclick="midiaCarregar()" style="font-size:11px;padding:6px 14px">↺ Carregar Dados</button>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:14px" id="midia-status">Selecione o período e clique em "Carregar Dados".</div>
+
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px" id="midia-kpis">
+      <div class="kpi-card"><div class="kpi-label">Investimento Planejado</div><div class="kpi-value" id="midia-k-planejado">—</div><div class="kpi-sub">Budget (Sheets)</div></div>
+      <div class="kpi-card"><div class="kpi-label">Investimento Faturado</div><div class="kpi-value" id="midia-k-faturado">—</div><div class="kpi-sub">Real (VBS)</div></div>
+      <div class="kpi-card"><div class="kpi-label">% Pacing de Execução</div><div class="kpi-value" id="midia-k-pacing">—</div><div class="kpi-sub" id="midia-k-pacing-sub">faturado ÷ planejado</div></div>
+      <div class="kpi-card"><div class="kpi-label">Veículos no Período</div><div class="kpi-value" id="midia-k-veiculos">—</div><div class="kpi-sub">com planejado ou faturado</div></div>
+    </div>
+
+    <div class="chart-card" style="padding:14px;margin-bottom:16px">
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Planejado vs. Faturado por Mês</div>
+      <div style="position:relative;height:240px"><canvas id="chartMidiaMensal"></canvas></div>
+    </div>
+
+    <div class="table-card" style="margin-bottom:16px">
+      <div class="table-header"><span class="table-title">Planejado vs. Faturado por Veículo</span><span class="table-meta" id="midia-veiculo-meta">0 veículos</span></div>
+      <div style="overflow-x:auto">
+        <table class="tbl">
+          <thead><tr><th>Veículo</th><th style="text-align:right">Planejado</th><th style="text-align:right">Faturado</th><th style="text-align:right">% Pacing</th><th>Execução</th></tr></thead>
+          <tbody id="midia-veiculo-tbody"><tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text3)">Sem dados — clique em Carregar Dados</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-header"><span class="table-title">Planejado vs. Faturado por Conta</span><span class="table-meta" id="midia-conta-meta">0 contas</span></div>
+      <div style="overflow-x:auto">
+        <table class="tbl">
+          <thead><tr><th>Conta</th><th style="text-align:right">Planejado</th><th style="text-align:right">Faturado</th><th style="text-align:right">% Pacing</th><th>Execução</th></tr></thead>
+          <tbody id="midia-conta-tbody"><tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text3)">Sem dados — clique em Carregar Dados</td></tr></tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -2910,6 +2969,7 @@ const PAGE_META = {
   financeiro:{title:'Financeiro',sub:'Dashboard & Gestão Financeira'},
   growth:{title:'Growth',sub:'Gerador de Propostas com IA'},
   crm:{title:'Pipeline CRM',sub:'Novos Negocios e Prospeccao'},
+  midia:{title:'Mídia',sub:'Investimento Planejado vs. Faturado'},
   timesheet:{title:'Timesheet',sub:'Lançamento de Horas'},
   projetos:{title:'Projetos',sub:'Kanban & Acompanhamento'},
   people:{title:'People Analytics',sub:'DEI • Turnover • Utilization • Rentabilidade'},
@@ -2940,6 +3000,7 @@ function goPage(id) {
   document.getElementById('topbar-sub').textContent = meta.sub;
   if(id==='crm') setTimeout(function(){ if(typeof crmCarregar==='function') crmCarregar(); }, 100);
   if(id==='alocacao') setTimeout(function(){ alocCarregarCacheVBS(); alocRenderTabela(); alocPopularFiltros(); }, 100);
+  if(id==='midia' && !window._midiaBudgetRaw) setTimeout(function(){ if(typeof midiaCarregar==='function') midiaCarregar(); }, 100);
 }
 
 function toggleSidebar() {
@@ -2982,8 +3043,8 @@ var USERS = [
   {user:'mexico.ops',email:'ops@euphoriacreative.com.mx',pass:'EuphoriaMX2024',name:'Ops México',role:'operacional',entidade:'MX',initials:'MO'},
 ];
 var PERMISSIONS = {
-  superadmin:['financeiro','growth','crm','timesheet','projetos','people','alocacao','agentes','juridico','ti'],
-  admin:['financeiro','growth','crm','timesheet','projetos','people','alocacao','agentes','juridico','ti'],
+  superadmin:['financeiro','growth','crm','midia','timesheet','projetos','people','alocacao','agentes','juridico','ti'],
+  admin:['financeiro','growth','crm','midia','timesheet','projetos','people','alocacao','agentes','juridico','ti'],
   gestor:['growth','timesheet','projetos','people'],
   operacional:['timesheet','projetos'],
 };
@@ -7655,6 +7716,180 @@ function cfProjetarDiario(){
       '<td style="text-align:right;font-weight:700;'+(r.saldoAcum>=0?'color:var(--pos)':'color:var(--neg)')+'">'+fmt(r.saldoAcum)+'</td>'+
     '</tr>';
   }).join('')||'<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text3)">Sem dados</td></tr>';
+}
+
+// ── MÍDIA — Investimento Planejado (Sheets) vs. Faturado (VBS) ────────────────
+// Planejado vem da planilha de Budget de Midia (aba "{ano} - CC"), Faturado vem
+// do VBS (FT/FTPRIC/FT0002, ja exposto como /api/investimento-clientes/lista).
+// Junta os dois por nome de veiculo/cliente (case-insensitive) - nomes livres
+// dos dois lados podem nao bater 100%; se aparecerem linhas duplicadas/soltas
+// no futuro, precisa de uma tabela de-para como a que ja existe pro Actual VBS.
+async function midiaCarregar(){
+  var ano = document.getElementById('midia-sel-ano').value;
+  var statusEl = document.getElementById('midia-status');
+  var btn = document.getElementById('midia-btn-carregar');
+  if(btn){ btn.disabled = true; btn.textContent = 'Carregando...'; }
+  statusEl.textContent = 'Carregando Budget (Sheets) e Real (VBS)...';
+  try{
+    var deMes = '01'+ano, ateMes = '12'+ano;
+    var results = await Promise.all([
+      fetch(API+'/api/budget-midia?ano='+ano).then(function(r){return r.json();}),
+      fetch(API+'/api/investimento-clientes/lista?data_periodo_de='+deMes+'&data_periodo_ate='+ateMes).then(function(r){return r.json();})
+    ]);
+    var budgetJson = results[0], realJson = results[1];
+    if(!budgetJson.ok) throw new Error('Budget (Sheets): '+(budgetJson.error||'erro desconhecido'));
+    if(!realJson.ok) throw new Error('Real (VBS): '+(realJson.error||'erro desconhecido'));
+    window._midiaBudgetRaw = midiaParseBudgetRows(budgetJson.data||[]);
+    window._midiaRealRaw = (realJson.data && realJson.data.Retorno) ? realJson.data.Retorno : [];
+    statusEl.textContent = window._midiaBudgetRaw.length+' linhas de budget · '+window._midiaRealRaw.length+' linhas de faturamento real ('+ano+')';
+    midiaRenderTudo();
+  }catch(e){
+    statusEl.textContent = 'Erro: '+e.message;
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = '↺ Carregar Dados'; }
+  }
+}
+
+function midiaParseBudgetRows(rows){
+  // range A7:U300 -> indice 0-based: 0=(vazio),1=CLIENTE,2=CAMPANHA,3=VEÍCULO,
+  // 4=PO EUPHORIA,5=PO CLIENTE,6=STATUS,7=TIPO DE FATURAMENTO,8..19=Jan..Dez,20=TOTAL
+  // rows[0] e o cabecalho (linha 7 da planilha); dados a partir de rows[1].
+  var out=[];
+  for(var i=1;i<rows.length;i++){
+    var r = rows[i];
+    if(!r || !r[1]) continue;
+    if(String(r[6]||'').trim()==='Cancelada') continue;
+    var meses=[];
+    for(var m=0;m<12;m++) meses.push(parseNum(r[8+m]));
+    out.push({
+      cliente: String(r[1]||'').trim(),
+      campanha: String(r[2]||'').trim(),
+      veiculo: String(r[3]||'').trim(),
+      status: String(r[6]||'').trim(),
+      tipo: String(r[7]||'').trim(),
+      meses: meses
+    });
+  }
+  return out;
+}
+
+function midiaAgregarBudget(mesDeIdx, mesAteIdx){
+  var porVeiculo={}, porCliente={};
+  (window._midiaBudgetRaw||[]).forEach(function(item){
+    var total=0;
+    for(var m=mesDeIdx;m<=mesAteIdx;m++) total+=item.meses[m]||0;
+    if(!total) return;
+    porVeiculo[item.veiculo]=(porVeiculo[item.veiculo]||0)+total;
+    porCliente[item.cliente]=(porCliente[item.cliente]||0)+total;
+  });
+  return {porVeiculo:porVeiculo, porCliente:porCliente};
+}
+
+function midiaAgregarReal(mesDeIdx, mesAteIdx){
+  var porVeiculo={}, porCliente={};
+  (window._midiaRealRaw||[]).forEach(function(r){
+    var dt = r.Data_Competencia; if(!dt) return;
+    var mesIdx = parseInt(String(dt).substring(5,7),10)-1;
+    if(isNaN(mesIdx) || mesIdx<mesDeIdx || mesIdx>mesAteIdx) return;
+    var veic = String(r.Nome_Meio||'').trim();
+    var cli = String(r.Nome_Cliente_Previsao||'').trim();
+    var val = parseFloat(r.Valor_Liquido||0);
+    if(!val) return;
+    if(veic) porVeiculo[veic]=(porVeiculo[veic]||0)+val;
+    if(cli) porCliente[cli]=(porCliente[cli]||0)+val;
+  });
+  return {porVeiculo:porVeiculo, porCliente:porCliente};
+}
+
+function midiaJuntarFontes(budgetMap, realMap){
+  var chaves = {};
+  Object.keys(budgetMap).forEach(function(k){ chaves[k.toUpperCase()] = chaves[k.toUpperCase()] || k; });
+  Object.keys(realMap).forEach(function(k){ chaves[k.toUpperCase()] = chaves[k.toUpperCase()] || k; });
+  return Object.keys(chaves).map(function(kUpper){
+    var planejado=0, faturado=0;
+    Object.keys(budgetMap).forEach(function(k){ if(k.toUpperCase()===kUpper) planejado+=budgetMap[k]; });
+    Object.keys(realMap).forEach(function(k){ if(k.toUpperCase()===kUpper) faturado+=realMap[k]; });
+    return {nome:chaves[kUpper], planejado:planejado, faturado:faturado};
+  }).sort(function(a,b){ return (b.planejado||b.faturado)-(a.planejado||a.faturado); });
+}
+
+function midiaFmtBRL(v){ return 'R$ '+Math.round(v).toLocaleString('pt-BR'); }
+
+function midiaRenderTabela(tbodyId, metaId, rows, label){
+  var metaEl = document.getElementById(metaId);
+  if(metaEl) metaEl.textContent = rows.length+' '+label;
+  var tbody = document.getElementById(tbodyId);
+  if(!tbody) return;
+  tbody.innerHTML = rows.map(function(r){
+    var pct = r.planejado>0 ? (r.faturado/r.planejado*100) : (r.faturado>0?100:0);
+    var barPct = Math.min(pct,100);
+    var cor = pct>=100 ? 'var(--pos)' : (pct>=70 ? 'var(--amber)' : 'var(--neg)');
+    return '<tr><td>'+r.nome+'</td>'+
+      '<td style="text-align:right">'+midiaFmtBRL(r.planejado)+'</td>'+
+      '<td style="text-align:right">'+midiaFmtBRL(r.faturado)+'</td>'+
+      '<td style="text-align:right">'+pct.toFixed(1)+'%</td>'+
+      '<td><div style="background:var(--bg3);border-radius:4px;height:6px;width:100px;overflow:hidden"><div style="background:'+cor+';height:100%;width:'+barPct+'%"></div></div></td>'+
+    '</tr>';
+  }).join('') || '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text3)">Sem dados no período</td></tr>';
+}
+
+function midiaRenderChartMensal(mesDeIdx, mesAteIdx){
+  var c = document.getElementById('chartMidiaMensal');
+  if(!c) return;
+  var mesesLabels=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  var planejadoPorMes = Array(12).fill(0);
+  (window._midiaBudgetRaw||[]).forEach(function(item){ for(var m=0;m<12;m++) planejadoPorMes[m]+=item.meses[m]||0; });
+  var faturadoPorMes = Array(12).fill(0);
+  (window._midiaRealRaw||[]).forEach(function(r){
+    var dt=r.Data_Competencia; if(!dt) return;
+    var mesIdx=parseInt(String(dt).substring(5,7),10)-1;
+    if(mesIdx>=0 && mesIdx<12) faturadoPorMes[mesIdx]+=parseFloat(r.Valor_Liquido||0);
+  });
+  var labels = mesesLabels.slice(mesDeIdx, mesAteIdx+1);
+  var pData = planejadoPorMes.slice(mesDeIdx, mesAteIdx+1);
+  var fData = faturadoPorMes.slice(mesDeIdx, mesAteIdx+1);
+
+  if(window._chartMidiaInst){ try{ window._chartMidiaInst.destroy(); }catch(e){} }
+  window._chartMidiaInst = new Chart(c, {
+    type:'line',
+    data:{ labels: labels, datasets:[
+      {label:'Planejado', data:pData, borderColor:'rgba(96,165,250,0.9)', backgroundColor:'rgba(96,165,250,0.15)', tension:0.3, fill:true},
+      {label:'Faturado', data:fData, borderColor:'rgba(110,231,183,0.9)', backgroundColor:'rgba(110,231,183,0.15)', tension:0.3, fill:true}
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{ color:'#888', font:{size:10} } } },
+      scales:{
+        x:{ grid:{display:false}, ticks:{ color:'#666', font:{size:10} } },
+        y:{ grid:{color:'rgba(255,255,255,0.04)'}, ticks:{ color:'#666', font:{size:9}, callback:function(v){ return 'R$'+Math.round(v/1000)+'k'; } } }
+      }
+    }
+  });
+}
+
+function midiaRenderTudo(){
+  if(!window._midiaBudgetRaw && !window._midiaRealRaw) return;
+  var mesDeIdx = parseInt(document.getElementById('midia-sel-mes-de').value)-1;
+  var mesAteIdx = parseInt(document.getElementById('midia-sel-mes-ate').value)-1;
+  if(mesDeIdx>mesAteIdx){ var tmp=mesDeIdx; mesDeIdx=mesAteIdx; mesAteIdx=tmp; }
+
+  var budget = midiaAgregarBudget(mesDeIdx, mesAteIdx);
+  var real = midiaAgregarReal(mesDeIdx, mesAteIdx);
+  var veiculos = midiaJuntarFontes(budget.porVeiculo, real.porVeiculo);
+  var contas = midiaJuntarFontes(budget.porCliente, real.porCliente);
+
+  var totalPlanejado = veiculos.reduce(function(s,v){return s+v.planejado;},0);
+  var totalFaturado = veiculos.reduce(function(s,v){return s+v.faturado;},0);
+  var pacing = totalPlanejado>0 ? (totalFaturado/totalPlanejado*100) : 0;
+
+  document.getElementById('midia-k-planejado').textContent = midiaFmtBRL(totalPlanejado);
+  document.getElementById('midia-k-faturado').textContent = midiaFmtBRL(totalFaturado);
+  document.getElementById('midia-k-pacing').textContent = pacing.toFixed(1)+'%';
+  document.getElementById('midia-k-pacing-sub').textContent = pacing>=100 ? 'acima do planejado' : 'do planejado executado';
+  document.getElementById('midia-k-veiculos').textContent = String(veiculos.length);
+
+  midiaRenderTabela('midia-veiculo-tbody','midia-veiculo-meta', veiculos, 'veículos');
+  midiaRenderTabela('midia-conta-tbody','midia-conta-meta', contas, 'contas');
+  midiaRenderChartMensal(mesDeIdx, mesAteIdx);
 }
 
 // ── DRE AUTOMÁTICA VBS ────────────────────────────────────────────────────────
