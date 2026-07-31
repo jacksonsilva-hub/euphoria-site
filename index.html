@@ -747,6 +747,45 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       </table>
     </div>
   </div>
+
+  <!-- FLUXO DE CAIXA DIÁRIO (CR + CP no dia exato + Folha no dia configurado) -->
+  <div class="table-card" style="margin-top:16px">
+    <div class="table-header">
+      <span class="table-title">Fluxo de Caixa Diário</span>
+      <span class="table-meta">CR + CP por data exata de vencimento + Folha</span>
+    </div>
+    <div style="padding:14px 16px;display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap">
+      <div>
+        <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Dias à frente</label>
+        <select id="cfd-dias" onchange="cfProjetarDiario()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+          <option value="30" selected>30 dias</option>
+          <option value="60">60 dias</option>
+          <option value="90">90 dias</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Dia do mês do pagamento da folha</label>
+        <input type="number" id="cfd-dia-folha" min="1" max="28" value="5" style="width:70px;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;outline:none">
+      </div>
+      <button class="btn btn-primary" onclick="cfProjetarDiario()" style="font-size:11px;padding:6px 14px">↺ Projetar Diário</button>
+      <span style="font-size:10px;color:var(--text3)">Folha é uma estimativa (custo mensal total injetado no dia configurado) — CR/CP usam a data real de vencimento.</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:0 16px 16px" id="cfd-kpis"></div>
+    <div style="overflow-x:auto;padding:0 16px 16px;max-height:420px;overflow-y:auto">
+      <table class="tbl">
+        <thead><tr>
+          <th>Data</th>
+          <th>Dia</th>
+          <th style="text-align:right">+ Entradas (CR)</th>
+          <th style="text-align:right">- Saídas (CP)</th>
+          <th style="text-align:right">- Folha</th>
+          <th style="text-align:right">Saldo do Dia</th>
+          <th style="text-align:right">Saldo Acumulado</th>
+        </tr></thead>
+        <tbody id="cfd-tbody"><tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text3)">Clique em Gerar Fluxo e depois em Projetar Diário</td></tr></tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
 <div class="tab-panel" id="fin-clientes">
@@ -7523,6 +7562,86 @@ async function cfProjetar(){
       '<td style="text-align:right;font-weight:700;'+(r.saldoAcum>=0?'color:var(--pos)':'color:var(--neg)')+'">'+fmt(r.saldoAcum)+'</td>'+
     '</tr>';
   }).join('')||'<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text3)">Sem dados — clique em Gerar Fluxo</td></tr>';
+}
+
+// ── FLUXO DE CAIXA DIÁRIO (CR + CP na data exata + Folha no dia configurado) ──
+// Diferente da Projeção mensal, aqui CR/CP são alocados no dia exato de
+// vencimento (não agregados por mês) — é a visão útil para "tenho caixa no
+// dia X pra cobrir o boleto Y?". Folha não tem dia de pagamento cadastrado no
+// sistema, então o custo mensal total (pplCustoNoMes) é injetado no dia do mês
+// informado pelo usuário — é uma estimativa, deixada explícita na tela.
+function cfDataKeyLocal(y,m,d){return y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');}
+
+function cfProjetarDiario(){
+  var saldoInicial=parseFloat(document.getElementById('cf-saldo-inicial').value)||0;
+  var nDias=parseInt((document.getElementById('cfd-dias')||{}).value)||30;
+  var diaFolha=parseInt((document.getElementById('cfd-dia-folha')||{}).value)||5;
+
+  var crAll=window._crRows||[], cpAll=window._cpRows||[];
+  if(!crAll.length&&!cpAll.length){alert('Clique em "Gerar Fluxo" primeiro (busca CR e CP no VBS).');return;}
+
+  var crPorDia={};
+  crAll.forEach(function(x){var dt=x.Data_Vencimento_CR;if(!dt)return;var k=String(dt).substring(0,10);crPorDia[k]=(crPorDia[k]||0)+parseFloat(x.Valor_Aberto_CR||0);});
+  var cpPorDia={};
+  cpAll.forEach(function(x){var dt=x.Data_Vencimento_CP;if(!dt)return;var k=String(dt).substring(0,10);cpPorDia[k]=(cpPorDia[k]||0)+Math.abs(parseFloat(x.Valor_Aberto_CP||0));});
+
+  var pplAtivos=getPplData().filter(function(p){return p.status==='ativo';});
+  var diasSemana=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  var hoje=new Date();
+  var custoMesCache={};
+
+  var saldoAcum=saldoInicial;
+  var rows=[];
+  for(var i=0;i<nDias;i++){
+    var d=new Date(hoje.getFullYear(),hoje.getMonth(),hoje.getDate()+i);
+    var y=d.getFullYear(), m=d.getMonth(), dia=d.getDate();
+    var k=cfDataKeyLocal(y,m,dia);
+    var rec=crPorDia[k]||0, pag=cpPorDia[k]||0;
+    var folha=0;
+    if(dia===diaFolha){
+      var mk=y+'-'+m;
+      if(custoMesCache[mk]===undefined){
+        var total=0;
+        pplAtivos.forEach(function(p){ if(pplPessoaAtivaNoMes(p,y,m)) total+=pplCustoNoMes(p,y,m); });
+        custoMesCache[mk]=total;
+      }
+      folha=custoMesCache[mk];
+    }
+    var saldoDia=rec-pag-folha;
+    saldoAcum+=saldoDia;
+    // dataFmt monta dd/mm/aaaa direto dos componentes do loop (sem re-parsear a
+    // string "YYYY-MM-DD" com new Date(), que o JS trata como UTC e "volta" um
+    // dia no fuso do Brasil — o mesmo bug corrigido na aba Receita).
+    var dataFmt=String(dia).padStart(2,'0')+'/'+String(m+1).padStart(2,'0')+'/'+y;
+    rows.push({data:k,dataFmt:dataFmt,diaSemana:diasSemana[d.getDay()],rec:rec,pag:pag,folha:folha,saldoDia:saldoDia,saldoAcum:saldoAcum});
+  }
+
+  var fmt=function(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR');};
+  var piorDia=rows.reduce(function(min,r){return r.saldoAcum<min.saldoAcum?r:min;},rows[0]);
+  var diasNegativos=rows.filter(function(r){return r.saldoAcum<0;}).length;
+  var saldoFinal=rows.length?rows[rows.length-1].saldoAcum:saldoInicial;
+
+  var kpiEl=document.getElementById('cfd-kpis');
+  if(kpiEl) kpiEl.innerHTML=[
+    {label:'Saldo Hoje',value:fmt(saldoInicial),sub:'ponto de partida'},
+    {label:'Saldo em '+nDias+' dias',value:fmt(saldoFinal),sub:'projetado',cls:saldoFinal>=0?'pos':'neg'},
+    {label:'Menor Saldo do Período',value:fmt(piorDia.saldoAcum),sub:piorDia.dataFmt,cls:piorDia.saldoAcum>=0?'pos':'neg'},
+    {label:'Dias no Vermelho',value:String(diasNegativos),sub:'de '+nDias+' dias',cls:diasNegativos>0?'neg':'pos'},
+  ].map(function(kk){return '<div class="kpi-card"><div class="kpi-label">'+kk.label+'</div><div class="kpi-value '+(kk.cls||'')+'" style="font-size:15px">'+kk.value+'</div><div class="kpi-sub">'+kk.sub+'</div></div>';}).join('');
+
+  var tbody=document.getElementById('cfd-tbody');
+  if(tbody) tbody.innerHTML=rows.map(function(r){
+    var fimDeSemana=r.diaSemana==='Sáb'||r.diaSemana==='Dom';
+    return '<tr'+(r.saldoAcum<0?' style="background:rgba(248,113,113,0.08)"':'')+'>'+
+      '<td>'+r.dataFmt+'</td>'+
+      '<td style="'+(fimDeSemana?'color:var(--text3)':'')+'">'+r.diaSemana+'</td>'+
+      '<td style="text-align:right;color:var(--pos)">'+(r.rec?fmt(r.rec):'—')+'</td>'+
+      '<td style="text-align:right;color:var(--neg)">'+(r.pag?'-'+fmt(r.pag):'—')+'</td>'+
+      '<td style="text-align:right;color:var(--amber)">'+(r.folha?'-'+fmt(r.folha):'—')+'</td>'+
+      '<td style="text-align:right;'+(r.saldoDia>=0?'color:var(--pos)':'color:var(--neg)')+'">'+(r.saldoDia>=0?'+':'')+fmt(r.saldoDia)+'</td>'+
+      '<td style="text-align:right;font-weight:700;'+(r.saldoAcum>=0?'color:var(--pos)':'color:var(--neg)')+'">'+fmt(r.saldoAcum)+'</td>'+
+    '</tr>';
+  }).join('')||'<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text3)">Sem dados</td></tr>';
 }
 
 // ── DRE AUTOMÁTICA VBS ────────────────────────────────────────────────────────
