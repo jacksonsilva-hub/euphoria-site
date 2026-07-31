@@ -268,6 +268,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       <div id="dash-content" style="display:none">
         <div class="filters" style="margin-bottom:16px">
           <button id="btn-actual-vbs" class="btn btn-primary btn-vbs" onclick="carregarActualVbs()" style="font-size:11px;padding:5px 14px">↺ Actual do VBS</button>
+          <button class="btn btn-vbs" onclick="dashCarregarRentabilidadeReal()" style="font-size:11px;padding:5px 14px" title="Carrega Gross Margin real (gerencial VBS) para o ano selecionado no filtro">📊 Rentabilidade Real (VBS)</button>
           <button class="btn" onclick="gerarFinancialHighlights()" style="font-size:11px;padding:5px 14px">🖨️ Financial Highlights</button>
           <select id="sel-ano" onchange="applyFilters()"><option value="2026" selected>2026</option><option value="2025">2025</option><option value="all">2025+2026</option></select>
           <span style="font-size:11px;color:var(--text3)">De:</span>
@@ -2606,15 +2607,24 @@ function renderAll() {
   // vindo do VBS) e deixamos Gross Margin/EBITDA marcados como indisponíveis, em vez de
   // mostrar o Budget 2026 sem rótulo. Essa base não tem quebra por mês, então o gráfico
   // mensal fica zerado (sem dado) ao invés de mostrar o Budget 2026 disfarçado de 2025.
+  var gmFonteReal = false, gmBase = rev;
   if (f2.ano === '2025') {
     rev  = clientAgg.reduce(function(s,r){ return s + (r.actual2025||0); }, 0);
-    gm   = null; ebit = null; pat = null;
+    ebit = null; pat = null;
     revMChart = revMChart.map(function(){ return 0; });
     gmMChart  = gmMChart.map(function(){ return 0; });
+    // Se a Rentabilidade Real (gerencial, VBS) já foi carregada pro ano selecionado
+    // (botão "Rentabilidade Real (VBS)"), usa ela como Gross Margin real em vez de "—".
+    // Importante: a % de margem usa a Receita da PRÓPRIA rentabilidade real (gmBase),
+    // não a Receita Actual do card acima — são fontes/escopos diferentes, dividir uma
+    // pela outra daria uma % sem sentido.
+    var rentReal = window._rentabilidadeRealPorAno && window._rentabilidadeRealPorAno[f2.ano];
+    if (rentReal) { gm = rentReal.rentabilidade; gmBase = rentReal.receita; gmFonteReal = true; }
+    else { gm = null; }
   }
 
   // KPIs
-  renderKPIs(rev, gm, ebit, pat, clientCount, f2.ano);
+  renderKPIs(rev, gm, ebit, pat, clientCount, f2.ano, gmFonteReal, gmBase);
 
   // Charts
   renderMonthlyChart(revMChart, gmMChart, MONTHS.slice(deIdx, ateIdx + 1));
@@ -2634,12 +2644,15 @@ function renderAll() {
     (f.tipo !== 'all' ? ' — ' + f.tipo : '');
 }
 
-function renderKPIs(rev, gm, ebit, pat, clientCount, anoFiltro) {
-  const gmPct   = (rev > 0 && gm !== null)   ? gm / rev   : 0;
+function renderKPIs(rev, gm, ebit, pat, clientCount, anoFiltro, gmFonteReal, gmBase) {
+  const gmPct   = (gmBase > 0 && gm !== null) ? gm / gmBase : 0;
   const ebitPct = (rev > 0 && ebit !== null) ? ebit / rev : 0;
+  const gmSub = gm === null
+    ? 'Sem dado real por ano — clique em "Rentabilidade Real (VBS)"'
+    : pct(gmPct) + ' de margem' + (gmFonteReal ? ' · Rentabilidade Real (VBS)' : '');
   const cards = [
     { label: 'Receita Bruta',  value: fmt(rev),  sub: anoFiltro === '2025' ? 'Actual 2025' : 'Budget 2026' },
-    { label: 'Gross Margin',   value: gm   === null ? '—' : fmt(gm),   sub: gm   === null ? 'Sem dado real por ano' : pct(gmPct) + ' de margem',   cls: gm   === null ? '' : (gmPct   > 0 ? 'pos' : 'neg') },
+    { label: 'Gross Margin',   value: gm   === null ? '—' : fmt(gm),   sub: gmSub, cls: gm === null ? '' : (gmPct > 0 ? 'pos' : 'neg') },
     { label: 'EBITDA',         value: ebit === null ? '—' : fmt(ebit), sub: ebit === null ? 'Sem dado real por ano' : pct(ebitPct) + ' de margem', cls: ebit === null ? '' : (ebitPct > 0 ? 'pos' : 'neg') },
     { label: 'Clientes Ativos',value: String(clientCount), sub: 'com budget no período' }
   ];
@@ -8745,6 +8758,38 @@ function recExportCSV(){
   var a=document.createElement('a');
   a.href=url;a.download='Euphoria_Receita_'+new Date().toISOString().slice(0,10)+'.csv';
   document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+}
+
+// Carrega a Rentabilidade Real (gerencial, GC/GCRENT/GC0001 do VBS) para o ano
+// selecionado no filtro do Dashboard. Diferente do Budget do Sheets (só 2026),
+// esse endpoint tem Receita/Custos/Rentabilidade reais por cliente e mes, para
+// qualquer ano — usado para preencher Gross Margin quando ano != 2026.
+async function dashCarregarRentabilidadeReal(){
+  var ano = document.getElementById('sel-ano') ? document.getElementById('sel-ano').value : '2026';
+  if (ano === 'all') { alert('Selecione um ano especifico (2025 ou 2026) no filtro para carregar a Rentabilidade Real.'); return; }
+  var btn = (typeof event !== 'undefined' && event) ? event.target : null;
+  var textoOriginal = btn ? btn.textContent : null;
+  if (btn) { btn.textContent = 'Carregando...'; btn.disabled = true; }
+  try {
+    var de = '01'+ano, ate = '12'+ano;
+    var res = await fetch(API+'/api/rentabilidade?periodo_de='+de+'&periodo_ate='+ate);
+    var j = await res.json();
+    if(!j.ok) throw new Error(j.error||'Erro VBS');
+    var rows = (j.data && j.data.Retorno) ? j.data.Retorno : [];
+    var receita = 0, rentabilidade = 0;
+    rows.forEach(function(r){
+      receita += parseFloat(r.Valor_Receita_Total||0);
+      rentabilidade += parseFloat(r.Valor_Rentabilidade||0);
+    });
+    window._rentabilidadeRealPorAno = window._rentabilidadeRealPorAno || {};
+    window._rentabilidadeRealPorAno[ano] = { receita: receita, rentabilidade: rentabilidade, linhas: rows.length };
+    if (document.getElementById('kpi-grid')) applyFilters();
+    alert('Rentabilidade Real carregada para '+ano+': '+rows.length+' registros (cliente x mes).');
+  } catch(e) {
+    alert('Erro ao carregar Rentabilidade Real: '+e.message);
+  } finally {
+    if (btn) { btn.textContent = textoOriginal; btn.disabled = false; }
+  }
 }
 
 async function carregarActualVbs(){
