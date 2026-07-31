@@ -7979,8 +7979,12 @@ async function recCarregar(){
   }
 
   // Busca mês a mês para cobrir todo o período
-  var deDate=new Date(de+'-01');
-  var ateDate=new Date(ate+'-01');
+  // Importante: new Date('2026-07-01') é interpretado como UTC e, no fuso do Brasil
+  // (UTC-3), "volta" para 30/06 às 21h — daí getMonth() ler o mês anterior. Por isso
+  // construímos a data com ano/mês/dia separados (sempre no fuso local).
+  var deParts=de.split('-'), ateParts=ate.split('-');
+  var deDate=new Date(parseInt(deParts[0]),parseInt(deParts[1])-1,1);
+  var ateDate=new Date(parseInt(ateParts[0]),parseInt(ateParts[1])-1,1);
   var promises=[];
   var cur=new Date(deDate);
   while(cur<=ateDate){
