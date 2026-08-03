@@ -2400,7 +2400,7 @@ function parseNum(str) {
   const bad = ['-','  -   ','','#N/A','#DIV/0!','#REF!','  -  '];
   if (bad.some(b => str === b) || str.startsWith('#')) return 0;
   const neg = str.startsWith('(') && str.endsWith(')');
-  str = str.replace(/[()%\s]/g, '');
+  str = str.replace(/(R\$|MX\$)/gi, '').replace(/[()%\s$]/g, '');
   if (!str) return 0;
   if (str.includes(',')) {
     // Brazilian: dot=thousands, comma=decimal  e.g. "1.061,741"
@@ -7722,7 +7722,9 @@ function cfProjetarDiario(){
 
 // ── MÍDIA — Investimento Planejado (Sheets) vs. Faturado (VBS) ────────────────
 // Planejado vem da planilha de Budget de Midia (aba "{ano} - CC"), Faturado vem
-// do VBS (FT/FTPRIC/FT0002, ja exposto como /api/investimento-clientes/lista).
+// do VBS (FT/FTPRIC/FT0001, ja exposto como /api/investimento-clientes;
+// FT0002 retorna erro interno na API do VBS, por isso usamos o FT0001 e
+// ignoramos o Valor_Previsto dele, ja que o planejado vem do Sheets).
 // Junta os dois por nome de veiculo/cliente (case-insensitive) - nomes livres
 // dos dois lados podem nao bater 100%; se aparecerem linhas duplicadas/soltas
 // no futuro, precisa de uma tabela de-para como a que ja existe pro Actual VBS.
@@ -7736,11 +7738,16 @@ async function midiaCarregar(){
     var deMes = '01'+ano, ateMes = '12'+ano;
     var results = await Promise.all([
       fetch(API+'/api/budget-midia?ano='+ano).then(function(r){return r.json();}),
-      fetch(API+'/api/investimento-clientes/lista?data_periodo_de='+deMes+'&data_periodo_ate='+ateMes).then(function(r){return r.json();})
+      fetch(API+'/api/investimento-clientes?data_periodo_de='+deMes+'&data_periodo_ate='+ateMes+'&data_mes_referencia='+ateMes).then(function(r){return r.json();})
     ]);
     var budgetJson = results[0], realJson = results[1];
     if(!budgetJson.ok) throw new Error('Budget (Sheets): '+(budgetJson.error||'erro desconhecido'));
     if(!realJson.ok) throw new Error('Real (VBS): '+(realJson.error||'erro desconhecido'));
+    // A VBS retorna ok:true mesmo quando o erro e dela (Mensagem.Cod_Mensagem != 0) -
+    // sem esse check, um erro interno vira silenciosamente "0 linhas" na tela.
+    if(realJson.data && realJson.data.Mensagem && realJson.data.Mensagem.Cod_Mensagem){
+      throw new Error('Real (VBS): '+(realJson.data.Mensagem.Desc_Mensagem||'erro interno da API'));
+    }
     window._midiaBudgetRaw = midiaParseBudgetRows(budgetJson.data||[]);
     window._midiaRealRaw = (realJson.data && realJson.data.Retorno) ? realJson.data.Retorno : [];
     statusEl.textContent = window._midiaBudgetRaw.length+' linhas de budget · '+window._midiaRealRaw.length+' linhas de faturamento real ('+ano+')';
@@ -7790,12 +7797,12 @@ function midiaAgregarBudget(mesDeIdx, mesAteIdx){
 function midiaAgregarReal(mesDeIdx, mesAteIdx){
   var porVeiculo={}, porCliente={};
   (window._midiaRealRaw||[]).forEach(function(r){
-    var dt = r.Data_Competencia; if(!dt) return;
+    var dt = r['Competência']; if(!dt) return;
     var mesIdx = parseInt(String(dt).substring(5,7),10)-1;
     if(isNaN(mesIdx) || mesIdx<mesDeIdx || mesIdx>mesAteIdx) return;
     var veic = String(r.Nome_Meio||'').trim();
-    var cli = String(r.Nome_Cliente_Previsao||'').trim();
-    var val = parseFloat(r.Valor_Liquido||0);
+    var cli = String(r.Nome_Cliente||'').trim();
+    var val = parseNum(String(r.Valor_Real||'0'));
     if(!val) return;
     if(veic) porVeiculo[veic]=(porVeiculo[veic]||0)+val;
     if(cli) porCliente[cli]=(porCliente[cli]||0)+val;
@@ -7843,9 +7850,9 @@ function midiaRenderChartMensal(mesDeIdx, mesAteIdx){
   (window._midiaBudgetRaw||[]).forEach(function(item){ for(var m=0;m<12;m++) planejadoPorMes[m]+=item.meses[m]||0; });
   var faturadoPorMes = Array(12).fill(0);
   (window._midiaRealRaw||[]).forEach(function(r){
-    var dt=r.Data_Competencia; if(!dt) return;
+    var dt=r['Competência']; if(!dt) return;
     var mesIdx=parseInt(String(dt).substring(5,7),10)-1;
-    if(mesIdx>=0 && mesIdx<12) faturadoPorMes[mesIdx]+=parseFloat(r.Valor_Liquido||0);
+    if(mesIdx>=0 && mesIdx<12) faturadoPorMes[mesIdx]+=parseNum(String(r.Valor_Real||'0'));
   });
   var labels = mesesLabels.slice(mesDeIdx, mesAteIdx+1);
   var pData = planejadoPorMes.slice(mesDeIdx, mesAteIdx+1);
