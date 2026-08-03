@@ -1181,6 +1181,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
         <button class="btn btn-primary" id="midia-btn-carregar" onclick="midiaCarregar()" style="font-size:11px;padding:6px 14px">↺ Carregar Dados</button>
       </div>
     </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      <select id="midia-sel-cliente" onchange="midiaRenderTudo()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
+        <option value="">Todos os clientes</option>
+      </select>
+      <select id="midia-sel-veiculo" onchange="midiaRenderTudo()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
+        <option value="">Todos os veículos</option>
+      </select>
+    </div>
     <div style="font-size:11px;color:var(--text3);margin-bottom:14px" id="midia-status">Selecione o período e clique em "Carregar Dados".</div>
 
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px" id="midia-kpis">
@@ -7751,6 +7759,7 @@ async function midiaCarregar(){
     window._midiaBudgetRaw = midiaParseBudgetRows(budgetJson.data||[]);
     window._midiaRealRaw = (realJson.data && realJson.data.Retorno) ? realJson.data.Retorno : [];
     statusEl.textContent = window._midiaBudgetRaw.length+' linhas de budget · '+window._midiaRealRaw.length+' linhas de faturamento real ('+ano+')';
+    midiaPopularFiltros();
     midiaRenderTudo();
   }catch(e){
     statusEl.textContent = 'Erro: '+e.message;
@@ -7782,9 +7791,35 @@ function midiaParseBudgetRows(rows){
   return out;
 }
 
-function midiaAgregarBudget(mesDeIdx, mesAteIdx){
+function midiaPopularFiltros(){
+  var clientes={}, veiculos={};
+  (window._midiaBudgetRaw||[]).forEach(function(item){
+    if(item.cliente) clientes[item.cliente.toUpperCase()] = clientes[item.cliente.toUpperCase()] || item.cliente;
+    if(item.veiculo) veiculos[item.veiculo.toUpperCase()] = veiculos[item.veiculo.toUpperCase()] || item.veiculo;
+  });
+  (window._midiaRealRaw||[]).forEach(function(r){
+    var c = String(r.Nome_Cliente||'').trim();
+    var v = String(r.Nome_Meio||'').trim();
+    if(c) clientes[c.toUpperCase()] = clientes[c.toUpperCase()] || c;
+    if(v) veiculos[v.toUpperCase()] = veiculos[v.toUpperCase()] || v;
+  });
+  function popular(selectId, mapa, placeholder){
+    var el = document.getElementById(selectId);
+    if(!el) return;
+    var cur = el.value;
+    var nomes = Object.keys(mapa).sort(function(a,b){ return mapa[a].localeCompare(mapa[b],'pt-BR'); });
+    el.innerHTML = '<option value="">'+placeholder+'</option>'+nomes.map(function(k){ return '<option value="'+k+'">'+mapa[k]+'</option>'; }).join('');
+    if(nomes.includes(cur)) el.value = cur;
+  }
+  popular('midia-sel-cliente', clientes, 'Todos os clientes');
+  popular('midia-sel-veiculo', veiculos, 'Todos os veículos');
+}
+
+function midiaAgregarBudget(mesDeIdx, mesAteIdx, clienteFiltro, veiculoFiltro){
   var porVeiculo={}, porCliente={};
   (window._midiaBudgetRaw||[]).forEach(function(item){
+    if(clienteFiltro && item.cliente.toUpperCase()!==clienteFiltro) return;
+    if(veiculoFiltro && item.veiculo.toUpperCase()!==veiculoFiltro) return;
     var total=0;
     for(var m=mesDeIdx;m<=mesAteIdx;m++) total+=item.meses[m]||0;
     if(!total) return;
@@ -7794,7 +7829,7 @@ function midiaAgregarBudget(mesDeIdx, mesAteIdx){
   return {porVeiculo:porVeiculo, porCliente:porCliente};
 }
 
-function midiaAgregarReal(mesDeIdx, mesAteIdx){
+function midiaAgregarReal(mesDeIdx, mesAteIdx, clienteFiltro, veiculoFiltro){
   var porVeiculo={}, porCliente={};
   (window._midiaRealRaw||[]).forEach(function(r){
     var dt = r['Competência']; if(!dt) return;
@@ -7802,6 +7837,8 @@ function midiaAgregarReal(mesDeIdx, mesAteIdx){
     if(isNaN(mesIdx) || mesIdx<mesDeIdx || mesIdx>mesAteIdx) return;
     var veic = String(r.Nome_Meio||'').trim();
     var cli = String(r.Nome_Cliente||'').trim();
+    if(clienteFiltro && cli.toUpperCase()!==clienteFiltro) return;
+    if(veiculoFiltro && veic.toUpperCase()!==veiculoFiltro) return;
     var val = parseNum(String(r.Valor_Real||'0'));
     if(!val) return;
     if(veic) porVeiculo[veic]=(porVeiculo[veic]||0)+val;
@@ -7880,9 +7917,11 @@ function midiaRenderTudo(){
   var mesDeIdx = parseInt(document.getElementById('midia-sel-mes-de').value)-1;
   var mesAteIdx = parseInt(document.getElementById('midia-sel-mes-ate').value)-1;
   if(mesDeIdx>mesAteIdx){ var tmp=mesDeIdx; mesDeIdx=mesAteIdx; mesAteIdx=tmp; }
+  var clienteFiltro = (document.getElementById('midia-sel-cliente')||{}).value || '';
+  var veiculoFiltro = (document.getElementById('midia-sel-veiculo')||{}).value || '';
 
-  var budget = midiaAgregarBudget(mesDeIdx, mesAteIdx);
-  var real = midiaAgregarReal(mesDeIdx, mesAteIdx);
+  var budget = midiaAgregarBudget(mesDeIdx, mesAteIdx, clienteFiltro, veiculoFiltro);
+  var real = midiaAgregarReal(mesDeIdx, mesAteIdx, clienteFiltro, veiculoFiltro);
   var veiculos = midiaJuntarFontes(budget.porVeiculo, real.porVeiculo);
   var contas = midiaJuntarFontes(budget.porCliente, real.porCliente);
 
