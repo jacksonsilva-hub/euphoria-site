@@ -1195,7 +1195,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       <div class="kpi-card"><div class="kpi-label">Investimento Planejado</div><div class="kpi-value" id="midia-k-planejado">—</div><div class="kpi-sub">Budget (Sheets)</div></div>
       <div class="kpi-card"><div class="kpi-label">Investimento Faturado</div><div class="kpi-value" id="midia-k-faturado">—</div><div class="kpi-sub">Real (VBS)</div></div>
       <div class="kpi-card"><div class="kpi-label">% Pacing de Execução</div><div class="kpi-value" id="midia-k-pacing">—</div><div class="kpi-sub" id="midia-k-pacing-sub">faturado ÷ planejado</div></div>
-      <div class="kpi-card"><div class="kpi-label">Veículos no Período</div><div class="kpi-value" id="midia-k-veiculos">—</div><div class="kpi-sub">com planejado ou faturado</div></div>
+      <div class="kpi-card"><div class="kpi-label">Categorias no Período</div><div class="kpi-value" id="midia-k-veiculos">—</div><div class="kpi-sub">com planejado ou faturado</div></div>
     </div>
 
     <div class="chart-card" style="padding:14px;margin-bottom:16px">
@@ -1204,11 +1204,23 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     </div>
 
     <div class="table-card" style="margin-bottom:16px">
-      <div class="table-header"><span class="table-title">Planejado vs. Faturado por Veículo</span><span class="table-meta" id="midia-veiculo-meta">0 veículos</span></div>
+      <div class="table-header"><span class="table-title">Planejado vs. Faturado por Categoria de Veículo</span><span class="table-meta" id="midia-veiculo-meta">0 categorias</span></div>
+      <div style="font-size:10px;color:var(--text3);padding:0 16px 10px">O VBS só classifica o faturado real por categoria ampla (Internet, Televisão, Out of Home, Rádio...), não pelo veículo/fornecedor específico — por isso a comparação é feita nesse nível.</div>
       <div style="overflow-x:auto">
         <table class="tbl">
-          <thead><tr><th>Veículo</th><th style="text-align:right">Planejado</th><th style="text-align:right">Faturado</th><th style="text-align:right">% Pacing</th><th>Execução</th></tr></thead>
+          <thead><tr><th>Categoria</th><th style="text-align:right">Planejado</th><th style="text-align:right">Faturado</th><th style="text-align:right">% Pacing</th><th>Execução</th></tr></thead>
           <tbody id="midia-veiculo-tbody"><tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text3)">Sem dados — clique em Carregar Dados</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="table-card" style="margin-bottom:16px">
+      <div class="table-header"><span class="table-title">Planejado por Veículo (detalhe)</span><span class="table-meta" id="midia-veiculo-detalhe-meta">0 veículos</span></div>
+      <div style="font-size:10px;color:var(--text3);padding:0 16px 10px">Detalhe do Budget por veículo/fornecedor específico. Sem coluna de Faturado aqui, já que o VBS não abre o real nesse nível de detalhe.</div>
+      <div style="overflow-x:auto;max-height:340px;overflow-y:auto">
+        <table class="tbl">
+          <thead><tr><th>Veículo</th><th style="text-align:right">Planejado</th></tr></thead>
+          <tbody id="midia-veiculo-detalhe-tbody"><tr><td colspan="2" style="text-align:center;padding:20px;color:var(--text3)">Sem dados — clique em Carregar Dados</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -7815,18 +7827,47 @@ function midiaPopularFiltros(){
   popular('midia-sel-veiculo', veiculos, 'Todos os veículos');
 }
 
+// Mapa de veiculo/fornecedor especifico (planilha de Budget, coluna VEÍCULO)
+// -> categoria de meio (mesma granularidade que o VBS classifica o faturado
+// real: Internet, Televisão, Out of Home, Rádio, Produção, Jornal, etc).
+// Sem esse mapa, "GOOGLE" (planejado) nunca bateria com "Internet" (faturado)
+// - sao a mesma coisa em dois niveis de detalhe diferentes.
+// Fornecedores nao listados aqui ficam sem categoria confirmada e continuam
+// comparando pelo proprio nome (normalmente aparecem com Faturado R$0, ja
+// que o VBS nao usa esse nome especifico) - pendente confirmar com o time de
+// Midia: AD+R, BTN, COOHNECT, FAVRETTO, IMPULSO (RD SAÚDE), MATCHMAKERS,
+// NEWSROOM, OPL, SINERGY, SIPROCAL, TOPRH, WIP.
+var MIDIA_VEICULO_PARA_CATEGORIA = {
+  'GOOGLE':'Internet','META':'Internet','TIKTOK':'Internet','SPOTIFY':'Internet',
+  'TEADS':'Internet','PREDICTA':'Internet','ADS PREDICTA':'Internet','UOL':'Internet',
+  'WAFFLE':'Internet','IFOOD':'Internet','VTEX':'Internet','99 ADS':'Internet',
+  'UBER':'Internet','DISPLAYCE':'Internet','365 SCORES':'Internet',
+  'ELETROMIDIA':'Out of Home','NEOOH':'Out of Home','JCDECAUX':'Out of Home',
+  'JCDECAUX/DISPLAYCE':'Out of Home','BH MÍDIA OOH':'Out of Home','TV DOUTOR':'Out of Home',
+  'VEX':'Out of Home','KALLAS':'Out of Home',
+  'GLOBO':'Televisão','GLOBO/SPORTV':'Televisão','ESPN/DISNEY':'Televisão',
+  'MULTISHOW GLOBO':'Televisão','BIS (GLOBOSAT)':'Televisão',
+  'JOVEM PAN FM':'Rádio','JORNAL FM':'Rádio','THE NEWS':'Rádio',
+  'GAZETA DO POVO':'Jornal','DIÁRIO DE PERNAMBUCO':'Jornal','CRUZEIRO DO SUL':'Jornal'
+};
+function midiaCategoriaDoVeiculo(nomeVeiculo){
+  return MIDIA_VEICULO_PARA_CATEGORIA[String(nomeVeiculo||'').trim().toUpperCase()] || nomeVeiculo;
+}
+
 function midiaAgregarBudget(mesDeIdx, mesAteIdx, clienteFiltro, veiculoFiltro){
-  var porVeiculo={}, porCliente={};
+  var porVeiculo={}, porCliente={}, porCategoria={};
   (window._midiaBudgetRaw||[]).forEach(function(item){
     if(clienteFiltro && item.cliente.toUpperCase()!==clienteFiltro) return;
-    if(veiculoFiltro && item.veiculo.toUpperCase()!==veiculoFiltro) return;
+    if(veiculoFiltro && item.veiculo.toUpperCase()!==veiculoFiltro && midiaCategoriaDoVeiculo(item.veiculo).toUpperCase()!==veiculoFiltro) return;
     var total=0;
     for(var m=mesDeIdx;m<=mesAteIdx;m++) total+=item.meses[m]||0;
     if(!total) return;
     porVeiculo[item.veiculo]=(porVeiculo[item.veiculo]||0)+total;
     porCliente[item.cliente]=(porCliente[item.cliente]||0)+total;
+    var cat = midiaCategoriaDoVeiculo(item.veiculo);
+    porCategoria[cat]=(porCategoria[cat]||0)+total;
   });
-  return {porVeiculo:porVeiculo, porCliente:porCliente};
+  return {porVeiculo:porVeiculo, porCliente:porCliente, porCategoria:porCategoria};
 }
 
 function midiaAgregarReal(mesDeIdx, mesAteIdx, clienteFiltro, veiculoFiltro){
@@ -7922,22 +7963,37 @@ function midiaRenderTudo(){
 
   var budget = midiaAgregarBudget(mesDeIdx, mesAteIdx, clienteFiltro, veiculoFiltro);
   var real = midiaAgregarReal(mesDeIdx, mesAteIdx, clienteFiltro, veiculoFiltro);
-  var veiculos = midiaJuntarFontes(budget.porVeiculo, real.porVeiculo);
+  // O VBS so classifica o faturado real por categoria de meio (Internet, TV,
+  // OOH, Rádio...), entao a comparacao Planejado x Faturado precisa usar
+  // porCategoria (Budget agrupado pelo mapa acima), nao porVeiculo (especifico).
+  var categorias = midiaJuntarFontes(budget.porCategoria, real.porVeiculo);
   var contas = midiaJuntarFontes(budget.porCliente, real.porCliente);
 
-  var totalPlanejado = veiculos.reduce(function(s,v){return s+v.planejado;},0);
-  var totalFaturado = veiculos.reduce(function(s,v){return s+v.faturado;},0);
+  var totalPlanejado = categorias.reduce(function(s,v){return s+v.planejado;},0);
+  var totalFaturado = categorias.reduce(function(s,v){return s+v.faturado;},0);
   var pacing = totalPlanejado>0 ? (totalFaturado/totalPlanejado*100) : 0;
 
   document.getElementById('midia-k-planejado').textContent = midiaFmtBRL(totalPlanejado);
   document.getElementById('midia-k-faturado').textContent = midiaFmtBRL(totalFaturado);
   document.getElementById('midia-k-pacing').textContent = pacing.toFixed(1)+'%';
   document.getElementById('midia-k-pacing-sub').textContent = pacing>=100 ? 'acima do planejado' : 'do planejado executado';
-  document.getElementById('midia-k-veiculos').textContent = String(veiculos.length);
+  document.getElementById('midia-k-veiculos').textContent = String(categorias.length);
 
-  midiaRenderTabela('midia-veiculo-tbody','midia-veiculo-meta', veiculos, 'veículos');
+  midiaRenderTabela('midia-veiculo-tbody','midia-veiculo-meta', categorias, 'categorias');
   midiaRenderTabela('midia-conta-tbody','midia-conta-meta', contas, 'contas');
+  midiaRenderTabelaDetalheVeiculo(budget.porVeiculo);
   midiaRenderChartMensal(mesDeIdx, mesAteIdx);
+}
+
+function midiaRenderTabelaDetalheVeiculo(porVeiculo){
+  var tbody = document.getElementById('midia-veiculo-detalhe-tbody');
+  var metaEl = document.getElementById('midia-veiculo-detalhe-meta');
+  if(!tbody) return;
+  var nomes = Object.keys(porVeiculo).sort(function(a,b){ return porVeiculo[b]-porVeiculo[a]; });
+  if(metaEl) metaEl.textContent = nomes.length+' veículos';
+  tbody.innerHTML = nomes.map(function(n){
+    return '<tr><td>'+n+'</td><td style="text-align:right">'+midiaFmtBRL(porVeiculo[n])+'</td></tr>';
+  }).join('') || '<tr><td colspan="2" style="text-align:center;padding:20px;color:var(--text3)">Sem dados no período</td></tr>';
 }
 
 // ── DRE AUTOMÁTICA VBS ────────────────────────────────────────────────────────
