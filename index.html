@@ -269,6 +269,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       <div id="dash-content" style="display:none">
         <div class="filters" style="margin-bottom:16px">
           <button id="btn-actual-vbs" class="btn btn-primary btn-vbs" onclick="carregarActualVbs()" style="font-size:11px;padding:5px 14px">↺ Actual do VBS</button>
+          <button class="btn" id="btn-actual-2025-pl" onclick="dashCarregarPLActual2025()" style="font-size:11px;padding:5px 14px" title="Carrega Receita, Gross Margin e EBITDA reais de 2025 (planilha Actuals)">📈 Actual 2025 (P&L)</button>
           <button class="btn btn-vbs" onclick="dashCarregarRentabilidadeReal()" style="font-size:11px;padding:5px 14px" title="Carrega Gross Margin real (gerencial VBS) para o ano selecionado no filtro">📊 Rentabilidade Real (VBS)</button>
           <button class="btn" onclick="gerarFinancialHighlights()" style="font-size:11px;padding:5px 14px">🖨️ Financial Highlights</button>
           <select id="sel-ano" onchange="applyFilters()"><option value="2026" selected>2026</option><option value="2025">2025</option><option value="all">2025+2026</option></select>
@@ -2449,7 +2450,7 @@ function fmtPL(n) {
 function pct(n) { return (n * 100).toFixed(1) + '%'; }
 
 // ─── GLOBAL STATE ────────────────────────────────────────
-let G = { pl: null, clientes: null, cashflow: null };
+let G = { pl: null, clientes: null, cashflow: null, plActual2025: null };
 let chartRC = null, chartCL = null;
 
 // ─── FETCH DATA ──────────────────────────────────────────
@@ -2552,6 +2553,36 @@ function getAnnual(label) {
   const tot = parseNum(row[15]);
   if (tot !== 0) return tot * 1000;
   return Array.from({length: 12}, (_, i) => parseNum(row[2 + i])).reduce((a,b) => a+b, 0) * 1000;
+}
+
+// Aba "Euphoria - Actuals - 2025" tem a mesma estrutura da Budget, so que
+// deslocada uma coluna a mais pra direita (rotulo na coluna C, meses D..O,
+// total anual na coluna Q) - por isso os indices aqui sao +1 em relacao a
+// getPLRow/getMonthly/getAnnual.
+function getActualPLRow(label) {
+  for (const row of (G.plActual2025 || [])) {
+    if (row[2] && row[2].trim() === label) return row;
+  }
+  return null;
+}
+function getActualMonthly(label) {
+  const row = getActualPLRow(label);
+  if (!row) return Array(12).fill(0);
+  return Array.from({length: 12}, (_, i) => parseNum(row[3 + i]) * 1000);
+}
+function getActualAnnual(label) {
+  const row = getActualPLRow(label);
+  if (!row) return 0;
+  const tot = parseNum(row[16]);
+  if (tot !== 0) return tot * 1000;
+  return Array.from({length: 12}, (_, i) => parseNum(row[3 + i])).reduce((a,b) => a+b, 0) * 1000;
+}
+async function carregarPLActual2025(){
+  var res = await fetch(API+'/api/pl-actual-2025');
+  var j = await res.json();
+  if(!j.ok) throw new Error(j.error||'Erro ao carregar Actual 2025 (P&L)');
+  G.plActual2025 = j.data||[];
+  return G.plActual2025;
 }
 
 // ─── CLIENT DATA HELPERS ─────────────────────────────────
@@ -2681,29 +2712,43 @@ function renderAll() {
   }
 
   // Receita Bruta/Gross Margin/EBITDA acima vêm da aba de Budget do Sheets, que só tem
-  // dados de 2026. Para ano=2025 não existe fonte de custo/EBITDA real por ano no sistema,
-  // então usamos a Receita Actual real dos clientes (mesmo total já usado na tabela abaixo,
-  // vindo do VBS) e deixamos Gross Margin/EBITDA marcados como indisponíveis, em vez de
-  // mostrar o Budget 2026 sem rótulo. Essa base não tem quebra por mês, então o gráfico
-  // mensal fica zerado (sem dado) ao invés de mostrar o Budget 2026 disfarçado de 2025.
-  var gmFonteReal = false, gmBase = rev;
+  // dados de 2026. Para ano=2025, preferimos a aba "Euphoria - Actuals - 2025" (P&L real
+  // completo, mesma estrutura da Budget) quando já carregada - tem Receita, Gross Margin
+  // e EBITDA reais, com quebra mensal de verdade. Sem essa aba carregada, caímos pro
+  // proxy antigo (Rentabilidade Real por cliente, via VBS gerencial), que não tem EBITDA
+  // nem quebra mensal - melhor que nada, mas bem mais limitado.
+  var gmFonteReal = null, ebitFonteReal = null, gmBase = rev;
   if (f2.ano === '2025') {
-    rev  = clientAgg.reduce(function(s,r){ return s + (r.actual2025||0); }, 0);
-    ebit = null; pat = null;
-    revMChart = revMChart.map(function(){ return 0; });
-    gmMChart  = gmMChart.map(function(){ return 0; });
-    // Se a Rentabilidade Real (gerencial, VBS) já foi carregada pro ano selecionado
-    // (botão "Rentabilidade Real (VBS)"), usa ela como Gross Margin real em vez de "—".
-    // Importante: a % de margem usa a Receita da PRÓPRIA rentabilidade real (gmBase),
-    // não a Receita Actual do card acima — são fontes/escopos diferentes, dividir uma
-    // pela outra daria uma % sem sentido.
-    var rentReal = window._rentabilidadeRealPorAno && window._rentabilidadeRealPorAno[f2.ano];
-    if (rentReal) { gm = rentReal.rentabilidade; gmBase = rentReal.receita; gmFonteReal = true; }
-    else { gm = null; }
+    if (G.plActual2025 && G.plActual2025.length) {
+      var isFullYear2025 = (deIdx === 0 && ateIdx === 11);
+      var revMActual  = getActualMonthly('REVENUE');
+      var gmMActual   = getActualMonthly('GROSS MARGIN');
+      var ebitMActual = getActualMonthly('OPERATING PROFIT/(LOSS) - EBITDA');
+      var sumRangeActual = function(arr, label){ return isFullYear2025 ? getActualAnnual(label) : arr.slice(deIdx, ateIdx + 1).reduce(function(s,v){ return s+v; }, 0); };
+      rev  = sumRangeActual(revMActual, 'REVENUE');
+      gm   = sumRangeActual(gmMActual, 'GROSS MARGIN');
+      ebit = sumRangeActual(ebitMActual, 'OPERATING PROFIT/(LOSS) - EBITDA');
+      pat  = null;
+      gmBase = rev;
+      gmFonteReal = 'P&L Actual 2025'; ebitFonteReal = 'P&L Actual 2025';
+      revMChart = revMActual.slice(deIdx, ateIdx + 1);
+      gmMChart  = gmMActual.slice(deIdx, ateIdx + 1);
+    } else {
+      rev  = clientAgg.reduce(function(s,r){ return s + (r.actual2025||0); }, 0);
+      ebit = null; pat = null;
+      revMChart = revMChart.map(function(){ return 0; });
+      gmMChart  = gmMChart.map(function(){ return 0; });
+      // Importante: a % de margem usa a Receita da PRÓPRIA rentabilidade real (gmBase),
+      // não a Receita Actual do card acima — são fontes/escopos diferentes, dividir uma
+      // pela outra daria uma % sem sentido.
+      var rentReal = window._rentabilidadeRealPorAno && window._rentabilidadeRealPorAno[f2.ano];
+      if (rentReal) { gm = rentReal.rentabilidade; gmBase = rentReal.receita; gmFonteReal = 'Rentabilidade Real (VBS)'; }
+      else { gm = null; }
+    }
   }
 
   // KPIs
-  renderKPIs(rev, gm, ebit, pat, clientCount, f2.ano, gmFonteReal, gmBase);
+  renderKPIs(rev, gm, ebit, pat, clientCount, f2.ano, gmFonteReal, gmBase, ebitFonteReal);
 
   // Charts
   renderMonthlyChart(revMChart, gmMChart, MONTHS.slice(deIdx, ateIdx + 1));
@@ -2723,16 +2768,19 @@ function renderAll() {
     (f.tipo !== 'all' ? ' — ' + f.tipo : '');
 }
 
-function renderKPIs(rev, gm, ebit, pat, clientCount, anoFiltro, gmFonteReal, gmBase) {
+function renderKPIs(rev, gm, ebit, pat, clientCount, anoFiltro, gmFonteReal, gmBase, ebitFonteReal) {
   const gmPct   = (gmBase > 0 && gm !== null) ? gm / gmBase : 0;
   const ebitPct = (rev > 0 && ebit !== null) ? ebit / rev : 0;
   const gmSub = gm === null
     ? 'Sem dado real por ano — clique em "Rentabilidade Real (VBS)"'
-    : pct(gmPct) + ' de margem' + (gmFonteReal ? ' · Rentabilidade Real (VBS)' : '');
+    : pct(gmPct) + ' de margem' + (gmFonteReal ? ' · '+gmFonteReal : '');
+  const ebitSub = ebit === null
+    ? 'Sem dado real por ano'
+    : pct(ebitPct) + ' de margem' + (ebitFonteReal ? ' · '+ebitFonteReal : '');
   const cards = [
     { label: 'Receita Bruta',  value: fmt(rev),  sub: anoFiltro === '2025' ? 'Actual 2025' : 'Budget 2026' },
     { label: 'Gross Margin',   value: gm   === null ? '—' : fmt(gm),   sub: gmSub, cls: gm === null ? '' : (gmPct > 0 ? 'pos' : 'neg') },
-    { label: 'EBITDA',         value: ebit === null ? '—' : fmt(ebit), sub: ebit === null ? 'Sem dado real por ano' : pct(ebitPct) + ' de margem', cls: ebit === null ? '' : (ebitPct > 0 ? 'pos' : 'neg') },
+    { label: 'EBITDA',         value: ebit === null ? '—' : fmt(ebit), sub: ebitSub, cls: ebit === null ? '' : (ebitPct > 0 ? 'pos' : 'neg') },
     { label: 'Clientes Ativos',value: String(clientCount), sub: 'com budget no período' }
   ];
   document.getElementById('kpi-grid').innerHTML = cards.map(k =>
@@ -9105,6 +9153,27 @@ function recExportCSV(){
 // selecionado no filtro do Dashboard. Diferente do Budget do Sheets (só 2026),
 // esse endpoint tem Receita/Custos/Rentabilidade reais por cliente e mes, para
 // qualquer ano — usado para preencher Gross Margin quando ano != 2026.
+// Carrega o P&L Actual 2025 (planilha "Euphoria - Actuals - 2025") e re-renderiza
+// o Dashboard. Com ela carregada, o filtro ano=2025 passa a mostrar Receita,
+// Gross Margin e EBITDA reais (com quebra mensal), em vez do proxy limitado.
+async function dashCarregarPLActual2025(){
+  var btn = document.getElementById('btn-actual-2025-pl');
+  var txt = btn ? btn.textContent : null;
+  if(btn){ btn.textContent='Carregando...'; btn.disabled=true; }
+  try{
+    await carregarPLActual2025();
+    var linhas = (G.plActual2025||[]).length;
+    var sel = document.getElementById('sel-ano');
+    if(sel && sel.value!=='2025'){ sel.value='2025'; }
+    applyFilters();
+    alert('P&L Actual 2025 carregado ('+linhas+' linhas). O filtro de ano foi ajustado para 2025.');
+  }catch(e){
+    alert('Erro ao carregar P&L Actual 2025: '+e.message);
+  }finally{
+    if(btn){ btn.textContent=txt; btn.disabled=false; }
+  }
+}
+
 async function dashCarregarRentabilidadeReal(){
   var ano = document.getElementById('sel-ano') ? document.getElementById('sel-ano').value : '2026';
   if (ano === 'all') { alert('Selecione um ano especifico (2025 ou 2026) no filtro para carregar a Rentabilidade Real.'); return; }
