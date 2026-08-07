@@ -898,10 +898,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
               <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option><option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option><option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12" selected>Dezembro</option>
             </select>
           </div>
-          <button class="btn btn-primary btn-vbs" onclick="cmpCarregarBases()" style="font-size:11px;padding:6px 14px">↺ Carregar Bases</button>
+          <button class="btn btn-primary btn-vbs" id="cmp-btn-carregar" onclick="cmpCarregarBases(true)" style="font-size:11px;padding:6px 14px" title="Busca os valores de agora direto do Google Sheets">↺ Atualizar da Planilha</button>
         </div>
       </div>
-      <div style="font-size:11px;color:var(--text3);margin-bottom:14px" id="cmp-status">Clique em "Carregar Bases" para buscar Budget e Actuals.</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:14px" id="cmp-status">Lê o P&L direto do Google Sheets. Clique em "Atualizar da Planilha" para buscar os valores de agora.</div>
 
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px" id="cmp-kpis"></div>
 
@@ -923,7 +923,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
               <th style="text-align:right">Variação R$</th>
               <th style="text-align:right">Variação %</th>
             </tr></thead>
-            <tbody id="cmp-tbody"><tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text3)">Sem dados — clique em Carregar Bases</td></tr></tbody>
+            <tbody id="cmp-tbody"><tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text3)">Sem dados — clique em Atualizar da Planilha</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -2689,9 +2689,33 @@ function getActualAnnual(label, ano, entidade) {
 }
 function plChave(ano, entidade){ return (entidade||'BR')+':'+ano; }
 
+// A aba "Actuals" do ano corrente e, na verdade, um forecast (confirmado com o
+// financeiro): mistura realizado com orcado. Tentei detectar automaticamente ate
+// que mes e realizado, mas os arquivos misturam de formas diferentes - no Brasil
+// os meses finais de Receita vem do Budget enquanto os custos sao reais; no
+// Mexico a Receita inteira espelha o Budget e so os custos sao reais. Heuristica
+// nao da conta, entao aqui vale a regra simples e o que e verificavel:
+// ano corrente = Forecast, e listamos as linhas que batem exatamente com o
+// Budget (isso e fato, nao estimativa).
+function plAnoEhForecast(ano){ return String(ano) === String(new Date().getFullYear()); }
+
+// Linhas cujo total anual e identico ao Budget - ou seja, ainda espelham o
+// orcado em vez de trazer realizado.
+function plLinhasEspelhandoBudget(rowsActual, rowsBudget){
+  if (!rowsActual || !rowsActual.length || !rowsBudget || !rowsBudget.length) return [];
+  var chaves = ['REVENUE','GROSS MARGIN','TOTAL OPERATING COSTS','OPERATING PROFIT/(LOSS) - EBITDA'];
+  var nomes = { 'REVENUE':'Receita', 'GROSS MARGIN':'Gross Margin', 'TOTAL OPERATING COSTS':'Custos Op.', 'OPERATING PROFIT/(LOSS) - EBITDA':'EBITDA' };
+  return chaves.filter(function(k){
+    var a = plValores(rowsActual, k).anual, b = plValores(rowsBudget, k).anual;
+    return a && b && Math.round(a) === Math.round(b);
+  }).map(function(k){ return nomes[k]; });
+}
+
 async function carregarPLActual(ano, entidade){
   var ent = entidade || 'BR';
-  var res = await fetch(API+'/api/pl-actual?ano='+encodeURIComponent(ano)+'&entidade='+encodeURIComponent(ent));
+  // no-store: o P&L e editado na planilha o tempo todo, entao cada carga tem que
+  // buscar o valor de agora - servir do cache do navegador mostraria dado velho.
+  var res = await fetch(API+'/api/pl-actual?ano='+encodeURIComponent(ano)+'&entidade='+encodeURIComponent(ent), {cache:'no-store'});
   var j = await res.json();
   if(!j.ok) throw new Error(j.error||('Erro ao carregar Actual '+ano+' (P&L)'));
   G.plActualPorAno = G.plActualPorAno || {};
@@ -2700,7 +2724,7 @@ async function carregarPLActual(ano, entidade){
 }
 async function carregarPLBudget(ano, entidade){
   var ent = entidade || 'BR';
-  var res = await fetch(API+'/api/pl-budget?ano='+encodeURIComponent(ano)+'&entidade='+encodeURIComponent(ent));
+  var res = await fetch(API+'/api/pl-budget?ano='+encodeURIComponent(ano)+'&entidade='+encodeURIComponent(ent), {cache:'no-store'});
   var j = await res.json();
   if(!j.ok) throw new Error(j.error||('Erro ao carregar Budget '+ano+' (P&L)'));
   G.plBudgetPorAno = G.plBudgetPorAno || {};
@@ -2853,7 +2877,12 @@ function renderAll() {
     ebit = sumRangeActual(ebitMActual, 'OPERATING PROFIT/(LOSS) - EBITDA');
     pat  = null;
     gmBase = rev;
-    gmFonteReal = 'P&L Actual '+f2.ano; ebitFonteReal = 'P&L Actual '+f2.ano;
+    // A aba de Actuals do ano corrente e forecast (realizado + orcado no resto) -
+    // rotular como "Actual" passaria a impressao de que o ano todo foi realizado.
+    var rotuloFonte = plAnoEhForecast(f2.ano)
+      ? 'P&L Forecast '+f2.ano+' (realizado + orçado)'
+      : 'P&L Actual '+f2.ano;
+    gmFonteReal = rotuloFonte; ebitFonteReal = rotuloFonte;
     revMChart = revMActual.slice(deIdx, ateIdx + 1);
     gmMChart  = gmMActual.slice(deIdx, ateIdx + 1);
   } else if (f2.ano === '2025') {
@@ -2870,7 +2899,7 @@ function renderAll() {
   }
 
   // KPIs
-  renderKPIs(rev, gm, ebit, pat, clientCount, f2.ano, gmFonteReal, gmBase, ebitFonteReal, !!(actualDoAno && actualDoAno.length));
+  renderKPIs(rev, gm, ebit, pat, clientCount, f2.ano, gmFonteReal, gmBase, ebitFonteReal, (actualDoAno && actualDoAno.length) ? gmFonteReal : null);
 
   // Charts
   renderMonthlyChart(revMChart, gmMChart, MONTHS.slice(deIdx, ateIdx + 1));
@@ -2890,7 +2919,7 @@ function renderAll() {
     (f.tipo !== 'all' ? ' — ' + f.tipo : '');
 }
 
-function renderKPIs(rev, gm, ebit, pat, clientCount, anoFiltro, gmFonteReal, gmBase, ebitFonteReal, revEhActualPL) {
+function renderKPIs(rev, gm, ebit, pat, clientCount, anoFiltro, gmFonteReal, gmBase, ebitFonteReal, rotuloFonteRev) {
   const gmPct   = (gmBase > 0 && gm !== null) ? gm / gmBase : 0;
   const ebitPct = (rev > 0 && ebit !== null) ? ebit / rev : 0;
   const gmSub = gm === null
@@ -2900,7 +2929,7 @@ function renderKPIs(rev, gm, ebit, pat, clientCount, anoFiltro, gmFonteReal, gmB
     ? 'Sem dado real por ano'
     : pct(ebitPct) + ' de margem' + (ebitFonteReal ? ' · '+ebitFonteReal : '');
   const cards = [
-    { label: 'Receita Bruta',  value: fmt(rev),  sub: revEhActualPL ? ('P&L Actual '+anoFiltro) : (anoFiltro === '2025' ? 'Actual 2025' : 'Budget 2026') },
+    { label: 'Receita Bruta',  value: fmt(rev),  sub: rotuloFonteRev || (anoFiltro === '2025' ? 'Actual 2025' : 'Budget 2026') },
     { label: 'Gross Margin',   value: gm   === null ? '—' : fmt(gm),   sub: gmSub, cls: gm === null ? '' : (gmPct > 0 ? 'pos' : 'neg') },
     { label: 'EBITDA',         value: ebit === null ? '—' : fmt(ebit), sub: ebitSub, cls: ebit === null ? '' : (ebitPct > 0 ? 'pos' : 'neg') },
     { label: 'Clientes Ativos',value: String(clientCount), sub: 'com budget no período' }
@@ -7953,7 +7982,12 @@ function cmpBasesDisponiveis(){
   Object.keys(G.plActualPorAno||{}).sort().forEach(function(k){
     var rows = G.plActualPorAno[k]; if (!rows || !rows.length) return;
     var p = k.split(':'), ent = p[0], ano = p[1];
-    bases.push(cmpBaseDeRows('act:'+k, 'Actual '+ano+nomeEnt(ent), ano, 'Actual', ent, rows));
+    // Ano corrente = forecast (realizado + orcado), conforme o financeiro.
+    var tipo = plAnoEhForecast(ano) ? 'Forecast' : 'Actual';
+    var base = cmpBaseDeRows('act:'+k, tipo+' '+ano+nomeEnt(ent), ano, tipo, ent, rows);
+    base.ehForecast = (tipo === 'Forecast');
+    base.espelhandoBudget = plLinhasEspelhandoBudget(rows, (G.plBudgetPorAno||{})[k]);
+    bases.push(base);
   });
   return bases;
 }
@@ -7964,12 +7998,20 @@ function cmpBasePorId(id){
   return achou;
 }
 
-async function cmpCarregarBases(){
+// forcar=true (botao "Atualizar da Planilha") descarta o que esta em memoria e
+// busca tudo de novo - sem isso, clicar no botao nao traria as edicoes feitas na
+// planilha depois da primeira carga da sessao.
+async function cmpCarregarBases(forcar){
   var st = document.getElementById('cmp-status');
-  st.textContent = 'Carregando Budget e Actuals (BR e MX)...';
+  var btn = document.getElementById('cmp-btn-carregar');
+  if (btn) { btn.disabled = true; btn.textContent = 'Buscando...'; }
+  st.textContent = 'Lendo Budget e Actuals direto da planilha (BR e MX)...';
+  if (forcar) { G.plActualPorAno = {}; G.plBudgetPorAno = {}; }
   var faltando = [];
-  // Varre os anos com dado hoje nas planilhas; o que nao existir e so ignorado.
-  var anos = ['2024','2025','2026'];
+  // Varre uma janela de anos ao redor do atual; o que nao existir e so ignorado,
+  // entao a virada de ano nao exige mexer no codigo.
+  var aa = new Date().getFullYear();
+  var anos = [aa-2, aa-1, aa, aa+1].map(String);
   var ents = ['BR','MX'];
   for (var e=0; e<ents.length; e++){
     for (var i=0; i<anos.length; i++){
@@ -7984,8 +8026,10 @@ async function cmpCarregarBases(){
   }
   cmpPopularSelects();
   var disp = cmpBasesDisponiveis().map(function(b){ return b.label; });
-  st.textContent = 'Bases: '+(disp.join(' · ')||'nenhuma')+(faltando.length?'  |  sem dado: '+faltando.join(', '):'');
+  var agora = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+  st.textContent = 'Lido da planilha às '+agora+' · Bases: '+(disp.join(' · ')||'nenhuma')+(faltando.length?'  |  sem dado: '+faltando.join(', '):'');
   cmpRender();
+  if (btn) { btn.disabled = false; btn.textContent = '↺ Atualizar da Planilha'; }
 }
 
 function cmpPopularSelects(){
@@ -8002,9 +8046,14 @@ function cmpPopularSelects(){
   var elA = document.getElementById('cmp-base-a');
   if (elA && !elA.dataset.tocado) {
     var par = null;
-    bases.filter(function(b){ return b.tipo==='Actual'; }).forEach(function(a){
+    // Prefere Brasil e o ano mais recente; Forecast tambem serve como base A.
+    bases.filter(function(b){ return b.tipo==='Actual' || b.tipo==='Forecast'; }).forEach(function(a){
       var b = bases.find(function(x){ return x.tipo==='Budget' && x.ano===a.ano && x.entidade===a.entidade; });
-      if (b && (!par || a.ano > par.a.ano)) par = {a:a, b:b};
+      if (!b) return;
+      var melhorQueAtual = !par
+        || (a.entidade==='BR' && par.a.entidade!=='BR')
+        || (a.entidade===par.a.entidade && a.ano > par.a.ano);
+      if (melhorQueAtual) par = {a:a, b:b};
     });
     if (par) { elA.value = par.a.id; document.getElementById('cmp-base-b').value = par.b.id; }
   }
@@ -8072,9 +8121,21 @@ function cmpRender(){
   else if (mesmoAno && A.tipo !== B.tipo) { tipoCmp = 'Variância'; subCmp = A.tipo+' vs '+B.tipo+' de '+A.ano; }
   else if (mesmoAno) { tipoCmp = 'Mesma base'; subCmp = A.label+' vs '+B.label; }
   else { tipoCmp = 'Ano a ano'; subCmp = A.label+' vs '+B.label+' — anos diferentes'; }
+  // Se alguma base e forecast, avisar - senao a variancia parece toda realizada
+  // quando parte dela e o proprio orcado. E se alguma linha ainda espelha o
+  // Budget exatamente, dizer quais: ali a variancia sai zerada por construcao,
+  // nao porque bateu a meta.
+  var avisos = [];
+  [A, B].forEach(function(x){
+    if (x.ehForecast) avisos.push(x.label+' = realizado + orçado');
+    if (x.espelhandoBudget && x.espelhandoBudget.length) {
+      avisos.push(x.label+': '+x.espelhandoBudget.join(', ')+' ainda igual ao Budget');
+    }
+  });
+  if (avisos.length) subCmp += ' · '+avisos.join(' · ');
   kpiHtml += '<div class="kpi-card"><div class="kpi-label">Tipo de comparação</div>'+
     '<div class="kpi-value" style="font-size:14px">'+tipoCmp+'</div>'+
-    '<div class="kpi-sub">'+subCmp+'</div></div>';
+    '<div class="kpi-sub" style="font-size:9px;line-height:1.35">'+subCmp+'</div></div>';
   document.getElementById('cmp-kpis').innerHTML = kpiHtml;
 
   var periodo = anoInteiro ? 'ano inteiro' : (MONTHS[deIdx]+(deIdx===ateIdx?'':'–'+MONTHS[ateIdx]));
