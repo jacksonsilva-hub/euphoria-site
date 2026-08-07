@@ -226,6 +226,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       <button class="tab-btn" onclick="switchFinTab('cashflow',event)">Fluxo de Caixa</button>
       <button class="tab-btn" onclick="switchFinTab('clientes',event)">Clientes</button>
       <button class="tab-btn" onclick="switchFinTab('pl',event)">P&L Completo</button>
+      <button class="tab-btn" onclick="switchFinTab('comparativo',event)">⚖️ Comparativo P&L</button>
     </div>
     <div class="tab-panel" id="fin-painel">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
@@ -868,6 +869,65 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       </div>
     </div>
     <div class="tab-panel" id="fin-pl"><div id="pl-table-container"></div></div>
+
+    <!-- COMPARATIVO P&L (qualquer base vs qualquer base) -->
+    <div class="tab-panel" id="fin-comparativo">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px">
+        <div>
+          <div class="chart-title" style="margin:0">Comparativo P&L</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">Compara duas bases linha a linha, com variação em R$ e %</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+          <div>
+            <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Base A</label>
+            <select id="cmp-base-a" onchange="cmpRender()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer"></select>
+          </div>
+          <div>
+            <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Base B</label>
+            <select id="cmp-base-b" onchange="cmpRender()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer"></select>
+          </div>
+          <div>
+            <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">De</label>
+            <select id="cmp-mes-de" onchange="cmpRender()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
+              <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option><option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option><option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Até</label>
+            <select id="cmp-mes-ate" onchange="cmpRender()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
+              <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option><option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option><option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12" selected>Dezembro</option>
+            </select>
+          </div>
+          <button class="btn btn-primary btn-vbs" onclick="cmpCarregarBases()" style="font-size:11px;padding:6px 14px">↺ Carregar Bases</button>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:14px" id="cmp-status">Clique em "Carregar Bases" para buscar Budget e Actuals.</div>
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px" id="cmp-kpis"></div>
+
+      <div class="chart-card" style="padding:14px;margin-bottom:16px">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Comparativo mensal — Receita e EBITDA</div>
+        <div style="position:relative;height:250px"><canvas id="chartCmpMensal"></canvas></div>
+      </div>
+
+      <div class="table-card">
+        <div class="table-header"><span class="table-title">P&L linha a linha</span><span class="table-meta" id="cmp-meta">—</span>
+          <button class="btn" onclick="cmpImprimir()" style="font-size:10px;padding:4px 10px;margin-left:8px">🖨️ Imprimir / PDF</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr>
+              <th>Linha</th>
+              <th style="text-align:right" id="cmp-th-a">Base A</th>
+              <th style="text-align:right" id="cmp-th-b">Base B</th>
+              <th style="text-align:right">Variação R$</th>
+              <th style="text-align:right">Variação %</th>
+            </tr></thead>
+            <tbody id="cmp-tbody"><tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text3)">Sem dados — clique em Carregar Bases</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- GROWTH -->
@@ -2555,36 +2615,97 @@ function getAnnual(label) {
   return Array.from({length: 12}, (_, i) => parseNum(row[2 + i])).reduce((a,b) => a+b, 0) * 1000;
 }
 
-// As abas "Euphoria - Actuals - {ano}" tem a mesma estrutura da Budget, so que
-// deslocadas uma coluna a mais pra direita (rotulo na coluna C, meses D..O,
-// total anual na coluna Q) - por isso os indices aqui sao +1 em relacao a
-// getPLRow/getMonthly/getAnnual. Guardadas por ano em G.plActualPorAno.
-function getActualPLRow(label, ano) {
-  var rows = (G.plActualPorAno && G.plActualPorAno[ano]) || [];
-  for (const row of rows) {
-    if (row[2] && row[2].trim() === label) return row;
+// ── LEITURA GENERICA DE ABA DE P&L ────────────────────────────────────────────
+// As abas de P&L nao tem layout unico: no Budget do Brasil o rotulo fica na
+// coluna B, nos Actuals do Brasil na C, e no Mexico volta pra B - e o Mexico
+// ainda usa rotulos em espanhol. Em vez de fixar indices (que ja quebrou antes),
+// aqui a coluna do rotulo e descoberta a partir das linhas conhecidas, e a
+// regra de layout e sempre a mesma: meses = rotulo+1..rotulo+12, total anual =
+// rotulo+14 (a coluna rotulo+13 e a separadora em branco).
+var PL_ROTULOS_ES = {
+  'INGRESOS':'REVENUE',
+  'IMPUESTO SOBRE LAS VENTAS':'SALES TAX',
+  'COSTOS DIRECTOS':'DIRECT COSTS',
+  'MARGEN BRUTO':'GROSS MARGIN',
+  'GASTOS DE PERSONAL':'TOTAL STAFF COSTS',
+  'ESTABLECIMIENTO':'TOTAL ESTABLISHMENT COSTS',
+  'VENTAS':'TOTAL PERSONAL COSTS',
+  'COMERCIAL':'TOTAL COMMERCIAL COSTS',
+  'OFICINA':'TOTAL OFFICE COSTS',
+  'DEPRECIACIÓN':'DEPRECIATION',
+  'COSTOS OPERATIVOS TOTALES':'TOTAL OPERATING COSTS',
+  'GANANCIA/(PÉRDIDA) OPERATIVA - EBITDA':'OPERATING PROFIT/(LOSS) - EBITDA',
+  'FINANZAS Y GENERALES':'FINANCE & GENERAL',
+  'GANANCIA/(PÉRDIDA) ANTES DEL IMPUESTO SOBRE LA RENTA - EBITA':'PROFIT/(LOSS) BEFORE INCOME TAX - EBITA',
+  'IMPUESTO SOBRE LA RENTA':'INCOME TAX',
+  'GANANCIA/(PÉRDIDA) DESPUÉS DE IMPUESTOS':'PROFIT/(LOSS) AFTER TAX'
+};
+function plNormalizarRotulo(txt){
+  var s = String(txt||'').trim();
+  if (!s) return '';
+  var up = s.toUpperCase();
+  return PL_ROTULOS_ES[up] || up;
+}
+// Descobre em qual coluna estao os rotulos, procurando linhas conhecidas.
+function plDetectarColunaRotulo(rows){
+  var alvos = ['REVENUE','GROSS MARGIN','OPERATING PROFIT/(LOSS) - EBITDA'];
+  var contagem = {};
+  (rows||[]).forEach(function(r){
+    if (!r) return;
+    for (var c = 0; c < Math.min(r.length, 6); c++) {
+      if (alvos.indexOf(plNormalizarRotulo(r[c])) !== -1) contagem[c] = (contagem[c]||0) + 1;
+    }
+  });
+  var melhor = null;
+  Object.keys(contagem).forEach(function(c){ if (melhor === null || contagem[c] > contagem[melhor]) melhor = c; });
+  return melhor === null ? 1 : parseInt(melhor);
+}
+function plLinha(rows, label, colRotulo){
+  for (var i = 0; i < (rows||[]).length; i++) {
+    var r = rows[i];
+    if (r && plNormalizarRotulo(r[colRotulo]) === label) return r;
   }
   return null;
 }
-function getActualMonthly(label, ano) {
-  const row = getActualPLRow(label, ano);
-  if (!row) return Array(12).fill(0);
-  return Array.from({length: 12}, (_, i) => parseNum(row[3 + i]) * 1000);
+// Devolve {mensal:[12], anual:number} em R$ (planilha esta em milhares).
+function plValores(rows, label){
+  var col = plDetectarColunaRotulo(rows);
+  var row = plLinha(rows, label, col);
+  if (!row) return { mensal: Array(12).fill(0), anual: 0 };
+  var mensal = Array.from({length:12}, function(_, i){ return parseNum(row[col + 1 + i]) * 1000; });
+  var anual = parseNum(row[col + 14]) * 1000;
+  if (!anual) anual = mensal.reduce(function(a,b){ return a+b; }, 0);
+  return { mensal: mensal, anual: anual };
 }
-function getActualAnnual(label, ano) {
-  const row = getActualPLRow(label, ano);
-  if (!row) return 0;
-  const tot = parseNum(row[16]);
-  if (tot !== 0) return tot * 1000;
-  return Array.from({length: 12}, (_, i) => parseNum(row[3 + i])).reduce((a,b) => a+b, 0) * 1000;
+
+// Guardados por chave "{entidade}:{ano}" em G.plActualPorAno.
+function getActualMonthly(label, ano, entidade) {
+  var rows = (G.plActualPorAno||{})[plChave(ano, entidade)] || [];
+  return plValores(rows, label).mensal;
 }
-async function carregarPLActual(ano){
-  var res = await fetch(API+'/api/pl-actual?ano='+encodeURIComponent(ano));
+function getActualAnnual(label, ano, entidade) {
+  var rows = (G.plActualPorAno||{})[plChave(ano, entidade)] || [];
+  return plValores(rows, label).anual;
+}
+function plChave(ano, entidade){ return (entidade||'BR')+':'+ano; }
+
+async function carregarPLActual(ano, entidade){
+  var ent = entidade || 'BR';
+  var res = await fetch(API+'/api/pl-actual?ano='+encodeURIComponent(ano)+'&entidade='+encodeURIComponent(ent));
   var j = await res.json();
   if(!j.ok) throw new Error(j.error||('Erro ao carregar Actual '+ano+' (P&L)'));
   G.plActualPorAno = G.plActualPorAno || {};
-  G.plActualPorAno[ano] = j.data||[];
-  return G.plActualPorAno[ano];
+  G.plActualPorAno[plChave(ano, ent)] = j.data||[];
+  return G.plActualPorAno[plChave(ano, ent)];
+}
+async function carregarPLBudget(ano, entidade){
+  var ent = entidade || 'BR';
+  var res = await fetch(API+'/api/pl-budget?ano='+encodeURIComponent(ano)+'&entidade='+encodeURIComponent(ent));
+  var j = await res.json();
+  if(!j.ok) throw new Error(j.error||('Erro ao carregar Budget '+ano+' (P&L)'));
+  G.plBudgetPorAno = G.plBudgetPorAno || {};
+  G.plBudgetPorAno[plChave(ano, ent)] = j.data||[];
+  return G.plBudgetPorAno[plChave(ano, ent)];
 }
 
 // ─── CLIENT DATA HELPERS ─────────────────────────────────
@@ -2720,7 +2841,7 @@ function renderAll() {
   // 2025 caímos no proxy antigo (Rentabilidade Real por cliente, via VBS gerencial),
   // que não tem EBITDA nem quebra mensal - melhor que nada, mas bem mais limitado.
   var gmFonteReal = null, ebitFonteReal = null, gmBase = rev;
-  var actualDoAno = (G.plActualPorAno && G.plActualPorAno[f2.ano]) || null;
+  var actualDoAno = (G.plActualPorAno && G.plActualPorAno[plChave(f2.ano, 'BR')]) || null;
   if (actualDoAno && actualDoAno.length) {
     var isFullYearActual = (deIdx === 0 && ateIdx === 11);
     var revMActual  = getActualMonthly('REVENUE', f2.ano);
@@ -3095,6 +3216,10 @@ function switchFinTab(tab, e) {
   if (tab==='dre') setTimeout(function(){ dreRender(); }, 50);
   if (tab==='receita') setTimeout(function(){ recCarregar(); }, 50);
   if (tab==='painel') setTimeout(function(){ renderPainelDiario(); }, 50);
+  if (tab==='comparativo') setTimeout(function(){
+    if (cmpBasesDisponiveis().length) { cmpPopularSelects(); cmpRender(); }
+    else cmpCarregarBases();
+  }, 60);
 }
 
 // ── AUTH ──────────────────────────────────────────────
@@ -7787,6 +7912,242 @@ function cfProjetarDiario(){
       '<td style="text-align:right;font-weight:700;'+(r.saldoAcum>=0?'color:var(--pos)':'color:var(--neg)')+'">'+fmt(r.saldoAcum)+'</td>'+
     '</tr>';
   }).join('')||'<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text3)">Sem dados</td></tr>';
+}
+
+// ── COMPARATIVO P&L (qualquer base vs qualquer base) ──────────────────────────
+// Bases disponiveis hoje: Budget 2026 (aba "Euphoria - Budget", via G.pl) e os
+// Actuals reais por ano (abas "Euphoria - Actuals - {ano}", via G.plActualPorAno).
+// Feito generico de proposito: quando entrar Budget 2025 ou o P&L do Mexico,
+// basta registrar a base nova em CMP_BASES sem mexer no resto.
+// Atencao: comparar bases de anos diferentes (ex: Actual 2025 vs Budget 2026) e
+// um comparativo ano-a-ano, nao variancia orcamentaria - a tela deixa isso claro.
+var CMP_LINHAS = [
+  'REVENUE','SALES TAX','DIRECT COSTS','GROSS MARGIN',
+  'TOTAL STAFF COSTS','TOTAL ESTABLISHMENT COSTS','TOTAL PERSONAL COSTS',
+  'TOTAL COMMERCIAL COSTS','TOTAL OFFICE COSTS','TOTAL OPERATING COSTS',
+  'OPERATING PROFIT/(LOSS) - EBITDA','FINANCE & GENERAL',
+  'PROFIT/(LOSS) BEFORE INCOME TAX - EBITA','INCOME TAX','PROFIT/(LOSS) AFTER TAX'
+];
+var CMP_DESTAQUE = ['GROSS MARGIN','TOTAL OPERATING COSTS','OPERATING PROFIT/(LOSS) - EBITDA','PROFIT/(LOSS) BEFORE INCOME TAX - EBITA','PROFIT/(LOSS) AFTER TAX'];
+// Nao ha lista de "linhas de custo" aqui de proposito: a planilha ja guarda
+// custo/imposto como numero negativo, entao "variacao positiva = melhor" vale
+// para todas as linhas (mais receita OU menos custo). Inverter a cor nas linhas
+// de custo, como fiz na primeira versao, deixava tudo ao contrario.
+
+// Cada base sabe devolver os 12 meses de uma linha do P&L. Todas usam o mesmo
+// leitor generico (plValores), que descobre o layout sozinho - por isso Brasil
+// e Mexico convivem sem tratamento especial aqui.
+function cmpBaseDeRows(id, label, ano, tipo, entidade, rows){
+  return { id:id, label:label, ano:ano, tipo:tipo, entidade:entidade,
+    mensal:function(l){ return plValores(rows, l).mensal; },
+    anual:function(l){ return plValores(rows, l).anual; } };
+}
+function cmpBasesDisponiveis(){
+  var bases = [];
+  var nomeEnt = function(e){ return e==='MX' ? ' 🇲🇽' : ''; };
+  Object.keys(G.plBudgetPorAno||{}).sort().forEach(function(k){
+    var rows = G.plBudgetPorAno[k]; if (!rows || !rows.length) return;
+    var p = k.split(':'), ent = p[0], ano = p[1];
+    bases.push(cmpBaseDeRows('bud:'+k, 'Budget '+ano+nomeEnt(ent), ano, 'Budget', ent, rows));
+  });
+  Object.keys(G.plActualPorAno||{}).sort().forEach(function(k){
+    var rows = G.plActualPorAno[k]; if (!rows || !rows.length) return;
+    var p = k.split(':'), ent = p[0], ano = p[1];
+    bases.push(cmpBaseDeRows('act:'+k, 'Actual '+ano+nomeEnt(ent), ano, 'Actual', ent, rows));
+  });
+  return bases;
+}
+
+function cmpBasePorId(id){
+  var achou = null;
+  cmpBasesDisponiveis().forEach(function(b){ if(b.id===id) achou=b; });
+  return achou;
+}
+
+async function cmpCarregarBases(){
+  var st = document.getElementById('cmp-status');
+  st.textContent = 'Carregando Budget e Actuals (BR e MX)...';
+  var faltando = [];
+  // Varre os anos com dado hoje nas planilhas; o que nao existir e so ignorado.
+  var anos = ['2024','2025','2026'];
+  var ents = ['BR','MX'];
+  for (var e=0; e<ents.length; e++){
+    for (var i=0; i<anos.length; i++){
+      var ent = ents[e], ano = anos[i];
+      if (!(G.plBudgetPorAno||{})[plChave(ano, ent)]) {
+        try { await carregarPLBudget(ano, ent); } catch(err){ faltando.push('Budget '+ano+'/'+ent); }
+      }
+      if (!(G.plActualPorAno||{})[plChave(ano, ent)]) {
+        try { await carregarPLActual(ano, ent); } catch(err){ faltando.push('Actual '+ano+'/'+ent); }
+      }
+    }
+  }
+  cmpPopularSelects();
+  var disp = cmpBasesDisponiveis().map(function(b){ return b.label; });
+  st.textContent = 'Bases: '+(disp.join(' · ')||'nenhuma')+(faltando.length?'  |  sem dado: '+faltando.join(', '):'');
+  cmpRender();
+}
+
+function cmpPopularSelects(){
+  var bases = cmpBasesDisponiveis();
+  ['cmp-base-a','cmp-base-b'].forEach(function(id, idx){
+    var el = document.getElementById(id);
+    if(!el) return;
+    var atual = el.value;
+    el.innerHTML = bases.map(function(b){ return '<option value="'+b.id+'">'+b.label+'</option>'; }).join('');
+    if (bases.some(function(b){ return b.id===atual; })) el.value = atual;
+    else if (bases.length) el.value = bases[Math.min(idx, bases.length-1)].id;
+  });
+  // Default util: variancia do mesmo ano/entidade (Actual vs Budget) quando existir.
+  var elA = document.getElementById('cmp-base-a');
+  if (elA && !elA.dataset.tocado) {
+    var par = null;
+    bases.filter(function(b){ return b.tipo==='Actual'; }).forEach(function(a){
+      var b = bases.find(function(x){ return x.tipo==='Budget' && x.ano===a.ano && x.entidade===a.entidade; });
+      if (b && (!par || a.ano > par.a.ano)) par = {a:a, b:b};
+    });
+    if (par) { elA.value = par.a.id; document.getElementById('cmp-base-b').value = par.b.id; }
+  }
+}
+
+// Mostra o simbolo da moeda da propria entidade - exibir valor do Mexico como
+// "R$" num painel financeiro induz a erro de leitura.
+function cmpMoeda(entidade){ return entidade === 'MX' ? 'MX$' : 'R$'; }
+function cmpFmt(v, entidade){
+  if (v === null || v === undefined) return '—';
+  var neg = v < 0;
+  var s = cmpMoeda(entidade)+' '+Math.abs(Math.round(v)).toLocaleString('pt-BR');
+  return neg ? '('+s+')' : s;
+}
+
+function cmpRender(){
+  var bases = cmpBasesDisponiveis();
+  if (!bases.length) return;
+  var elA = document.getElementById('cmp-base-a'), elB = document.getElementById('cmp-base-b');
+  if (elA) elA.dataset.tocado = '1';
+  var A = cmpBasePorId(elA.value) || bases[0];
+  var B = cmpBasePorId(elB.value) || bases[bases.length-1];
+  var deIdx = parseInt(document.getElementById('cmp-mes-de').value)-1;
+  var ateIdx = parseInt(document.getElementById('cmp-mes-ate').value)-1;
+  if (deIdx > ateIdx) { var t=deIdx; deIdx=ateIdx; ateIdx=t; }
+  var anoInteiro = (deIdx===0 && ateIdx===11);
+
+  function valor(base, label){
+    if (anoInteiro) { var an = base.anual(label); if (an) return an; }
+    return base.mensal(label).slice(deIdx, ateIdx+1).reduce(function(s,v){ return s+v; }, 0);
+  }
+
+  document.getElementById('cmp-th-a').textContent = A.label;
+  document.getElementById('cmp-th-b').textContent = B.label;
+
+  var linhas = CMP_LINHAS.map(function(label){
+    var a = valor(A, label), b = valor(B, label);
+    if (!a && !b) return null;
+    var varAbs = a - b;
+    var varPct = b !== 0 ? (varAbs / Math.abs(b) * 100) : null;
+    return { label:label, a:a, b:b, varAbs:varAbs, varPct:varPct };
+  }).filter(Boolean);
+
+  // KPIs de topo — Receita, Gross Margin e EBITDA
+  var porLabel = {}; linhas.forEach(function(l){ porLabel[l.label]=l; });
+  var kpiDefs = [
+    {label:'Receita', key:'REVENUE'},
+    {label:'Gross Margin', key:'GROSS MARGIN'},
+    {label:'EBITDA', key:'OPERATING PROFIT/(LOSS) - EBITDA'},
+  ];
+  var kpiHtml = kpiDefs.map(function(k){
+    var l = porLabel[k.key];
+    if (!l) return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-value">—</div><div class="kpi-sub">sem dado</div></div>';
+    var pos = l.varAbs >= 0;
+    return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div>'+
+      '<div class="kpi-value" style="font-size:15px">'+cmpFmt(l.a, A.entidade)+'</div>'+
+      '<div class="kpi-sub '+(pos?'pos':'neg')+'">'+(pos?'+':'−')+cmpFmt(Math.abs(l.varAbs), A.entidade)+(l.varPct!==null?' ('+(pos?'+':'')+l.varPct.toFixed(1)+'%)':'')+' vs '+B.label+'</div></div>';
+  }).join('');
+  // Deixa explicito o que a comparacao significa - Actual vs Budget do mesmo ano
+  // e variancia orcamentaria; anos ou entidades diferentes sao outra leitura, e
+  // misturar BRL com MXN nao faz sentido somar/comparar direto.
+  var mesmoAno = A.ano === B.ano, mesmaEnt = A.entidade === B.entidade;
+  var tipoCmp, subCmp;
+  if (!mesmaEnt) { tipoCmp = 'Entidades diferentes'; subCmp = 'BRL vs MXN — moedas distintas, compare com cautela'; }
+  else if (mesmoAno && A.tipo !== B.tipo) { tipoCmp = 'Variância'; subCmp = A.tipo+' vs '+B.tipo+' de '+A.ano; }
+  else if (mesmoAno) { tipoCmp = 'Mesma base'; subCmp = A.label+' vs '+B.label; }
+  else { tipoCmp = 'Ano a ano'; subCmp = A.label+' vs '+B.label+' — anos diferentes'; }
+  kpiHtml += '<div class="kpi-card"><div class="kpi-label">Tipo de comparação</div>'+
+    '<div class="kpi-value" style="font-size:14px">'+tipoCmp+'</div>'+
+    '<div class="kpi-sub">'+subCmp+'</div></div>';
+  document.getElementById('cmp-kpis').innerHTML = kpiHtml;
+
+  var periodo = anoInteiro ? 'ano inteiro' : (MONTHS[deIdx]+(deIdx===ateIdx?'':'–'+MONTHS[ateIdx]));
+  document.getElementById('cmp-meta').textContent = A.label+' vs '+B.label+' · '+periodo;
+
+  document.getElementById('cmp-tbody').innerHTML = linhas.map(function(l){
+    // Custos ja vem negativos da planilha, entao variacao positiva sempre e boa.
+    var cor = l.varAbs === 0 ? '' : (l.varAbs > 0 ? 'color:var(--pos)' : 'color:var(--neg)');
+    var destaque = CMP_DESTAQUE.indexOf(l.label) !== -1;
+    var estiloLinha = destaque ? ' style="font-weight:700;background:rgba(255,255,255,0.03)"' : '';
+    return '<tr'+estiloLinha+'>'+
+      '<td>'+l.label+'</td>'+
+      '<td style="text-align:right">'+cmpFmt(l.a, A.entidade)+'</td>'+
+      '<td style="text-align:right">'+cmpFmt(l.b, B.entidade)+'</td>'+
+      '<td style="text-align:right;'+cor+'">'+(l.varAbs>0?'+':'')+cmpFmt(l.varAbs, A.entidade)+'</td>'+
+      '<td style="text-align:right;'+cor+'">'+(l.varPct===null?'—':(l.varPct>0?'+':'')+l.varPct.toFixed(1)+'%')+'</td>'+
+    '</tr>';
+  }).join('') || '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text3)">Sem dados no período</td></tr>';
+
+  cmpRenderChart(A, B, deIdx, ateIdx);
+}
+
+function cmpRenderChart(A, B, deIdx, ateIdx){
+  var c = document.getElementById('chartCmpMensal');
+  if (!c) return;
+  var labels = MONTHS.slice(deIdx, ateIdx+1);
+  var recA = A.mensal('REVENUE').slice(deIdx, ateIdx+1);
+  var recB = B.mensal('REVENUE').slice(deIdx, ateIdx+1);
+  var ebA = A.mensal('OPERATING PROFIT/(LOSS) - EBITDA').slice(deIdx, ateIdx+1);
+  var ebB = B.mensal('OPERATING PROFIT/(LOSS) - EBITDA').slice(deIdx, ateIdx+1);
+  if (window._chartCmpInst) { try { window._chartCmpInst.destroy(); } catch(e){} }
+  window._chartCmpInst = new Chart(c, {
+    data:{ labels: labels, datasets:[
+      {type:'bar', label:'Receita '+A.label, data:recA, backgroundColor:'rgba(255,255,255,0.65)', borderRadius:3},
+      {type:'bar', label:'Receita '+B.label, data:recB, backgroundColor:'rgba(255,255,255,0.22)', borderRadius:3},
+      {type:'line', label:'EBITDA '+A.label, data:ebA, borderColor:'rgba(110,231,183,0.95)', backgroundColor:'transparent', tension:0.3, pointRadius:2},
+      {type:'line', label:'EBITDA '+B.label, data:ebB, borderColor:'rgba(96,165,250,0.85)', backgroundColor:'transparent', tension:0.3, pointRadius:2, borderDash:[5,4]}
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{ color:'#888', font:{size:10} } } },
+      scales:{ x:{ grid:{display:false}, ticks:{color:'#666', font:{size:10}} },
+        y:{ grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#666', font:{size:9}, callback:function(v){ return 'R$'+Math.round(v/1000)+'k'; }} } }
+    }
+  });
+}
+
+function cmpImprimir(){
+  var tb = document.getElementById('cmp-tbody');
+  if (!tb || !tb.querySelector('td')) { alert('Carregue as bases primeiro.'); return; }
+  var A = document.getElementById('cmp-th-a').textContent, B = document.getElementById('cmp-th-b').textContent;
+  var meta = document.getElementById('cmp-meta').textContent;
+  var linhas = Array.from(tb.querySelectorAll('tr')).map(function(tr){
+    var tds = Array.from(tr.querySelectorAll('td')).map(function(td){ return td.textContent; });
+    if (tds.length < 5) return '';
+    return '<tr><td>'+tds[0]+'</td><td align="right">'+tds[1]+'</td><td align="right">'+tds[2]+'</td><td align="right">'+tds[3]+'</td><td align="right">'+tds[4]+'</td></tr>';
+  }).join('');
+  var css='body{font-family:Arial,sans-serif;padding:44px;color:#111;max-width:900px;margin:0 auto}'+
+    '.logo{width:170px;margin-bottom:14px;display:block}'+
+    '.sub{font-size:12px;color:#666;margin-bottom:20px}'+
+    'table{width:100%;border-collapse:collapse}'+
+    'th{background:#111;color:#fff;padding:8px 10px;text-align:right;font-size:10px;text-transform:uppercase}'+
+    'th:first-child{text-align:left}'+
+    'td{padding:7px 10px;border-bottom:1px solid #eee;font-size:12px}'+
+    '.footer{border-top:1px solid #eee;margin-top:18px;padding-top:12px;font-size:10px;color:#999}'+
+    '@media print{.np{display:none}}';
+  var body='<img src="'+LOGO+'" class="logo">'+
+    '<div class="sub">Comparativo P&L — '+meta+' · Gerado em '+new Date().toLocaleDateString('pt-BR')+'</div>'+
+    '<table><thead><tr><th>Linha</th><th>'+A+'</th><th>'+B+'</th><th>Variação R$</th><th>Variação %</th></tr></thead><tbody>'+linhas+'</tbody></table>'+
+    '<div class="footer"><strong>Euphoria Creative Agency</strong> — Documento interno, uso confidencial</div>'+
+    '<button class="np" onclick="window.print()" style="margin-top:20px;background:#111;color:#fff;border:none;padding:12px 26px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:700">🖨 Imprimir / Salvar PDF</button>';
+  var w=window.open('','_blank');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Comparativo P&L</title><style>'+css+'</style></head><body>'+body+'</body></html>');
+  w.document.close();
 }
 
 // ── MÍDIA — Investimento Planejado (Sheets) vs. Faturado (VBS) ────────────────
