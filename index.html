@@ -1685,14 +1685,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
               <th>Período aquisitivo</th>
               <th style="text-align:right">Direito</th>
               <th style="text-align:right">Gozados</th>
-              <th style="text-align:right">Vendidos</th>
               <th style="text-align:right">Saldo</th>
               <th>Limite p/ gozar</th>
               <th>Status</th>
               <th style="text-align:right">Provisão 1/3</th>
               <th></th>
             </tr></thead>
-            <tbody id="fer-tbody"><tr><td colspan="12" style="text-align:center;padding:24px;color:var(--text3)">Sem colaboradores cadastrados</td></tr></tbody>
+            <tbody id="fer-tbody"><tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text3)">Sem colaboradores cadastrados</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -1702,8 +1701,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
           <div class="table-header"><span class="table-title">Férias Lançadas</span><span class="table-meta" id="fer-lanc-meta">0 registros</span></div>
           <div style="overflow-x:auto;max-height:320px;overflow-y:auto">
             <table class="tbl">
-              <thead><tr><th>Colaborador</th><th>Período</th><th style="text-align:right">Dias</th><th style="text-align:right">Abono</th><th>Status</th><th></th></tr></thead>
-              <tbody id="fer-lanc-tbody"><tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text3)">Nenhuma férias lançada</td></tr></tbody>
+              <thead><tr><th>Colaborador</th><th>Período</th><th style="text-align:right">Dias</th><th>Status</th><th></th></tr></thead>
+              <tbody id="fer-lanc-tbody"><tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text3)">Nenhuma férias lançada</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -1734,7 +1733,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
           <div><label class="jur-lbl">INÍCIO *</label><input id="fer-inicio" type="date" class="field-input" onchange="ferCalcularDias()"></div>
           <div><label class="jur-lbl">FIM *</label><input id="fer-fim" type="date" class="field-input" onchange="ferCalcularDias()"></div>
           <div><label class="jur-lbl">DIAS DE FÉRIAS</label><input id="fer-dias" type="number" class="field-input" readonly style="opacity:.75"></div>
-          <div><label class="jur-lbl">DIAS VENDIDOS (ABONO)</label><input id="fer-abono" type="number" min="0" max="10" value="0" class="field-input" onchange="ferAtualizarInfoSaldo()"></div>
           <div><label class="jur-lbl">STATUS</label>
             <select id="fer-status" class="field-input">
               <option value="agendada">Agendada</option><option value="gozada">Gozada</option><option value="cancelada">Cancelada</option>
@@ -4744,7 +4742,7 @@ function ferFaltasNoPeriodo(pessoaId, ini, fim){
 }
 
 // Periodos aquisitivos de 12 meses a partir da admissao. Para cada um: direito,
-// dias ja gozados/vendidos, saldo, limite do periodo concessivo e status.
+// dias ja gozados, saldo, limite do periodo concessivo e status.
 function ferPeriodos(pessoa){
   var adm = ferData(pessoa.admissao);
   if(!adm) return [];
@@ -4765,8 +4763,7 @@ function ferPeriodos(pessoa){
     var direito = fechado ? ferDiasPorFaltas(faltas) : 0;
     var doPeriodo = lancamentos.filter(function(f){ return f.periodoIni === ferChavePeriodo(ini); });
     var gozados = doPeriodo.reduce(function(s,f){ return s + (parseInt(f.dias,10)||0); }, 0);
-    var vendidos = doPeriodo.reduce(function(s,f){ return s + (parseInt(f.abono,10)||0); }, 0);
-    var saldo = direito - gozados - vendidos;
+    var saldo = direito - gozados;
     var limite = ferAddMeses(fim, 12); // periodo concessivo: 12 meses apos fechar
     var status;
     if(!fechado) status = 'emcurso';
@@ -4779,7 +4776,7 @@ function ferPeriodos(pessoa){
     var salario = parseFloat(pessoa.salario)||0;
     var provisao = pessoa.recebeferias==='sim' ? (salario/3) * (mesesCorridos/12) : 0;
     out.push({ ini:ini, fim:fim, chave:ferChavePeriodo(ini), fechado:fechado, faltas:faltas,
-      direito:direito, gozados:gozados, vendidos:vendidos, saldo:saldo, limite:limite,
+      direito:direito, gozados:gozados, saldo:saldo, limite:limite,
       status:status, provisao:provisao, mesesCorridos:mesesCorridos });
     i++;
   }
@@ -4849,7 +4846,7 @@ function ferRender(){
     var p=x.p, per=x.per;
     if(!per){
       return '<tr><td>'+p.nome+'</td><td>'+(p.tipo||'').toUpperCase()+'</td><td>'+(p.admissao?ferFmtData(ferData(p.admissao)):'—')+
-        '</td><td colspan="9" style="color:var(--text3)">Sem admissão cadastrada — não é possível calcular o período aquisitivo</td></tr>';
+        '</td><td colspan="8" style="color:var(--text3)">Sem admissão cadastrada — não é possível calcular o período aquisitivo</td></tr>';
     }
     var si = FER_STATUS_INFO[per.status];
     var alertaPJ = (p.tipo==='pj' && per.status==='dobra') ? ' title="PJ não tem dobra legal; indicativo contratual"' : '';
@@ -4860,14 +4857,13 @@ function ferRender(){
       '<td style="font-size:11px">'+ferFmtData(per.ini)+' → '+ferFmtData(per.fim)+(per.faltas?' <span style="color:var(--amber)">('+per.faltas+' faltas)</span>':'')+'</td>'+
       '<td style="text-align:right">'+(per.fechado?per.direito:'—')+'</td>'+
       '<td style="text-align:right">'+per.gozados+'</td>'+
-      '<td style="text-align:right">'+per.vendidos+'</td>'+
       '<td style="text-align:right;font-weight:700;'+(per.saldo>0?'':'color:var(--text3)')+'">'+(per.fechado?per.saldo:'—')+'</td>'+
       '<td style="font-size:11px">'+(per.fechado?ferFmtData(per.limite):'—')+'</td>'+
       '<td'+alertaPJ+'><span style="font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(255,255,255,.06);color:'+si.cor+'">'+si.rot+(p.tipo==='pj'&&per.status==='dobra'?'*':'')+'</span></td>'+
       '<td style="text-align:right;font-size:11px">'+fmtR(per.provisao)+'</td>'+
       '<td><button class="btn" onclick="ferAbrirModal(null,\''+p.id+'\',\''+per.chave+'\')" style="font-size:9px;padding:3px 7px">+ Férias</button></td>'+
     '</tr>';
-  }).join('') || '<tr><td colspan="12" style="text-align:center;padding:24px;color:var(--text3)">Nenhum período no filtro selecionado</td></tr>';
+  }).join('') || '<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text3)">Nenhum período no filtro selecionado</td></tr>';
 
   ferRenderLancamentos();
   ausRender();
@@ -4888,13 +4884,12 @@ function ferRenderLancamentos(){
       '<td>'+ferNomePessoa(f.pessoaId)+'</td>'+
       '<td style="font-size:11px">'+ferFmtData(ferData(f.inicio))+' → '+ferFmtData(ferData(f.fim))+'</td>'+
       '<td style="text-align:right">'+(f.dias||0)+'</td>'+
-      '<td style="text-align:right">'+(f.abono||0)+'</td>'+
       '<td><span style="font-size:10px;color:'+cor[f.status]+'">'+(rot[f.status]||f.status)+'</span></td>'+
       '<td style="white-space:nowrap"><button class="btn" onclick="ferRecibo(\''+f.id+'\')" style="font-size:9px;padding:3px 6px" title="Recibo de férias em PDF">🖨️</button> '+
       '<button class="btn" onclick="ferAbrirModal(\''+f.id+'\')" style="font-size:9px;padding:3px 6px">✎</button> '+
       '<button class="btn" onclick="ferRemover(\''+f.id+'\')" style="font-size:9px;padding:3px 6px">×</button></td>'+
     '</tr>';
-  }).join('') || '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text3)">Nenhuma férias lançada</td></tr>';
+  }).join('') || '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text3)">Nenhuma férias lançada</td></tr>';
 }
 
 var AUS_TIPOS = {
@@ -4948,7 +4943,6 @@ function ferAbrirModal(id, pessoaId, periodoChave){
   document.getElementById('fer-inicio').value = f? f.inicio : '';
   document.getElementById('fer-fim').value = f? f.fim : '';
   document.getElementById('fer-dias').value = f? f.dias : '';
-  document.getElementById('fer-abono').value = f? (f.abono||0) : 0;
   document.getElementById('fer-status').value = f? f.status : 'agendada';
   document.getElementById('fer-obs').value = f? (f.obs||'') : '';
   ferAtualizarPeriodos(f? f.periodoIni : periodoChave);
@@ -4984,7 +4978,6 @@ function ferValidar(){
   var pid=document.getElementById('fer-pessoa').value;
   var p=getPplData().find(function(x){ return x.id===pid; });
   var dias=parseInt(document.getElementById('fer-dias').value,10)||0;
-  var abono=parseInt(document.getElementById('fer-abono').value,10)||0;
   var chave=document.getElementById('fer-periodo').value;
   var editId=document.getElementById('fer-edit-id').value;
   var avisos=[], erros=[];
@@ -4996,12 +4989,9 @@ function ferValidar(){
   // Ao editar, nao contar o proprio lancamento duas vezes.
   var jaUsados = getFeriasData().filter(function(f){
     return f.pessoaId===p.id && f.periodoIni===chave && f.status!=='cancelada' && f.id!==editId;
-  }).reduce(function(s,f){ return s+(parseInt(f.dias,10)||0)+(parseInt(f.abono,10)||0); },0);
+  }).reduce(function(s,f){ return s+(parseInt(f.dias,10)||0); },0);
   var disponivel = per.direito - jaUsados;
-  if(dias+abono > disponivel) erros.push('Excede o saldo: disponível '+disponivel+' dia(s), pedido '+(dias+abono)+'.');
-  if(abono > 10) erros.push(p.tipo==='pj'
-    ? 'Máximo de 10 dias convertidos em pagamento (1/3 de 30) — o mesmo limite usado em contrato.'
-    : 'Abono pecuniário é limitado a 10 dias (1/3 de 30).');
+  if(dias > disponivel) erros.push('Excede o saldo: disponível '+disponivel+' dia(s), pedido '+dias+'.');
   if(p.tipo==='clt'){
     // CLT art. 134 §1: ate 3 periodos, um deles >= 14 dias, os outros >= 5.
     var qtd = getFeriasData().filter(function(f){
@@ -5042,7 +5032,6 @@ function ferSalvar(){
     inicio: document.getElementById('fer-inicio').value,
     fim: document.getElementById('fer-fim').value,
     dias: parseInt(document.getElementById('fer-dias').value,10)||0,
-    abono: parseInt(document.getElementById('fer-abono').value,10)||0,
     status: document.getElementById('fer-status').value,
     periodoIni: document.getElementById('fer-periodo').value,
     obs: document.getElementById('fer-obs').value.trim()
@@ -5138,18 +5127,14 @@ function ferRecibo(id){
   var sal=parseFloat(p.salario)||0;
   var vDias=(sal/30)*(parseInt(f.dias,10)||0);
   var vTerco=vDias/3;
-  var vAbono=(sal/30)*(parseInt(f.abono,10)||0);
-  var vTercoAbono=vAbono/3;
-  var total=vDias+vTerco+vAbono+vTercoAbono;
+  var total=vDias+vTerco;
   var m=function(v){ return 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); };
   var linha=function(rot,val,neg){ return '<tr><td>'+rot+'</td><td align="right"'+(neg?' style="color:#b00"':'')+'>'+m(val)+'</td></tr>'; };
   // PJ presta servico e recebe contra nota fiscal: nao ha retencao na fonte nem
   // folha de pagamento, e o 1/3 e contratual (nao o constitucional da CLT).
   var ehPJ = p.tipo === 'pj';
   var rotTerco = ehPJ ? '1/3 de férias (contratual)' : '1/3 constitucional';
-  var rotAbono = ehPJ ? 'Dias convertidos em pagamento' : 'Abono pecuniário';
   var itens = linha('Férias — '+f.dias+' dia(s)', vDias) + linha(rotTerco, vTerco);
-  if(f.abono>0) itens += linha(rotAbono+' — '+f.abono+' dia(s)', vAbono) + linha('1/3 sobre '+(ehPJ?'os dias convertidos':'o abono'), vTercoAbono);
 
   var css='body{font-family:Arial,sans-serif;padding:48px;color:#111;max-width:780px;margin:0 auto}'+
     '.logo{width:150px;margin-bottom:20px;display:block}'+
@@ -5198,10 +5183,10 @@ function ferImprimirSaldos(){
   if(!tb||!tb.querySelector('td')){ alert('Sem dados para imprimir.'); return; }
   var linhas=Array.from(tb.querySelectorAll('tr')).map(function(tr){
     var t=Array.from(tr.querySelectorAll('td')).map(function(td){ return td.textContent.trim(); });
-    if(t.length<12) return '';
+    if(t.length<11) return '';
     return '<tr><td>'+t[0]+'</td><td>'+t[1]+'</td><td>'+t[2]+'</td><td>'+t[3]+'</td>'+
-      '<td align="right">'+t[4]+'</td><td align="right">'+t[5]+'</td><td align="right">'+t[6]+'</td>'+
-      '<td align="right">'+t[7]+'</td><td>'+t[8]+'</td><td>'+t[9]+'</td><td align="right">'+t[10]+'</td></tr>';
+      '<td align="right">'+t[4]+'</td><td align="right">'+t[5]+'</td>'+
+      '<td align="right">'+t[6]+'</td><td>'+t[7]+'</td><td>'+t[8]+'</td><td align="right">'+t[9]+'</td></tr>';
   }).join('');
   var css='body{font-family:Arial,sans-serif;padding:34px;color:#111}'+
     '.logo{width:160px;margin-bottom:14px;display:block}'+
@@ -5215,7 +5200,7 @@ function ferImprimirSaldos(){
     '<div class="sub">Saldo de Férias por Colaborador · '+document.getElementById('fer-meta').textContent+
       ' · Gerado em '+new Date().toLocaleDateString('pt-BR')+'</div>'+
     '<table><thead><tr><th>Colaborador</th><th>Tipo</th><th>Admissão</th><th>Período aquisitivo</th>'+
-    '<th>Direito</th><th>Gozados</th><th>Vendidos</th><th>Saldo</th><th>Limite p/ gozar</th><th>Status</th><th>Provisão 1/3</th></tr></thead>'+
+    '<th>Direito</th><th>Gozados</th><th>Saldo</th><th>Limite p/ gozar</th><th>Status</th><th>Provisão 1/3</th></tr></thead>'+
     '<tbody>'+linhas+'</tbody></table>'+
     '<div class="footer"><strong>Euphoria Creative Agency</strong> — Documento interno, uso confidencial</div>'+
     '<button class="np" onclick="window.print()" style="margin-top:18px;background:#111;color:#fff;border:none;padding:11px 24px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700">🖨 Imprimir / Salvar PDF</button>';
