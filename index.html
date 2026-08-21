@@ -5125,16 +5125,28 @@ function ferRecibo(id){
   var p=getPplData().find(function(x){ return x.id===f.pessoaId; });
   if(!p){ alert('Colaborador não encontrado.'); return; }
   var sal=parseFloat(p.salario)||0;
-  var vDias=(sal/30)*(parseInt(f.dias,10)||0);
-  var vTerco=vDias/3;
-  var total=vDias+vTerco;
+  var dias=parseInt(f.dias,10)||0;
   var m=function(v){ return 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); };
   var linha=function(rot,val,neg){ return '<tr><td>'+rot+'</td><td align="right"'+(neg?' style="color:#b00"':'')+'>'+m(val)+'</td></tr>'; };
   // PJ presta servico e recebe contra nota fiscal: nao ha retencao na fonte nem
   // folha de pagamento, e o 1/3 e contratual (nao o constitucional da CLT).
   var ehPJ = p.tipo === 'pj';
-  var rotTerco = ehPJ ? '1/3 de férias (contratual)' : '1/3 constitucional';
-  var itens = linha('Férias — '+f.dias+' dia(s)', vDias) + linha(rotTerco, vTerco);
+  var itens, total, notaCalculo;
+  if(ehPJ){
+    // O prestador recebe os 12 honorarios normalmente, entao o unico valor
+    // adicional das ferias e o 1/3 - nao existe "pagamento dos dias de ferias".
+    // Periodo completo (30 dias) = honorarios / 3; parcial e proporcional.
+    total = (sal/3) * (dias/30);
+    itens = linha('Férias (1/3) — '+dias+' de 30 dias', total);
+    notaCalculo = 'Cálculo: '+m(sal)+' ÷ 3'+(dias!==30 ? ' × '+dias+'/30' : '')+' = '+m(total)+
+      '. O prestador segue recebendo os honorários mensais normalmente; o 1/3 é o único valor adicional das férias.';
+  } else {
+    // CLT: por lei sao os dias de ferias mais o 1/3 constitucional.
+    var vDias=(sal/30)*dias, vTerco=vDias/3;
+    total = vDias+vTerco;
+    itens = linha('Férias — '+dias+' dia(s)', vDias) + linha('1/3 constitucional', vTerco);
+    notaCalculo = '';
+  }
 
   var css='body{font-family:Arial,sans-serif;padding:48px;color:#111;max-width:780px;margin:0 auto}'+
     '.logo{width:150px;margin-bottom:20px;display:block}'+
@@ -5162,9 +5174,10 @@ function ferRecibo(id){
       (f.periodoIni?' a '+ferFmtData(new Date(ferAddMeses(ferData(f.periodoIni),12).getTime()-86400000)):'')+'</div>'+
     '<table><thead><tr><th>Descrição</th><th>Valor</th></tr></thead><tbody>'+itens+
       '<tr class="tot"><td>Total'+(ehPJ?'':' bruto')+'</td><td align="right">'+m(total)+'</td></tr></tbody></table>'+
+    (notaCalculo ? '<div style="font-size:10px;color:#555;margin-bottom:6px">'+notaCalculo+'</div>' : '')+
     '<div style="font-size:9px;color:#888">'+(ehPJ
-      ? 'Valores calculados sobre os honorários mensais de '+m(sal)+'. Pagamento contra emissão de nota fiscal pelo prestador — '+
-        'não há retenção de INSS, IRRF ou qualquer desconto na fonte, por não se tratar de vínculo empregatício.'
+      ? 'Pagamento contra emissão de nota fiscal pelo prestador — não há retenção de INSS, IRRF ou '+
+        'qualquer desconto na fonte, por não se tratar de vínculo empregatício.'
       : 'Valores brutos, calculados sobre o salário base de '+m(sal)+
         '. Descontos legais (INSS/IRRF) e demais deduções são apurados pela folha de pagamento.')+'</div>'+
     '<div class="ass">'+(ehPJ
