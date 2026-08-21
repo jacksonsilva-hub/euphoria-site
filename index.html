@@ -1354,6 +1354,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       <button class="tab-btn" onclick="switchPeopleTab('orgchart',event)">🌳 Organograma</button>
       <button class="tab-btn" onclick="switchPeopleTab('utilization',event)">⏱️ Utilization</button>
       <button class="tab-btn" onclick="switchPeopleTab('profitability',event)">💰 Rentabilidade</button>
+      <button class="tab-btn" onclick="switchPeopleTab('ferias',event)">🏖️ Férias & Ausências</button>
     </div>
 
     <!-- ── EQUIPE ── -->
@@ -1640,6 +1641,153 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
             <tbody id="prof-table"></tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <!-- FÉRIAS & AUSÊNCIAS -->
+    <div class="tab-panel" id="people-ferias">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px">
+        <div>
+          <div class="chart-title" style="margin:0">Férias & Ausências</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">Saldos, vencimentos e registro de ausências — regras CLT para contratados, controle de dias para PJ</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+          <select id="fer-f-depto" onchange="ferRender()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+            <option value="">Todos departamentos</option>
+          </select>
+          <select id="fer-f-tipo" onchange="ferRender()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+            <option value="">CLT e PJ</option><option value="clt">Só CLT</option><option value="pj">Só PJ</option>
+          </select>
+          <select id="fer-f-status" onchange="ferRender()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
+            <option value="">Todos os status</option>
+            <option value="dobra">⚠ Em dobra (vencido)</option>
+            <option value="avencer">🔶 A vencer (90 dias)</option>
+            <option value="disponivel">✅ Disponível</option>
+            <option value="emcurso">⏳ Período em curso</option>
+          </select>
+          <button class="btn btn-primary" onclick="ferAbrirModal(null)" style="font-size:11px;padding:6px 14px">+ Lançar Férias</button>
+          <button class="btn" onclick="ausAbrirModal(null)" style="font-size:11px;padding:6px 14px">+ Lançar Ausência</button>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:18px" id="fer-kpis"></div>
+
+      <div class="table-card" style="margin-bottom:16px">
+        <div class="table-header">
+          <span class="table-title">Saldo de Férias por Colaborador</span>
+          <span class="table-meta" id="fer-meta">—</span>
+          <button class="btn" onclick="ferImprimirSaldos()" style="font-size:10px;padding:4px 10px;margin-left:8px">🖨️ Imprimir / PDF</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr>
+              <th>Colaborador</th><th>Tipo</th><th>Admissão</th>
+              <th>Período aquisitivo</th>
+              <th style="text-align:right">Direito</th>
+              <th style="text-align:right">Gozados</th>
+              <th style="text-align:right">Vendidos</th>
+              <th style="text-align:right">Saldo</th>
+              <th>Limite p/ gozar</th>
+              <th>Status</th>
+              <th style="text-align:right">Provisão 1/3</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="fer-tbody"><tr><td colspan="12" style="text-align:center;padding:24px;color:var(--text3)">Sem colaboradores cadastrados</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="table-card">
+          <div class="table-header"><span class="table-title">Férias Lançadas</span><span class="table-meta" id="fer-lanc-meta">0 registros</span></div>
+          <div style="overflow-x:auto;max-height:320px;overflow-y:auto">
+            <table class="tbl">
+              <thead><tr><th>Colaborador</th><th>Período</th><th style="text-align:right">Dias</th><th style="text-align:right">Abono</th><th>Status</th><th></th></tr></thead>
+              <tbody id="fer-lanc-tbody"><tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text3)">Nenhuma férias lançada</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="table-header"><span class="table-title">Ausências</span><span class="table-meta" id="aus-meta">0 registros</span></div>
+          <div style="overflow-x:auto;max-height:320px;overflow-y:auto">
+            <table class="tbl">
+              <thead><tr><th>Colaborador</th><th>Período</th><th>Tipo</th><th style="text-align:right">Dias</th><th>Abonada</th><th></th></tr></thead>
+              <tbody id="aus-tbody"><tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text3)">Nenhuma ausência registrada</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL FÉRIAS -->
+  <div class="modal-overlay" id="fer-modal" style="display:none">
+    <div class="modal" style="max-width:560px">
+      <div class="modal-header"><span id="fer-modal-titulo">Lançar Férias</span><button class="modal-close" onclick="ferFecharModal()">×</button></div>
+      <div class="modal-body">
+        <input type="hidden" id="fer-edit-id">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div style="grid-column:1/-1"><label class="jur-lbl">COLABORADOR *</label>
+            <select id="fer-pessoa" class="field-input" onchange="ferAtualizarInfoSaldo()"></select>
+          </div>
+          <div style="grid-column:1/-1" id="fer-info-saldo" style="font-size:11px;color:var(--text3)"></div>
+          <div><label class="jur-lbl">INÍCIO *</label><input id="fer-inicio" type="date" class="field-input" onchange="ferCalcularDias()"></div>
+          <div><label class="jur-lbl">FIM *</label><input id="fer-fim" type="date" class="field-input" onchange="ferCalcularDias()"></div>
+          <div><label class="jur-lbl">DIAS DE FÉRIAS</label><input id="fer-dias" type="number" class="field-input" readonly style="opacity:.75"></div>
+          <div><label class="jur-lbl">DIAS VENDIDOS (ABONO)</label><input id="fer-abono" type="number" min="0" max="10" value="0" class="field-input" onchange="ferAtualizarInfoSaldo()"></div>
+          <div><label class="jur-lbl">STATUS</label>
+            <select id="fer-status" class="field-input">
+              <option value="agendada">Agendada</option><option value="gozada">Gozada</option><option value="cancelada">Cancelada</option>
+            </select>
+          </div>
+          <div><label class="jur-lbl">PERÍODO AQUISITIVO</label>
+            <select id="fer-periodo" class="field-input"></select>
+          </div>
+          <div style="grid-column:1/-1"><label class="jur-lbl">OBSERVAÇÕES</label><input id="fer-obs" type="text" class="field-input"></div>
+        </div>
+        <div id="fer-alertas" style="font-size:11px;margin-bottom:10px"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="ferFecharModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="ferSalvar()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL AUSÊNCIA -->
+  <div class="modal-overlay" id="aus-modal" style="display:none">
+    <div class="modal" style="max-width:520px">
+      <div class="modal-header"><span id="aus-modal-titulo">Lançar Ausência</span><button class="modal-close" onclick="ausFecharModal()">×</button></div>
+      <div class="modal-body">
+        <input type="hidden" id="aus-edit-id">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div style="grid-column:1/-1"><label class="jur-lbl">COLABORADOR *</label><select id="aus-pessoa" class="field-input"></select></div>
+          <div><label class="jur-lbl">INÍCIO *</label><input id="aus-inicio" type="date" class="field-input" onchange="ausCalcularDias()"></div>
+          <div><label class="jur-lbl">FIM *</label><input id="aus-fim" type="date" class="field-input" onchange="ausCalcularDias()"></div>
+          <div><label class="jur-lbl">DIAS</label><input id="aus-dias" type="number" class="field-input" readonly style="opacity:.75"></div>
+          <div><label class="jur-lbl">TIPO *</label>
+            <select id="aus-tipo" class="field-input" onchange="ausAtualizarAbono()">
+              <option value="atestado">Atestado médico</option>
+              <option value="falta_injustificada">Falta injustificada</option>
+              <option value="licenca_maternidade">Licença maternidade</option>
+              <option value="licenca_paternidade">Licença paternidade</option>
+              <option value="luto">Luto (falecimento)</option>
+              <option value="casamento">Casamento</option>
+              <option value="doacao_sangue">Doação de sangue</option>
+              <option value="afastamento_inss">Afastamento INSS</option>
+              <option value="outros">Outros</option>
+            </select>
+          </div>
+          <div style="grid-column:1/-1"><label class="jur-lbl">ABONADA (não desconta)</label>
+            <select id="aus-abonada" class="field-input"><option value="sim">Sim</option><option value="nao">Não</option></select>
+          </div>
+          <div style="grid-column:1/-1"><label class="jur-lbl">OBSERVAÇÕES</label><input id="aus-obs" type="text" class="field-input"></div>
+        </div>
+        <div id="aus-alertas" style="font-size:11px;margin-top:10px"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="ausFecharModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="ausSalvar()">Salvar</button>
       </div>
     </div>
   </div>
@@ -3311,7 +3459,7 @@ function migrarLocalStorage(){
   var migKey = 'euphoria_migrated_'+ent;
   if(localStorage.getItem(migKey)) return; // já migrou
   var keys = [
-    'euphoria_people_v2','euphoria_people_hist',
+    'euphoria_people_v2','euphoria_people_hist','euphoria_ferias','euphoria_ausencias',
     'euphoria_alocacao_v1','euphoria_lancamentos',
     'crm_prospects','crm_responsaveis',
     'euphoria_ts','euphoria_projetos','euphoria_juridico','euphoria_ti_ativos',
@@ -3455,7 +3603,7 @@ function backupAutoSave(){
 function backupColetar(){
   var ent = currentUser&&currentUser.entidade ? currentUser.entidade : 'BR';
   var keys = [
-    'euphoria_people_v2','euphoria_people_hist',
+    'euphoria_people_v2','euphoria_people_hist','euphoria_ferias','euphoria_ausencias',
     'euphoria_alocacao_v1','euphoria_lancamentos',
     'crm_prospects','crm_responsaveis',
     'euphoria_ts','euphoria_projetos','euphoria_juridico',
@@ -3767,6 +3915,7 @@ function switchPeopleTab(tab,e){
   if(tab==='orgchart')pplRenderOrg();
   if(tab==='utilization')pplCarregarUtilization();
   if(tab==='profitability')pplCarregarProfitability();
+  if(tab==='ferias'){ ferPopularDeptos(); ferRender(); }
 }
 
 function pplCustoTotal(p){
@@ -4542,6 +4691,516 @@ function pplPessoaAtivaNoMes(pessoa, ano, mes){
     if(des<inicioMes)return false; // desligado antes do início do mês
   }
   return true;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  FÉRIAS & AUSÊNCIAS
+//  Provisao contabil (pplFeriasNoMes, 1/12 avos do 1/3 por mes) e coisa
+//  diferente do DIREITO a férias, que só vence quando fecha o período
+//  aquisitivo de 12 meses. Esta tela cuida do direito/saldo; a provisao
+//  continua no Custo Mensal.
+// ═══════════════════════════════════════════════════════════════════════════
+
+function getFeriasData(){ return JSON.parse(lsGet('euphoria_ferias')||'[]'); }
+function saveFeriasData(d){ lsSet('euphoria_ferias', JSON.stringify(d)); backupAutoSave(); }
+function getAusData(){ return JSON.parse(lsGet('euphoria_ausencias')||'[]'); }
+function saveAusData(d){ lsSet('euphoria_ausencias', JSON.stringify(d)); backupAutoSave(); }
+
+// Datas de <input type="date"> vem como "YYYY-MM-DD". new Date(str) trata isso
+// como UTC e no fuso do Brasil volta um dia - por isso montamos sempre local.
+function ferData(str){
+  if(!str) return null;
+  var p = String(str).substring(0,10).split('-');
+  if(p.length!==3) return null;
+  var d = new Date(parseInt(p[0],10), parseInt(p[1],10)-1, parseInt(p[2],10));
+  return isNaN(d.getTime()) ? null : d;
+}
+function ferFmtData(d){
+  if(!d) return '—';
+  return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+}
+function ferAddMeses(d, n){ return new Date(d.getFullYear(), d.getMonth()+n, d.getDate()); }
+function ferDiasEntre(a, b){ return Math.round((b-a)/86400000); }
+function ferHoje(){ var h=new Date(); return new Date(h.getFullYear(), h.getMonth(), h.getDate()); }
+
+// CLT art. 130 - faltas injustificadas no periodo aquisitivo reduzem o direito.
+function ferDiasPorFaltas(faltas){
+  if(faltas<=5) return 30;
+  if(faltas<=14) return 24;
+  if(faltas<=23) return 18;
+  if(faltas<=32) return 12;
+  return 0;
+}
+
+// Faltas injustificadas e nao abonadas dentro de um intervalo.
+function ferFaltasNoPeriodo(pessoaId, ini, fim){
+  return getAusData().reduce(function(soma, a){
+    if(a.pessoaId!==pessoaId) return soma;
+    if(a.tipo!=='falta_injustificada' || a.abonada==='sim') return soma;
+    var d = ferData(a.inicio);
+    if(!d || d<ini || d>fim) return soma;
+    return soma + (parseInt(a.dias,10)||0);
+  }, 0);
+}
+
+// Periodos aquisitivos de 12 meses a partir da admissao. Para cada um: direito,
+// dias ja gozados/vendidos, saldo, limite do periodo concessivo e status.
+function ferPeriodos(pessoa){
+  var adm = ferData(pessoa.admissao);
+  if(!adm) return [];
+  var fimVinculo = pessoa.desligamento ? ferData(pessoa.desligamento) : null;
+  var hoje = ferHoje();
+  var lancamentos = getFeriasData().filter(function(f){
+    return f.pessoaId===pessoa.id && f.status!=='cancelada';
+  });
+  var out = [], i = 0;
+  while(i < 60){
+    var ini = ferAddMeses(adm, i*12);
+    if(ini > hoje) break;
+    if(fimVinculo && ini > fimVinculo) break;
+    var fim = new Date(ferAddMeses(ini, 12).getTime() - 86400000); // dia anterior
+    var fechado = fim <= hoje;
+    // Direito so existe com o periodo fechado; PJ nao tem art. 130 (regra CLT).
+    var faltas = pessoa.tipo==='clt' ? ferFaltasNoPeriodo(pessoa.id, ini, fim) : 0;
+    var direito = fechado ? ferDiasPorFaltas(faltas) : 0;
+    var doPeriodo = lancamentos.filter(function(f){ return f.periodoIni === ferChavePeriodo(ini); });
+    var gozados = doPeriodo.reduce(function(s,f){ return s + (parseInt(f.dias,10)||0); }, 0);
+    var vendidos = doPeriodo.reduce(function(s,f){ return s + (parseInt(f.abono,10)||0); }, 0);
+    var saldo = direito - gozados - vendidos;
+    var limite = ferAddMeses(fim, 12); // periodo concessivo: 12 meses apos fechar
+    var status;
+    if(!fechado) status = 'emcurso';
+    else if(saldo <= 0) status = 'quitado';
+    else if(hoje > limite) status = 'dobra';
+    else if(ferDiasEntre(hoje, limite) <= 90) status = 'avencer';
+    else status = 'disponivel';
+    // Provisao do 1/3 acumulada no periodo: 1/12 avos por mes completo.
+    var mesesCorridos = Math.min(12, Math.max(0, (hoje.getFullYear()-ini.getFullYear())*12 + (hoje.getMonth()-ini.getMonth())));
+    var salario = parseFloat(pessoa.salario)||0;
+    var provisao = pessoa.recebeferias==='sim' ? (salario/3) * (mesesCorridos/12) : 0;
+    out.push({ ini:ini, fim:fim, chave:ferChavePeriodo(ini), fechado:fechado, faltas:faltas,
+      direito:direito, gozados:gozados, vendidos:vendidos, saldo:saldo, limite:limite,
+      status:status, provisao:provisao, mesesCorridos:mesesCorridos });
+    i++;
+  }
+  return out;
+}
+function ferChavePeriodo(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
+var FER_STATUS_INFO = {
+  dobra:      {rot:'Em dobra', cor:'var(--neg)',   desc:'venceu o prazo legal'},
+  avencer:    {rot:'A vencer', cor:'var(--amber)', desc:'vence em ≤90 dias'},
+  disponivel: {rot:'Disponível', cor:'var(--pos)', desc:'dentro do prazo'},
+  emcurso:    {rot:'Em curso', cor:'var(--text3)', desc:'período ainda acumulando'},
+  quitado:    {rot:'Quitado', cor:'var(--text3)',  desc:'sem saldo'}
+};
+
+function ferPessoasFiltradas(){
+  var fD=(document.getElementById('fer-f-depto')||{value:''}).value;
+  var fT=(document.getElementById('fer-f-tipo')||{value:''}).value;
+  return getPplData().filter(function(p){
+    if(p.status==='desligado') return false;
+    if(fD && p.depto!==fD) return false;
+    if(fT && p.tipo!==fT) return false;
+    return true;
+  });
+}
+
+function ferRender(){
+  var pessoas = ferPessoasFiltradas();
+  var fStatus=(document.getElementById('fer-f-status')||{value:''}).value;
+  var hoje = ferHoje();
+  var linhas = [], kpiDobra=0, kpiAvencer=0, kpiProvisao=0, kpiSaldoDias=0;
+
+  pessoas.forEach(function(p){
+    var periodos = ferPeriodos(p);
+    periodos.forEach(function(per){
+      kpiProvisao += per.provisao;
+      if(per.status==='dobra'){ kpiDobra++; }
+      if(per.status==='avencer'){ kpiAvencer++; }
+      if(per.saldo>0) kpiSaldoDias += per.saldo;
+      if(!fStatus || per.status===fStatus) linhas.push({p:p, per:per});
+    });
+    if(!periodos.length && !fStatus) linhas.push({p:p, per:null});
+  });
+
+  // Quem esta de ferias hoje
+  var emFeriasHoje = getFeriasData().filter(function(f){
+    if(f.status==='cancelada') return false;
+    var i=ferData(f.inicio), fi=ferData(f.fim);
+    return i && fi && i<=hoje && fi>=hoje;
+  }).length;
+
+  var fmtR = function(v){ return 'R$ '+Math.round(v).toLocaleString('pt-BR'); };
+  document.getElementById('fer-kpis').innerHTML = [
+    {l:'Em dobra', v:String(kpiDobra), s:kpiDobra?'risco: pagamento em dobro':'nenhum vencido', c:kpiDobra?'neg':''},
+    {l:'A vencer (90d)', v:String(kpiAvencer), s:'programar férias', c:kpiAvencer?'':''},
+    {l:'De férias hoje', v:String(emFeriasHoje), s:'ausentes agora', c:''},
+    {l:'Saldo total', v:kpiSaldoDias+' dias', s:'a gozar/vender', c:''},
+    {l:'Provisão 1/3', v:fmtR(kpiProvisao), s:'acumulada nos períodos', c:''}
+  ].map(function(k){
+    return '<div class="kpi-card"><div class="kpi-label">'+k.l+'</div>'+
+      '<div class="kpi-value '+(k.c||'')+'" style="font-size:16px">'+k.v+'</div>'+
+      '<div class="kpi-sub">'+k.s+'</div></div>';
+  }).join('');
+
+  document.getElementById('fer-meta').textContent = linhas.length+' período(s) · '+pessoas.length+' colaborador(es)';
+  document.getElementById('fer-tbody').innerHTML = linhas.map(function(x){
+    var p=x.p, per=x.per;
+    if(!per){
+      return '<tr><td>'+p.nome+'</td><td>'+(p.tipo||'').toUpperCase()+'</td><td>'+(p.admissao?ferFmtData(ferData(p.admissao)):'—')+
+        '</td><td colspan="9" style="color:var(--text3)">Sem admissão cadastrada — não é possível calcular o período aquisitivo</td></tr>';
+    }
+    var si = FER_STATUS_INFO[per.status];
+    var alertaPJ = (p.tipo==='pj' && per.status==='dobra') ? ' title="PJ não tem dobra legal; indicativo contratual"' : '';
+    return '<tr>'+
+      '<td>'+p.nome+'</td>'+
+      '<td style="font-size:10px;color:var(--text3)">'+(p.tipo||'').toUpperCase()+'</td>'+
+      '<td style="font-size:11px">'+ferFmtData(ferData(p.admissao))+'</td>'+
+      '<td style="font-size:11px">'+ferFmtData(per.ini)+' → '+ferFmtData(per.fim)+(per.faltas?' <span style="color:var(--amber)">('+per.faltas+' faltas)</span>':'')+'</td>'+
+      '<td style="text-align:right">'+(per.fechado?per.direito:'—')+'</td>'+
+      '<td style="text-align:right">'+per.gozados+'</td>'+
+      '<td style="text-align:right">'+per.vendidos+'</td>'+
+      '<td style="text-align:right;font-weight:700;'+(per.saldo>0?'':'color:var(--text3)')+'">'+(per.fechado?per.saldo:'—')+'</td>'+
+      '<td style="font-size:11px">'+(per.fechado?ferFmtData(per.limite):'—')+'</td>'+
+      '<td'+alertaPJ+'><span style="font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(255,255,255,.06);color:'+si.cor+'">'+si.rot+(p.tipo==='pj'&&per.status==='dobra'?'*':'')+'</span></td>'+
+      '<td style="text-align:right;font-size:11px">'+fmtR(per.provisao)+'</td>'+
+      '<td><button class="btn" onclick="ferAbrirModal(null,\''+p.id+'\',\''+per.chave+'\')" style="font-size:9px;padding:3px 7px">+ Férias</button></td>'+
+    '</tr>';
+  }).join('') || '<tr><td colspan="12" style="text-align:center;padding:24px;color:var(--text3)">Nenhum período no filtro selecionado</td></tr>';
+
+  ferRenderLancamentos();
+  ausRender();
+}
+
+function ferNomePessoa(id){
+  var p = getPplData().find(function(x){ return x.id===id; });
+  return p ? p.nome : '(removido)';
+}
+
+function ferRenderLancamentos(){
+  var d = getFeriasData().slice().sort(function(a,b){ return (b.inicio||'').localeCompare(a.inicio||''); });
+  document.getElementById('fer-lanc-meta').textContent = d.length+' registro(s)';
+  var rot = {agendada:'Agendada', gozada:'Gozada', cancelada:'Cancelada'};
+  var cor = {agendada:'var(--amber)', gozada:'var(--pos)', cancelada:'var(--text3)'};
+  document.getElementById('fer-lanc-tbody').innerHTML = d.map(function(f){
+    return '<tr'+(f.status==='cancelada'?' style="opacity:.5"':'')+'>'+
+      '<td>'+ferNomePessoa(f.pessoaId)+'</td>'+
+      '<td style="font-size:11px">'+ferFmtData(ferData(f.inicio))+' → '+ferFmtData(ferData(f.fim))+'</td>'+
+      '<td style="text-align:right">'+(f.dias||0)+'</td>'+
+      '<td style="text-align:right">'+(f.abono||0)+'</td>'+
+      '<td><span style="font-size:10px;color:'+cor[f.status]+'">'+(rot[f.status]||f.status)+'</span></td>'+
+      '<td style="white-space:nowrap"><button class="btn" onclick="ferRecibo(\''+f.id+'\')" style="font-size:9px;padding:3px 6px" title="Recibo de férias em PDF">🖨️</button> '+
+      '<button class="btn" onclick="ferAbrirModal(\''+f.id+'\')" style="font-size:9px;padding:3px 6px">✎</button> '+
+      '<button class="btn" onclick="ferRemover(\''+f.id+'\')" style="font-size:9px;padding:3px 6px">×</button></td>'+
+    '</tr>';
+  }).join('') || '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text3)">Nenhuma férias lançada</td></tr>';
+}
+
+var AUS_TIPOS = {
+  atestado:'Atestado médico', falta_injustificada:'Falta injustificada',
+  licenca_maternidade:'Licença maternidade', licenca_paternidade:'Licença paternidade',
+  luto:'Luto', casamento:'Casamento', doacao_sangue:'Doação de sangue',
+  afastamento_inss:'Afastamento INSS', outros:'Outros'
+};
+
+function ausRender(){
+  var d = getAusData().slice().sort(function(a,b){ return (b.inicio||'').localeCompare(a.inicio||''); });
+  document.getElementById('aus-meta').textContent = d.length+' registro(s)';
+  document.getElementById('aus-tbody').innerHTML = d.map(function(a){
+    var risco = (a.tipo==='falta_injustificada' && a.abonada!=='sim');
+    return '<tr>'+
+      '<td>'+ferNomePessoa(a.pessoaId)+'</td>'+
+      '<td style="font-size:11px">'+ferFmtData(ferData(a.inicio))+(a.fim&&a.fim!==a.inicio?' → '+ferFmtData(ferData(a.fim)):'')+'</td>'+
+      '<td style="font-size:11px'+(risco?';color:var(--amber)':'')+'">'+(AUS_TIPOS[a.tipo]||a.tipo)+'</td>'+
+      '<td style="text-align:right">'+(a.dias||0)+'</td>'+
+      '<td style="font-size:10px">'+(a.abonada==='sim'?'Sim':'Não')+'</td>'+
+      '<td style="white-space:nowrap"><button class="btn" onclick="ausAbrirModal(\''+a.id+'\')" style="font-size:9px;padding:3px 6px">✎</button> '+
+      '<button class="btn" onclick="ausRemover(\''+a.id+'\')" style="font-size:9px;padding:3px 6px">×</button></td>'+
+    '</tr>';
+  }).join('') || '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text3)">Nenhuma ausência registrada</td></tr>';
+}
+
+function ferPopularPessoas(selId){
+  var sel=document.getElementById(selId); if(!sel) return;
+  var ativos=getPplData().filter(function(p){ return p.status!=='desligado'; })
+    .sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||'','pt-BR'); });
+  sel.innerHTML='<option value="">Selecione...</option>'+ativos.map(function(p){
+    return '<option value="'+p.id+'">'+p.nome+' — '+(p.tipo||'').toUpperCase()+'</option>';
+  }).join('');
+}
+
+function ferPopularDeptos(){
+  var sel=document.getElementById('fer-f-depto'); if(!sel) return;
+  var atual=sel.value;
+  var deptos=[...new Set(getPplData().map(function(p){return p.depto;}).filter(Boolean))].sort();
+  sel.innerHTML='<option value="">Todos departamentos</option>'+deptos.map(function(d){
+    return '<option'+(d===atual?' selected':'')+'>'+d+'</option>';
+  }).join('');
+}
+
+function ferAbrirModal(id, pessoaId, periodoChave){
+  ferPopularPessoas('fer-pessoa');
+  document.getElementById('fer-edit-id').value = id||'';
+  document.getElementById('fer-modal-titulo').textContent = id?'Editar Férias':'Lançar Férias';
+  var f = id ? getFeriasData().find(function(x){ return x.id===id; }) : null;
+  document.getElementById('fer-pessoa').value = f? f.pessoaId : (pessoaId||'');
+  document.getElementById('fer-inicio').value = f? f.inicio : '';
+  document.getElementById('fer-fim').value = f? f.fim : '';
+  document.getElementById('fer-dias').value = f? f.dias : '';
+  document.getElementById('fer-abono').value = f? (f.abono||0) : 0;
+  document.getElementById('fer-status').value = f? f.status : 'agendada';
+  document.getElementById('fer-obs').value = f? (f.obs||'') : '';
+  ferAtualizarPeriodos(f? f.periodoIni : periodoChave);
+  document.getElementById('fer-modal').style.display='flex';
+}
+function ferFecharModal(){ document.getElementById('fer-modal').style.display='none'; }
+
+function ferAtualizarPeriodos(selecionar){
+  var sel=document.getElementById('fer-periodo');
+  var pid=document.getElementById('fer-pessoa').value;
+  var p=getPplData().find(function(x){ return x.id===pid; });
+  if(!p){ sel.innerHTML='<option value="">—</option>'; return; }
+  var pers=ferPeriodos(p).filter(function(x){ return x.fechado; });
+  sel.innerHTML = pers.length
+    ? pers.map(function(x){
+        return '<option value="'+x.chave+'"'+(x.chave===selecionar?' selected':'')+'>'+
+          ferFmtData(x.ini)+' → '+ferFmtData(x.fim)+' (saldo '+x.saldo+'d)</option>';
+      }).join('')
+    : '<option value="">Nenhum período fechado ainda</option>';
+  ferAtualizarInfoSaldo();
+}
+
+function ferCalcularDias(){
+  var i=ferData(document.getElementById('fer-inicio').value);
+  var f=ferData(document.getElementById('fer-fim').value);
+  if(i&&f&&f>=i) document.getElementById('fer-dias').value = ferDiasEntre(i,f)+1;
+  else document.getElementById('fer-dias').value = '';
+  ferAtualizarInfoSaldo();
+}
+
+// Valida contra as regras da CLT e mostra o que esta fora antes de salvar.
+function ferValidar(){
+  var pid=document.getElementById('fer-pessoa').value;
+  var p=getPplData().find(function(x){ return x.id===pid; });
+  var dias=parseInt(document.getElementById('fer-dias').value,10)||0;
+  var abono=parseInt(document.getElementById('fer-abono').value,10)||0;
+  var chave=document.getElementById('fer-periodo').value;
+  var editId=document.getElementById('fer-edit-id').value;
+  var avisos=[], erros=[];
+  if(!p) return {erros:['Selecione o colaborador.'], avisos:[]};
+  if(!dias) erros.push('Informe início e fim das férias.');
+  var per=ferPeriodos(p).find(function(x){ return x.chave===chave; });
+  if(!per){ erros.push('Selecione um período aquisitivo fechado.'); return {erros:erros, avisos:avisos}; }
+
+  // Ao editar, nao contar o proprio lancamento duas vezes.
+  var jaUsados = getFeriasData().filter(function(f){
+    return f.pessoaId===p.id && f.periodoIni===chave && f.status!=='cancelada' && f.id!==editId;
+  }).reduce(function(s,f){ return s+(parseInt(f.dias,10)||0)+(parseInt(f.abono,10)||0); },0);
+  var disponivel = per.direito - jaUsados;
+  if(dias+abono > disponivel) erros.push('Excede o saldo: disponível '+disponivel+' dia(s), pedido '+(dias+abono)+'.');
+  if(abono > 10) erros.push('Abono pecuniário é limitado a 10 dias (1/3 de 30).');
+  if(p.tipo==='clt'){
+    // CLT art. 134 §1: ate 3 periodos, um deles >= 14 dias, os outros >= 5.
+    var qtd = getFeriasData().filter(function(f){
+      return f.pessoaId===p.id && f.periodoIni===chave && f.status!=='cancelada' && f.id!==editId && (parseInt(f.dias,10)||0)>0;
+    }).length;
+    if(dias>0 && qtd>=3) erros.push('CLT art. 134: máximo de 3 períodos de férias por período aquisitivo.');
+    if(dias>0 && dias<5) erros.push('CLT art. 134: nenhum período pode ter menos de 5 dias.');
+    if(per.status==='dobra') avisos.push('⚠ Período vencido — a CLT determina pagamento em dobro (art. 137).');
+  } else if(per.status==='dobra'){
+    avisos.push('Período vencido. PJ não tem dobra legal, mas vale checar o contrato.');
+  }
+  return {erros:erros, avisos:avisos, disponivel:disponivel, per:per};
+}
+
+function ferAtualizarInfoSaldo(){
+  var v=ferValidar();
+  var info=document.getElementById('fer-info-saldo');
+  var al=document.getElementById('fer-alertas');
+  if(v.per){
+    info.innerHTML='Período '+ferFmtData(v.per.ini)+' → '+ferFmtData(v.per.fim)+
+      ' · direito '+v.per.direito+'d · disponível <strong>'+v.disponivel+'d</strong>'+
+      ' · gozar até '+ferFmtData(v.per.limite);
+  } else { info.textContent=''; }
+  al.innerHTML = [].concat(
+    (v.erros||[]).map(function(e){ return '<div style="color:var(--neg)">• '+e+'</div>'; }),
+    (v.avisos||[]).map(function(a){ return '<div style="color:var(--amber)">• '+a+'</div>'; })
+  ).join('');
+}
+
+function ferSalvar(){
+  var v=ferValidar();
+  if(v.erros.length){ ferAtualizarInfoSaldo(); alert('Corrija antes de salvar:\n\n'+v.erros.join('\n')); return; }
+  var id=document.getElementById('fer-edit-id').value;
+  var d=getFeriasData();
+  var obj={
+    id: id||('f'+Date.now()),
+    pessoaId: document.getElementById('fer-pessoa').value,
+    inicio: document.getElementById('fer-inicio').value,
+    fim: document.getElementById('fer-fim').value,
+    dias: parseInt(document.getElementById('fer-dias').value,10)||0,
+    abono: parseInt(document.getElementById('fer-abono').value,10)||0,
+    status: document.getElementById('fer-status').value,
+    periodoIni: document.getElementById('fer-periodo').value,
+    obs: document.getElementById('fer-obs').value.trim()
+  };
+  if(id){ var i=d.findIndex(function(x){return x.id===id;}); if(i>=0) d[i]=obj; else d.push(obj); }
+  else d.push(obj);
+  saveFeriasData(d);
+  ferFecharModal();
+  ferRender();
+}
+function ferRemover(id){
+  if(!confirm('Remover este lançamento de férias?')) return;
+  saveFeriasData(getFeriasData().filter(function(f){ return f.id!==id; }));
+  ferRender();
+}
+
+function ausAbrirModal(id){
+  ferPopularPessoas('aus-pessoa');
+  document.getElementById('aus-edit-id').value=id||'';
+  document.getElementById('aus-modal-titulo').textContent=id?'Editar Ausência':'Lançar Ausência';
+  var a = id ? getAusData().find(function(x){ return x.id===id; }) : null;
+  document.getElementById('aus-pessoa').value = a? a.pessoaId : '';
+  document.getElementById('aus-inicio').value = a? a.inicio : '';
+  document.getElementById('aus-fim').value = a? (a.fim||a.inicio) : '';
+  document.getElementById('aus-dias').value = a? a.dias : '';
+  document.getElementById('aus-tipo').value = a? a.tipo : 'atestado';
+  document.getElementById('aus-abonada').value = a? a.abonada : 'sim';
+  document.getElementById('aus-obs').value = a? (a.obs||'') : '';
+  ausAtualizarAbono();
+  document.getElementById('aus-modal').style.display='flex';
+}
+function ausFecharModal(){ document.getElementById('aus-modal').style.display='none'; }
+function ausCalcularDias(){
+  var i=ferData(document.getElementById('aus-inicio').value);
+  var f=ferData(document.getElementById('aus-fim').value)||i;
+  document.getElementById('aus-dias').value = (i&&f&&f>=i) ? ferDiasEntre(i,f)+1 : '';
+  ausAtualizarAbono();
+}
+function ausAtualizarAbono(){
+  var t=document.getElementById('aus-tipo').value;
+  var dias=parseInt(document.getElementById('aus-dias').value,10)||0;
+  var al=document.getElementById('aus-alertas');
+  // Falta injustificada e o unico tipo que corta dias de ferias (CLT art. 130).
+  if(t==='falta_injustificada' && document.getElementById('aus-abonada').value!=='sim'){
+    al.innerHTML='<div style="color:var(--amber)">• Falta injustificada reduz o direito a férias (CLT art. 130): '+
+      'até 5 faltas = 30d · 6–14 = 24d · 15–23 = 18d · 24–32 = 12d · +32 = 0d.</div>';
+  } else if(dias>15 && (t==='atestado'||t==='afastamento_inss')){
+    al.innerHTML='<div style="color:var(--amber)">• Afastamento acima de 15 dias normalmente passa a ser custeado pelo INSS — confira com a contabilidade.</div>';
+  } else { al.innerHTML=''; }
+}
+function ausSalvar(){
+  var pid=document.getElementById('aus-pessoa').value;
+  var ini=document.getElementById('aus-inicio').value;
+  var dias=parseInt(document.getElementById('aus-dias').value,10)||0;
+  if(!pid||!ini||!dias){ alert('Colaborador, data de início e período são obrigatórios.'); return; }
+  var id=document.getElementById('aus-edit-id').value;
+  var d=getAusData();
+  var obj={
+    id: id||('a'+Date.now()),
+    pessoaId: pid, inicio: ini,
+    fim: document.getElementById('aus-fim').value||ini,
+    dias: dias,
+    tipo: document.getElementById('aus-tipo').value,
+    abonada: document.getElementById('aus-abonada').value,
+    obs: document.getElementById('aus-obs').value.trim()
+  };
+  if(id){ var i=d.findIndex(function(x){return x.id===id;}); if(i>=0) d[i]=obj; else d.push(obj); }
+  else d.push(obj);
+  saveAusData(d);
+  ausFecharModal();
+  ferRender();
+}
+function ausRemover(id){
+  if(!confirm('Remover esta ausência?')) return;
+  saveAusData(getAusData().filter(function(a){ return a.id!==id; }));
+  ferRender();
+}
+
+// Recibo de férias — usa o mesmo padrao de impressao do Juridico (logo + PDF).
+function ferRecibo(id){
+  var f=getFeriasData().find(function(x){ return x.id===id; });
+  if(!f){ alert('Lançamento não encontrado.'); return; }
+  var p=getPplData().find(function(x){ return x.id===f.pessoaId; });
+  if(!p){ alert('Colaborador não encontrado.'); return; }
+  var sal=parseFloat(p.salario)||0;
+  var vDias=(sal/30)*(parseInt(f.dias,10)||0);
+  var vTerco=vDias/3;
+  var vAbono=(sal/30)*(parseInt(f.abono,10)||0);
+  var vTercoAbono=vAbono/3;
+  var total=vDias+vTerco+vAbono+vTercoAbono;
+  var m=function(v){ return 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); };
+  var linha=function(rot,val,neg){ return '<tr><td>'+rot+'</td><td align="right"'+(neg?' style="color:#b00"':'')+'>'+m(val)+'</td></tr>'; };
+  var itens = linha('Férias — '+f.dias+' dia(s)', vDias) + linha('1/3 constitucional', vTerco);
+  if(f.abono>0) itens += linha('Abono pecuniário — '+f.abono+' dia(s)', vAbono) + linha('1/3 sobre abono', vTercoAbono);
+
+  var css='body{font-family:Arial,sans-serif;padding:48px;color:#111;max-width:780px;margin:0 auto}'+
+    '.logo{width:150px;margin-bottom:20px;display:block}'+
+    'h1{font-size:15px;text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px}'+
+    '.sub{font-size:11px;color:#666;margin-bottom:22px}'+
+    '.box{border:1px solid #ddd;border-radius:6px;padding:14px 16px;margin-bottom:18px;font-size:12px;line-height:1.7}'+
+    'table{width:100%;border-collapse:collapse;margin-bottom:8px}'+
+    'th{background:#111;color:#fff;padding:8px 10px;font-size:10px;text-transform:uppercase;text-align:left}'+
+    'th:last-child{text-align:right}'+
+    'td{padding:8px 10px;border-bottom:1px solid #eee;font-size:12px}'+
+    '.tot td{border-top:2px solid #111;border-bottom:none;font-weight:700;font-size:13px}'+
+    '.ass{margin-top:52px;font-size:12px}'+
+    '.ass .l{border-top:1px solid #111;width:320px;padding-top:6px;margin-top:44px}'+
+    '.footer{border-top:1px solid #eee;margin-top:30px;padding-top:12px;font-size:9px;color:#999}'+
+    '@media print{.np{display:none}}';
+  var body='<img src="'+LOGO+'" class="logo">'+
+    '<h1>Recibo de Férias</h1>'+
+    '<div class="sub">'+JUR_EUPHORIA.nome+' — CNPJ '+JUR_EUPHORIA.cnpj+'</div>'+
+    '<div class="box"><strong>Colaborador:</strong> '+p.nome+'<br>'+
+      '<strong>Cargo:</strong> '+(p.cargo||'—')+' &nbsp;·&nbsp; <strong>Departamento:</strong> '+(p.depto||'—')+'<br>'+
+      '<strong>Admissão:</strong> '+ferFmtData(ferData(p.admissao))+' &nbsp;·&nbsp; <strong>Regime:</strong> '+(p.tipo||'').toUpperCase()+'<br>'+
+      '<strong>Período de gozo:</strong> '+ferFmtData(ferData(f.inicio))+' a '+ferFmtData(ferData(f.fim))+' ('+f.dias+' dias)<br>'+
+      '<strong>Período aquisitivo:</strong> '+(f.periodoIni?ferFmtData(ferData(f.periodoIni)):'—')+
+      (f.periodoIni?' a '+ferFmtData(new Date(ferAddMeses(ferData(f.periodoIni),12).getTime()-86400000)):'')+'</div>'+
+    '<table><thead><tr><th>Descrição</th><th>Valor</th></tr></thead><tbody>'+itens+
+      '<tr class="tot"><td>Total bruto</td><td align="right">'+m(total)+'</td></tr></tbody></table>'+
+    '<div style="font-size:9px;color:#888">Valores brutos, calculados sobre o salário base de '+m(sal)+
+      '. Descontos legais (INSS/IRRF) e demais deduções são apurados pela folha de pagamento.</div>'+
+    '<div class="ass">Declaro ter recebido a importância acima e estar ciente do período de férias concedido.<br>'+
+      '<div class="l">'+p.nome+'</div></div>'+
+    '<div class="footer"><strong>Euphoria Creative Agency</strong> — Documento interno, uso confidencial · Gerado em '+new Date().toLocaleDateString('pt-BR')+'</div>'+
+    '<button class="np" onclick="window.print()" style="margin-top:22px;background:#111;color:#fff;border:none;padding:12px 26px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:700">🖨 Imprimir / Salvar PDF</button>';
+  var w=window.open('','_blank');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Recibo de Férias — '+p.nome+'</title><style>'+css+'</style></head><body>'+body+'</body></html>');
+  w.document.close();
+}
+
+function ferImprimirSaldos(){
+  var tb=document.getElementById('fer-tbody');
+  if(!tb||!tb.querySelector('td')){ alert('Sem dados para imprimir.'); return; }
+  var linhas=Array.from(tb.querySelectorAll('tr')).map(function(tr){
+    var t=Array.from(tr.querySelectorAll('td')).map(function(td){ return td.textContent.trim(); });
+    if(t.length<12) return '';
+    return '<tr><td>'+t[0]+'</td><td>'+t[1]+'</td><td>'+t[2]+'</td><td>'+t[3]+'</td>'+
+      '<td align="right">'+t[4]+'</td><td align="right">'+t[5]+'</td><td align="right">'+t[6]+'</td>'+
+      '<td align="right">'+t[7]+'</td><td>'+t[8]+'</td><td>'+t[9]+'</td><td align="right">'+t[10]+'</td></tr>';
+  }).join('');
+  var css='body{font-family:Arial,sans-serif;padding:34px;color:#111}'+
+    '.logo{width:160px;margin-bottom:14px;display:block}'+
+    '.sub{font-size:12px;color:#666;margin-bottom:18px}'+
+    'table{width:100%;border-collapse:collapse}'+
+    'th{background:#111;color:#fff;padding:7px 8px;font-size:9px;text-transform:uppercase;text-align:left}'+
+    'td{padding:6px 8px;border-bottom:1px solid #eee;font-size:10px}'+
+    '.footer{border-top:1px solid #eee;margin-top:16px;padding-top:10px;font-size:9px;color:#999}'+
+    '@media print{.np{display:none}@page{size:landscape}}';
+  var body='<img src="'+LOGO+'" class="logo">'+
+    '<div class="sub">Saldo de Férias por Colaborador · '+document.getElementById('fer-meta').textContent+
+      ' · Gerado em '+new Date().toLocaleDateString('pt-BR')+'</div>'+
+    '<table><thead><tr><th>Colaborador</th><th>Tipo</th><th>Admissão</th><th>Período aquisitivo</th>'+
+    '<th>Direito</th><th>Gozados</th><th>Vendidos</th><th>Saldo</th><th>Limite p/ gozar</th><th>Status</th><th>Provisão 1/3</th></tr></thead>'+
+    '<tbody>'+linhas+'</tbody></table>'+
+    '<div class="footer"><strong>Euphoria Creative Agency</strong> — Documento interno, uso confidencial</div>'+
+    '<button class="np" onclick="window.print()" style="margin-top:18px;background:#111;color:#fff;border:none;padding:11px 24px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700">🖨 Imprimir / Salvar PDF</button>';
+  var w=window.open('','_blank');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Saldo de Férias</title><style>'+css+'</style></head><body>'+body+'</body></html>');
+  w.document.close();
 }
 
 function pplRenderCustoMensal(){
