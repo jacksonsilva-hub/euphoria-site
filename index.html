@@ -1761,7 +1761,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       <div class="modal-body">
         <input type="hidden" id="aus-edit-id">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <div style="grid-column:1/-1"><label class="jur-lbl">COLABORADOR *</label><select id="aus-pessoa" class="field-input"></select></div>
+          <div style="grid-column:1/-1"><label class="jur-lbl">COLABORADOR *</label><select id="aus-pessoa" class="field-input" onchange="ausAtualizarAbono()"></select></div>
           <div><label class="jur-lbl">INÍCIO *</label><input id="aus-inicio" type="date" class="field-input" onchange="ausCalcularDias()"></div>
           <div><label class="jur-lbl">FIM *</label><input id="aus-fim" type="date" class="field-input" onchange="ausCalcularDias()"></div>
           <div><label class="jur-lbl">DIAS</label><input id="aus-dias" type="number" class="field-input" readonly style="opacity:.75"></div>
@@ -1779,7 +1779,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
             </select>
           </div>
           <div style="grid-column:1/-1"><label class="jur-lbl">ABONADA (não desconta)</label>
-            <select id="aus-abonada" class="field-input"><option value="sim">Sim</option><option value="nao">Não</option></select>
+            <select id="aus-abonada" class="field-input" onchange="ausAtualizarAbono()"><option value="sim">Sim</option><option value="nao">Não</option></select>
           </div>
           <div style="grid-column:1/-1"><label class="jur-lbl">OBSERVAÇÕES</label><input id="aus-obs" type="text" class="field-input"></div>
         </div>
@@ -4999,7 +4999,9 @@ function ferValidar(){
   }).reduce(function(s,f){ return s+(parseInt(f.dias,10)||0)+(parseInt(f.abono,10)||0); },0);
   var disponivel = per.direito - jaUsados;
   if(dias+abono > disponivel) erros.push('Excede o saldo: disponível '+disponivel+' dia(s), pedido '+(dias+abono)+'.');
-  if(abono > 10) erros.push('Abono pecuniário é limitado a 10 dias (1/3 de 30).');
+  if(abono > 10) erros.push(p.tipo==='pj'
+    ? 'Máximo de 10 dias convertidos em pagamento (1/3 de 30) — o mesmo limite usado em contrato.'
+    : 'Abono pecuniário é limitado a 10 dias (1/3 de 30).');
   if(p.tipo==='clt'){
     // CLT art. 134 §1: ate 3 periodos, um deles >= 14 dias, os outros >= 5.
     var qtd = getFeriasData().filter(function(f){
@@ -5083,12 +5085,20 @@ function ausAtualizarAbono(){
   var t=document.getElementById('aus-tipo').value;
   var dias=parseInt(document.getElementById('aus-dias').value,10)||0;
   var al=document.getElementById('aus-alertas');
-  // Falta injustificada e o unico tipo que corta dias de ferias (CLT art. 130).
+  var pid=document.getElementById('aus-pessoa').value;
+  var pes=getPplData().find(function(x){ return x.id===pid; });
+  var ehPJ = pes && pes.tipo==='pj';
+  // Falta injustificada e o unico tipo que corta dias de ferias (CLT art. 130),
+  // e o art. 130 e regra da CLT - nao vale pra prestador PJ.
   if(t==='falta_injustificada' && document.getElementById('aus-abonada').value!=='sim'){
-    al.innerHTML='<div style="color:var(--amber)">• Falta injustificada reduz o direito a férias (CLT art. 130): '+
-      'até 5 faltas = 30d · 6–14 = 24d · 15–23 = 18d · 24–32 = 12d · +32 = 0d.</div>';
+    al.innerHTML = ehPJ
+      ? '<div style="color:var(--amber)">• Registrado como falta. Para PJ não há corte automático de dias (art. 130 é regra CLT) — o desconto, se houver, segue o contrato.</div>'
+      : '<div style="color:var(--amber)">• Falta injustificada reduz o direito a férias (CLT art. 130): '+
+        'até 5 faltas = 30d · 6–14 = 24d · 15–23 = 18d · 24–32 = 12d · +32 = 0d.</div>';
   } else if(dias>15 && (t==='atestado'||t==='afastamento_inss')){
-    al.innerHTML='<div style="color:var(--amber)">• Afastamento acima de 15 dias normalmente passa a ser custeado pelo INSS — confira com a contabilidade.</div>';
+    al.innerHTML = ehPJ
+      ? '<div style="color:var(--amber)">• Afastamento longo de PJ não tem cobertura do INSS (não há vínculo) — a continuidade do pagamento depende do que o contrato prevê.</div>'
+      : '<div style="color:var(--amber)">• Afastamento acima de 15 dias normalmente passa a ser custeado pelo INSS — confira com a contabilidade.</div>';
   } else { al.innerHTML=''; }
 }
 function ausSalvar(){
@@ -5133,8 +5143,13 @@ function ferRecibo(id){
   var total=vDias+vTerco+vAbono+vTercoAbono;
   var m=function(v){ return 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); };
   var linha=function(rot,val,neg){ return '<tr><td>'+rot+'</td><td align="right"'+(neg?' style="color:#b00"':'')+'>'+m(val)+'</td></tr>'; };
-  var itens = linha('Férias — '+f.dias+' dia(s)', vDias) + linha('1/3 constitucional', vTerco);
-  if(f.abono>0) itens += linha('Abono pecuniário — '+f.abono+' dia(s)', vAbono) + linha('1/3 sobre abono', vTercoAbono);
+  // PJ presta servico e recebe contra nota fiscal: nao ha retencao na fonte nem
+  // folha de pagamento, e o 1/3 e contratual (nao o constitucional da CLT).
+  var ehPJ = p.tipo === 'pj';
+  var rotTerco = ehPJ ? '1/3 de férias (contratual)' : '1/3 constitucional';
+  var rotAbono = ehPJ ? 'Dias convertidos em pagamento' : 'Abono pecuniário';
+  var itens = linha('Férias — '+f.dias+' dia(s)', vDias) + linha(rotTerco, vTerco);
+  if(f.abono>0) itens += linha(rotAbono+' — '+f.abono+' dia(s)', vAbono) + linha('1/3 sobre '+(ehPJ?'os dias convertidos':'o abono'), vTercoAbono);
 
   var css='body{font-family:Arial,sans-serif;padding:48px;color:#111;max-width:780px;margin:0 auto}'+
     '.logo{width:150px;margin-bottom:20px;display:block}'+
@@ -5151,19 +5166,25 @@ function ferRecibo(id){
     '.footer{border-top:1px solid #eee;margin-top:30px;padding-top:12px;font-size:9px;color:#999}'+
     '@media print{.np{display:none}}';
   var body='<img src="'+LOGO+'" class="logo">'+
-    '<h1>Recibo de Férias</h1>'+
+    '<h1>'+(ehPJ?'Recibo de Férias — Prestador de Serviços':'Recibo de Férias')+'</h1>'+
     '<div class="sub">'+JUR_EUPHORIA.nome+' — CNPJ '+JUR_EUPHORIA.cnpj+'</div>'+
-    '<div class="box"><strong>Colaborador:</strong> '+p.nome+'<br>'+
-      '<strong>Cargo:</strong> '+(p.cargo||'—')+' &nbsp;·&nbsp; <strong>Departamento:</strong> '+(p.depto||'—')+'<br>'+
-      '<strong>Admissão:</strong> '+ferFmtData(ferData(p.admissao))+' &nbsp;·&nbsp; <strong>Regime:</strong> '+(p.tipo||'').toUpperCase()+'<br>'+
+    '<div class="box"><strong>'+(ehPJ?'Prestador':'Colaborador')+':</strong> '+p.nome+'<br>'+
+      '<strong>'+(ehPJ?'Função':'Cargo')+':</strong> '+(p.cargo||'—')+' &nbsp;·&nbsp; <strong>Departamento:</strong> '+(p.depto||'—')+'<br>'+
+      '<strong>'+(ehPJ?'Início do contrato':'Admissão')+':</strong> '+ferFmtData(ferData(p.admissao))+
+      ' &nbsp;·&nbsp; <strong>Regime:</strong> '+(ehPJ?'PJ — prestação de serviços':'CLT')+'<br>'+
       '<strong>Período de gozo:</strong> '+ferFmtData(ferData(f.inicio))+' a '+ferFmtData(ferData(f.fim))+' ('+f.dias+' dias)<br>'+
       '<strong>Período aquisitivo:</strong> '+(f.periodoIni?ferFmtData(ferData(f.periodoIni)):'—')+
       (f.periodoIni?' a '+ferFmtData(new Date(ferAddMeses(ferData(f.periodoIni),12).getTime()-86400000)):'')+'</div>'+
     '<table><thead><tr><th>Descrição</th><th>Valor</th></tr></thead><tbody>'+itens+
-      '<tr class="tot"><td>Total bruto</td><td align="right">'+m(total)+'</td></tr></tbody></table>'+
-    '<div style="font-size:9px;color:#888">Valores brutos, calculados sobre o salário base de '+m(sal)+
-      '. Descontos legais (INSS/IRRF) e demais deduções são apurados pela folha de pagamento.</div>'+
-    '<div class="ass">Declaro ter recebido a importância acima e estar ciente do período de férias concedido.<br>'+
+      '<tr class="tot"><td>Total'+(ehPJ?'':' bruto')+'</td><td align="right">'+m(total)+'</td></tr></tbody></table>'+
+    '<div style="font-size:9px;color:#888">'+(ehPJ
+      ? 'Valores calculados sobre os honorários mensais de '+m(sal)+'. Pagamento contra emissão de nota fiscal pelo prestador — '+
+        'não há retenção de INSS, IRRF ou qualquer desconto na fonte, por não se tratar de vínculo empregatício.'
+      : 'Valores brutos, calculados sobre o salário base de '+m(sal)+
+        '. Descontos legais (INSS/IRRF) e demais deduções são apurados pela folha de pagamento.')+'</div>'+
+    '<div class="ass">'+(ehPJ
+      ? 'Declaro ter recebido a importância acima, referente ao período de férias acordado em contrato.'
+      : 'Declaro ter recebido a importância acima e estar ciente do período de férias concedido.')+'<br>'+
       '<div class="l">'+p.nome+'</div></div>'+
     '<div class="footer"><strong>Euphoria Creative Agency</strong> — Documento interno, uso confidencial · Gerado em '+new Date().toLocaleDateString('pt-BR')+'</div>'+
     '<button class="np" onclick="window.print()" style="margin-top:22px;background:#111;color:#fff;border:none;padding:12px 26px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:700">🖨 Imprimir / Salvar PDF</button>';
