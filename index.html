@@ -1221,6 +1221,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
 
   <!-- MÍDIA -->
   <div class="page" id="page-midia">
+    <div class="tab-nav">
+      <button class="tab-btn active" onclick="switchMidiaTab('investimento',event)">📊 Investimento</button>
+      <button class="tab-btn" onclick="switchMidiaTab('bv',event)">🎁 Bonificação de Volume</button>
+    </div>
+
+    <div class="tab-panel active" id="midia-investimento">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
       <div>
         <div style="font-size:20px;font-weight:700">Mídia</div>
@@ -1293,6 +1299,70 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
           <thead><tr><th>Conta</th><th style="text-align:right">Planejado</th><th style="text-align:right">Faturado</th><th style="text-align:right">% Pacing</th><th>Execução</th></tr></thead>
           <tbody id="midia-conta-tbody"><tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text3)">Sem dados — clique em Carregar Dados</td></tr></tbody>
         </table>
+      </div>
+    </div>
+    </div>
+
+    <!-- BONIFICAÇÃO DE VOLUME -->
+    <div class="tab-panel" id="midia-bv">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px">
+        <div>
+          <div style="font-size:20px;font-weight:700">Bonificação de Volume</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:4px">Faixas por veículo e oportunidades de incremento — direto dos contratos de BV cadastrados no VBS</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+          <div>
+            <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Contratos</label>
+            <select id="bv-sel-status" onchange="bvCarregar()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
+              <option value="V" selected>Vigentes</option>
+              <option value="E">Encerrados</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Faturamento</label>
+            <select id="bv-sel-tipo" onchange="bvCarregar()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
+              <option value="" selected>Mídia e Produção</option>
+              <option value="MD">Só Mídia</option>
+              <option value="PR">Só Produção</option>
+            </select>
+          </div>
+          <div id="bv-ref-wrap" style="display:none">
+            <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Referência</label>
+            <input id="bv-ref" type="month" onchange="bvCarregar()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;outline:none">
+          </div>
+          <button class="btn btn-primary btn-vbs" id="bv-btn" onclick="bvCarregar()" style="font-size:11px;padding:6px 14px">↺ Carregar do VBS</button>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:16px" id="bv-status">Clique em "Carregar do VBS" para buscar os contratos de BV.</div>
+
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:18px" id="bv-kpis"></div>
+
+      <div style="margin-bottom:8px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">Faixas de BV por veículo</div>
+      <div id="bv-faixas" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:20px"></div>
+
+      <div class="table-card">
+        <div class="table-header">
+          <span class="table-title">Ranking de Oportunidades</span>
+          <span class="table-meta" id="bv-rank-meta">—</span>
+          <button class="btn" onclick="bvImprimir()" style="font-size:10px;padding:4px 10px;margin-left:8px">🖨️ Imprimir / PDF</button>
+        </div>
+        <div style="font-size:10px;color:var(--text3);padding:0 16px 10px">Ordenado pelo incremento de BV que a agência ganharia ao alcançar a próxima faixa.</div>
+        <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr>
+              <th>Veículo / Grupo BV</th>
+              <th>Apuração</th>
+              <th>Vigência</th>
+              <th style="text-align:right">Volume acumulado</th>
+              <th style="text-align:right">Faixa atual</th>
+              <th style="text-align:right">Próxima faixa</th>
+              <th style="text-align:right">Falta investir</th>
+              <th style="text-align:right">Incremento de BV</th>
+              <th style="text-align:right">BV estimado</th>
+            </tr></thead>
+            <tbody id="bv-rank-tbody"><tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text3)">Sem dados — clique em Carregar do VBS</td></tr></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -8897,6 +8967,196 @@ function cmpImprimir(){
 // Junta os dois por nome de veiculo/cliente (case-insensitive) - nomes livres
 // dos dois lados podem nao bater 100%; se aparecerem linhas duplicadas/soltas
 // no futuro, precisa de uma tabela de-para como a que ja existe pro Actual VBS.
+// ── BONIFICAÇÃO DE VOLUME ────────────────────────────────────────────────────
+// Le os contratos de BV do VBS (BV/BVORIG/BV0001 via /api/bv/mapa). O proprio
+// VBS ja calcula a faixa atual da tabela progressiva e quanto falta pra proxima,
+// entao aqui e so apresentacao - nao recalculamos faixa nenhuma.
+// Atencao: a doc do VBS lista o campo como "Percentual_proxima faixa" (com
+// espaco), mas a API devolve "Percentual_proxima_faixa" (com underscore).
+function switchMidiaTab(tab, e){
+  document.querySelectorAll('#page-midia .tab-btn').forEach(function(b){ b.classList.remove('active'); });
+  document.querySelectorAll('#page-midia .tab-panel').forEach(function(p){ p.classList.remove('active'); });
+  var el = document.getElementById('midia-'+tab);
+  if(el) el.classList.add('active');
+  if(e && e.target) e.target.classList.add('active');
+  if(tab==='bv' && !window._bvRaw) setTimeout(bvCarregar, 60);
+}
+
+function bvNum(v){ var n = parseFloat(v); return isNaN(n) ? 0 : n; }
+function bvFmt(v){ return 'R$ '+Math.round(bvNum(v)).toLocaleString('pt-BR'); }
+function bvPct(v){ return bvNum(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:2})+'%'; }
+
+async function bvCarregar(){
+  var status = document.getElementById('bv-status');
+  var btn = document.getElementById('bv-btn');
+  var st = document.getElementById('bv-sel-status').value;
+  var tipo = document.getElementById('bv-sel-tipo').value;
+  // Status "Encerrados" exige periodo de referencia na API do VBS.
+  document.getElementById('bv-ref-wrap').style.display = (st==='E') ? '' : 'none';
+  var ref = document.getElementById('bv-ref').value; // "YYYY-MM"
+  if(st==='E' && !ref){
+    status.textContent = 'Para contratos encerrados, informe o mês de referência.';
+    return;
+  }
+  if(btn){ btn.disabled=true; btn.textContent='Buscando...'; }
+  status.textContent = 'Consultando contratos de BV no VBS (pode levar ~20s)...';
+  try{
+    var url = API+'/api/bv/mapa?status_contrato='+encodeURIComponent(st);
+    if(tipo) url += '&tipo_faturamento='+encodeURIComponent(tipo);
+    if(st==='E' && ref){
+      var p = ref.split('-');
+      url += '&periodo_referencia='+p[1]+p[0]; // API espera MMYYYY
+    }
+    var r = await fetch(url, {cache:'no-store'});
+    var j = await r.json();
+    if(!j.ok) throw new Error(j.error||'erro desconhecido');
+    // A VBS responde ok:true mesmo quando o erro e dela.
+    if(j.data && j.data.Mensagem && j.data.Mensagem.Cod_Mensagem){
+      throw new Error(j.data.Mensagem.Desc_Mensagem||'erro interno da API do VBS');
+    }
+    window._bvRaw = (j.data && j.data.Retorno) ? j.data.Retorno : [];
+    var hora = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    status.textContent = window._bvRaw.length+' contrato(s) '+(st==='V'?'vigente(s)':'encerrado(s)')+' · lido do VBS às '+hora;
+    bvRender();
+  }catch(e){
+    status.textContent = 'Erro ao consultar o VBS: '+e.message;
+    document.getElementById('bv-kpis').innerHTML='';
+    document.getElementById('bv-faixas').innerHTML='';
+    document.getElementById('bv-rank-tbody').innerHTML='<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text3)">Não foi possível carregar</td></tr>';
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent='↺ Carregar do VBS'; }
+  }
+}
+
+function bvRender(){
+  var rows = window._bvRaw || [];
+  var totVolume=0, totBVestimado=0, totPotencial=0, totIncremento=0, totFaturado=0;
+  var itens = rows.map(function(x){
+    var volume = bvNum(x.Volume_acumulado);
+    // "Efetivo" e o BV do que foi realmente pago; "direito" e sobre o acumulado.
+    var bvEstimado = bvNum(x.Incentivo_efetivo) || bvNum(x.Incentivo_direito);
+    var incremento = bvNum(x.Acrescimo_alcancar_prox_faixa);
+    var faltaInvestir = bvNum(x.Valor_para_alcancar_proxima_faixa);
+    var seAlcancar = bvNum(x.Valor_se_alcancar_proxima_faixa);
+    totVolume += volume;
+    totBVestimado += bvEstimado;
+    totIncremento += incremento;
+    totPotencial += (seAlcancar || bvEstimado);
+    totFaturado += bvNum(x.Incentivo_faturado);
+    return {
+      nome: x.Nome_Grupo_BV || '(sem nome)',
+      apuracao: x.Apuracao || '—',
+      ini: x.Data_Inicio_Contrato, fim: x.Data_Fim_Contrato,
+      volume: volume,
+      faixaAtual: bvNum(x.Perc_atual_tabela_progressiva),
+      proxFaixa: bvNum(x.Percentual_proxima_faixa),
+      valorProxFaixa: bvNum(x.Valor_proxima_faixa),
+      faltaInvestir: faltaInvestir,
+      incremento: incremento,
+      seAlcancar: seAlcancar,
+      bvEstimado: bvEstimado,
+      faturado: bvNum(x.Incentivo_faturado),
+      aFaturar: bvNum(x.Incentivo_faturar)
+    };
+  });
+
+  document.getElementById('bv-kpis').innerHTML = [
+    {l:'Volume acumulado', v:bvFmt(totVolume), s:'investimento que conta pro BV'},
+    {l:'BV estimado', v:bvFmt(totBVestimado), s:'na faixa atual', c:'pos'},
+    {l:'Potencial máximo', v:bvFmt(totPotencial), s:'se alcançar a próxima faixa'},
+    {l:'Incremento possível', v:bvFmt(totIncremento), s:'ganho adicional', c:totIncremento>0?'pos':''},
+    {l:'Já faturado', v:bvFmt(totFaturado), s:'notas de BV emitidas'}
+  ].map(function(k){
+    return '<div class="kpi-card"><div class="kpi-label">'+k.l+'</div>'+
+      '<div class="kpi-value '+(k.c||'')+'" style="font-size:16px">'+k.v+'</div>'+
+      '<div class="kpi-sub">'+k.s+'</div></div>';
+  }).join('');
+
+  // Cards de faixa — um por contrato, no estilo do slide da Diretora de Mídia.
+  document.getElementById('bv-faixas').innerHTML = itens.length ? itens.map(function(i){
+    var temProx = i.proxFaixa > 0;
+    var noTopo = !temProx && i.faixaAtual > 0;
+    var msg, cor;
+    if(noTopo){ msg='Faixa máxima já atingida'; cor='var(--pos)'; }
+    else if(temProx){ msg='Faltam <strong>'+bvFmt(i.faltaInvestir)+'</strong> para a faixa de '+bvPct(i.proxFaixa); cor='var(--amber)'; }
+    else { msg='Sem faixa progressiva cadastrada neste contrato'; cor='var(--text3)'; }
+    // Barra: quanto do caminho até a próxima faixa já foi percorrido.
+    var alvo = i.valorProxFaixa || (i.volume + i.faltaInvestir);
+    var prog = alvo > 0 ? Math.min(100, (i.volume/alvo)*100) : 0;
+    return '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px">'+
+      '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">'+
+        '<div style="font-size:13px;font-weight:700">'+i.nome+'</div>'+
+        '<div style="font-size:18px;font-weight:700;color:'+(i.faixaAtual>0?'var(--pos)':'var(--text3)')+'">'+bvPct(i.faixaAtual)+'</div>'+
+      '</div>'+
+      '<div style="font-size:10px;color:var(--text3);margin-bottom:10px">'+i.apuracao+
+        (i.ini?' · '+String(i.ini).substring(0,10).split('-').reverse().join('/'):'')+
+        (i.fim?' a '+String(i.fim).substring(0,10).split('-').reverse().join('/'):'')+'</div>'+
+      '<div style="background:var(--bg3);border-radius:4px;height:6px;overflow:hidden;margin-bottom:8px">'+
+        '<div style="background:'+cor+';height:100%;width:'+prog.toFixed(1)+'%"></div></div>'+
+      '<div style="font-size:11px;color:'+cor+';line-height:1.5">'+msg+'</div>'+
+      (i.incremento>0?'<div style="font-size:10px;color:var(--text3);margin-top:6px">Incremento: <strong style="color:var(--pos)">+'+bvFmt(i.incremento)+'</strong></div>':'')+
+    '</div>';
+  }).join('') : '<div style="font-size:11px;color:var(--text3);padding:8px">Nenhum contrato de BV no filtro selecionado.</div>';
+
+  // Ranking: maior incremento primeiro; quem não tem próxima faixa vai pro fim.
+  var rank = itens.slice().sort(function(a,b){ return b.incremento - a.incremento; });
+  document.getElementById('bv-rank-meta').textContent = rank.length+' contrato(s)';
+  document.getElementById('bv-rank-tbody').innerHTML = rank.length ? rank.map(function(i){
+    var d=function(s){ return s? String(s).substring(0,10).split('-').reverse().join('/') : '—'; };
+    return '<tr>'+
+      '<td><strong>'+i.nome+'</strong></td>'+
+      '<td style="font-size:11px;color:var(--text3)">'+i.apuracao+'</td>'+
+      '<td style="font-size:11px">'+d(i.ini)+' → '+d(i.fim)+'</td>'+
+      '<td style="text-align:right">'+bvFmt(i.volume)+'</td>'+
+      '<td style="text-align:right;'+(i.faixaAtual>0?'color:var(--pos)':'color:var(--text3)')+'">'+bvPct(i.faixaAtual)+'</td>'+
+      '<td style="text-align:right">'+(i.proxFaixa>0?bvPct(i.proxFaixa):'<span style="color:var(--text3)">—</span>')+'</td>'+
+      '<td style="text-align:right">'+(i.faltaInvestir>0?bvFmt(i.faltaInvestir):'<span style="color:var(--text3)">—</span>')+'</td>'+
+      '<td style="text-align:right;'+(i.incremento>0?'color:var(--pos);font-weight:700':'color:var(--text3)')+'">'+(i.incremento>0?'+'+bvFmt(i.incremento):'—')+'</td>'+
+      '<td style="text-align:right">'+bvFmt(i.bvEstimado)+'</td>'+
+    '</tr>';
+  }).join('') : '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text3)">Nenhum contrato de BV no filtro selecionado</td></tr>';
+}
+
+function bvImprimir(){
+  var tb=document.getElementById('bv-rank-tbody');
+  if(!tb || !tb.querySelector('td') || tb.querySelectorAll('td').length<3){ alert('Carregue os dados do VBS primeiro.'); return; }
+  var linhas=Array.from(tb.querySelectorAll('tr')).map(function(tr){
+    var t=Array.from(tr.querySelectorAll('td')).map(function(td){ return td.textContent.trim(); });
+    if(t.length<9) return '';
+    return '<tr><td>'+t[0]+'</td><td>'+t[1]+'</td><td>'+t[2]+'</td><td align="right">'+t[3]+'</td>'+
+      '<td align="right">'+t[4]+'</td><td align="right">'+t[5]+'</td><td align="right">'+t[6]+'</td>'+
+      '<td align="right">'+t[7]+'</td><td align="right">'+t[8]+'</td></tr>';
+  }).join('');
+  var kpis=Array.from(document.querySelectorAll('#bv-kpis .kpi-card')).map(function(c){
+    return '<div class="k"><label>'+c.querySelector('.kpi-label').textContent+'</label><span>'+c.querySelector('.kpi-value').textContent+'</span></div>';
+  }).join('');
+  var css='body{font-family:Arial,sans-serif;padding:34px;color:#111}'+
+    '.logo{width:160px;margin-bottom:14px;display:block}'+
+    '.sub{font-size:12px;color:#666;margin-bottom:18px}'+
+    '.kpis{display:flex;gap:14px;margin-bottom:20px;flex-wrap:wrap}'+
+    '.k{border:1px solid #ddd;border-radius:6px;padding:10px 14px;min-width:140px}'+
+    '.k label{display:block;font-size:9px;text-transform:uppercase;color:#888;margin-bottom:3px}'+
+    '.k span{font-size:15px;font-weight:700}'+
+    'table{width:100%;border-collapse:collapse}'+
+    'th{background:#111;color:#fff;padding:7px 8px;font-size:9px;text-transform:uppercase;text-align:left}'+
+    'td{padding:6px 8px;border-bottom:1px solid #eee;font-size:10px}'+
+    '.footer{border-top:1px solid #eee;margin-top:16px;padding-top:10px;font-size:9px;color:#999}'+
+    '@media print{.np{display:none}@page{size:landscape}}';
+  var body='<img src="'+LOGO+'" class="logo">'+
+    '<div class="sub">Bonificação de Volume — '+document.getElementById('bv-status').textContent+
+      ' · Gerado em '+new Date().toLocaleDateString('pt-BR')+'</div>'+
+    '<div class="kpis">'+kpis+'</div>'+
+    '<table><thead><tr><th>Veículo / Grupo BV</th><th>Apuração</th><th>Vigência</th><th>Volume acumulado</th>'+
+    '<th>Faixa atual</th><th>Próxima faixa</th><th>Falta investir</th><th>Incremento de BV</th><th>BV estimado</th></tr></thead>'+
+    '<tbody>'+linhas+'</tbody></table>'+
+    '<div class="footer"><strong>Euphoria Creative Agency</strong> — Documento interno, uso confidencial. '+
+      'Faixas e percentuais calculados pelo VBS a partir dos contratos de BV cadastrados.</div>'+
+    '<button class="np" onclick="window.print()" style="margin-top:18px;background:#111;color:#fff;border:none;padding:11px 24px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700">🖨 Imprimir / Salvar PDF</button>';
+  var w=window.open('','_blank');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Bonificação de Volume</title><style>'+css+'</style></head><body>'+body+'</body></html>');
+  w.document.close();
+}
+
 async function midiaCarregar(){
   var ano = document.getElementById('midia-sel-ano').value;
   var statusEl = document.getElementById('midia-status');
