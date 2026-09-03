@@ -4955,7 +4955,7 @@ function ferRenderLancamentos(){
       '<td style="font-size:11px">'+ferFmtData(ferData(f.inicio))+' → '+ferFmtData(ferData(f.fim))+'</td>'+
       '<td style="text-align:right">'+(f.dias||0)+'</td>'+
       '<td><span style="font-size:10px;color:'+cor[f.status]+'">'+(rot[f.status]||f.status)+'</span></td>'+
-      '<td style="white-space:nowrap"><button class="btn" onclick="ferRecibo(\''+f.id+'\')" style="font-size:9px;padding:3px 6px" title="Recibo de férias em PDF">🖨️</button> '+
+      '<td style="white-space:nowrap"><button class="btn" onclick="ferRecibo(\''+f.id+'\')" style="font-size:9px;padding:3px 8px;border-color:var(--accent);color:var(--accent)" title="Emitir recibo de pagamento de férias em PDF">🖨️ Recibo</button> '+
       '<button class="btn" onclick="ferAbrirModal(\''+f.id+'\')" style="font-size:9px;padding:3px 6px">✎</button> '+
       '<button class="btn" onclick="ferRemover(\''+f.id+'\')" style="font-size:9px;padding:3px 6px">×</button></td>'+
     '</tr>';
