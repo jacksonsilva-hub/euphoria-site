@@ -1246,6 +1246,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
           <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option><option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option><option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12" selected>Dezembro</option>
         </select>
         <button class="btn btn-primary" id="midia-btn-carregar" onclick="midiaCarregar()" style="font-size:11px;padding:6px 14px">↺ Carregar Dados</button>
+        <button class="btn" onclick="midiaRelatorio()" style="font-size:11px;padding:6px 12px" title="Relatório de conciliação Mídia x Produção em PDF">📄 Relatório</button>
       </div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
@@ -1258,10 +1259,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     </div>
     <div style="font-size:11px;color:var(--text3);margin-bottom:14px" id="midia-status">Selecione o período e clique em "Carregar Dados".</div>
 
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px" id="midia-kpis">
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px" id="midia-kpis">
       <div class="kpi-card"><div class="kpi-label">Investimento Planejado</div><div class="kpi-value" id="midia-k-planejado">—</div><div class="kpi-sub">Budget (Sheets)</div></div>
-      <div class="kpi-card"><div class="kpi-label">Investimento Faturado</div><div class="kpi-value" id="midia-k-faturado">—</div><div class="kpi-sub">Real (VBS)</div></div>
+      <div class="kpi-card"><div class="kpi-label">Mídia Faturada</div><div class="kpi-value" id="midia-k-faturado">—</div><div class="kpi-sub">Real VBS — só mídia</div></div>
       <div class="kpi-card"><div class="kpi-label">% Pacing de Execução</div><div class="kpi-value" id="midia-k-pacing">—</div><div class="kpi-sub" id="midia-k-pacing-sub">faturado ÷ planejado</div></div>
+      <div class="kpi-card" style="border-color:var(--amber)"><div class="kpi-label">Produção (fora do Budget)</div><div class="kpi-value" id="midia-k-producao" style="color:var(--amber)">—</div><div class="kpi-sub" id="midia-k-producao-sub">não entra no pacing</div></div>
       <div class="kpi-card"><div class="kpi-label">Categorias no Período</div><div class="kpi-value" id="midia-k-veiculos">—</div><div class="kpi-sub">com planejado ou faturado</div></div>
     </div>
 
@@ -9281,8 +9283,13 @@ function midiaAgregarBudget(mesDeIdx, mesAteIdx, clienteFiltro, veiculoFiltro){
   return {porVeiculo:porVeiculo, porCliente:porCliente, porCategoria:porCategoria};
 }
 
+// O FT0001 devolve Midia E Producao na mesma resposta, separadas so pelo campo
+// Tipo_Indicador_Faturamento. Pior: a Producao vem com Nome_Meio="Producao",
+// entao ela se disfarcava de veiculo e entrava na comparacao contra o Budget
+// (que e so de midia), inflando o faturado em ~26% em 2026. Agora separamos as
+// duas coisas na origem e a Producao e reportada em KPI proprio, nao escondida.
 function midiaAgregarReal(mesDeIdx, mesAteIdx, clienteFiltro, veiculoFiltro){
-  var porVeiculo={}, porCliente={};
+  var porVeiculo={}, porCliente={}, producaoPorCliente={}, totalProducao=0;
   (window._midiaRealRaw||[]).forEach(function(r){
     var dt = r['Competência']; if(!dt) return;
     var mesIdx = parseInt(String(dt).substring(5,7),10)-1;
@@ -9290,13 +9297,22 @@ function midiaAgregarReal(mesDeIdx, mesAteIdx, clienteFiltro, veiculoFiltro){
     var veic = String(r.Nome_Meio||'').trim();
     var cli = String(r.Nome_Cliente||'').trim();
     if(clienteFiltro && cli.toUpperCase()!==clienteFiltro) return;
-    if(veiculoFiltro && veic.toUpperCase()!==veiculoFiltro) return;
     var val = parseNum(String(r.Valor_Real||'0'));
     if(!val) return;
+    var ehMidia = String(r.Tipo_Indicador_Faturamento||'').trim().toLowerCase().indexOf('mídia')===0
+               || String(r.Tipo_Indicador_Faturamento||'').trim().toLowerCase().indexOf('midia')===0;
+    if(!ehMidia){
+      // Producao (inclui os "Custos Internos", que o VBS classifica aqui).
+      totalProducao += val;
+      if(cli) producaoPorCliente[cli]=(producaoPorCliente[cli]||0)+val;
+      return;
+    }
+    if(veiculoFiltro && veic.toUpperCase()!==veiculoFiltro) return;
     if(veic) porVeiculo[veic]=(porVeiculo[veic]||0)+val;
     if(cli) porCliente[cli]=(porCliente[cli]||0)+val;
   });
-  return {porVeiculo:porVeiculo, porCliente:porCliente};
+  return {porVeiculo:porVeiculo, porCliente:porCliente,
+          producaoPorCliente:producaoPorCliente, totalProducao:totalProducao};
 }
 
 function midiaJuntarFontes(budgetMap, realMap){
@@ -9389,11 +9405,79 @@ function midiaRenderTudo(){
   document.getElementById('midia-k-pacing').textContent = pacing.toFixed(1)+'%';
   document.getElementById('midia-k-pacing-sub').textContent = pacing>=100 ? 'acima do planejado' : 'do planejado executado';
   document.getElementById('midia-k-veiculos').textContent = String(categorias.length);
+  // Producao nao entra no pacing (o Budget e so de midia), mas fica visivel
+  // pra ninguem mais precisar caçar de onde vem a diferenca do total do VBS.
+  document.getElementById('midia-k-producao').textContent = midiaFmtBRL(real.totalProducao||0);
+  var somaGeral = totalFaturado + (real.totalProducao||0);
+  document.getElementById('midia-k-producao-sub').textContent = somaGeral>0
+    ? (real.totalProducao/somaGeral*100).toFixed(1)+'% do faturado total do VBS'
+    : 'não entra no pacing';
+  window._midiaProducao = real;
 
   midiaRenderTabela('midia-veiculo-tbody','midia-veiculo-meta', categorias, 'categorias');
   midiaRenderTabela('midia-conta-tbody','midia-conta-meta', contas, 'contas');
   midiaRenderTabelaDetalheVeiculo(budget.porVeiculo);
   midiaRenderChartMensal(mesDeIdx, mesAteIdx);
+}
+
+// Relatorio de conciliacao: mostra explicitamente como o total do VBS se divide
+// entre Midia e Producao, pra fechar a conta com o financeiro sem garimpar.
+function midiaRelatorio(){
+  if(!window._midiaRealRaw || !window._midiaRealRaw.length){ alert('Carregue os dados primeiro.'); return; }
+  var real = window._midiaProducao;
+  if(!real){ alert('Carregue os dados primeiro.'); return; }
+  var ano = document.getElementById('midia-sel-ano').value;
+  var mDe = document.getElementById('midia-sel-mes-de');
+  var mAte = document.getElementById('midia-sel-mes-ate');
+  var periodo = mDe.options[mDe.selectedIndex].text+' a '+mAte.options[mAte.selectedIndex].text+'/'+ano;
+
+  var midiaTotal = Object.keys(real.porVeiculo).reduce(function(s,k){ return s+real.porVeiculo[k]; },0);
+  var prodTotal = real.totalProducao||0;
+  var geral = midiaTotal + prodTotal;
+  var pct = function(v){ return geral>0 ? (v/geral*100).toFixed(1)+'%' : '—'; };
+
+  var linhasCat = Object.keys(real.porVeiculo).sort(function(a,b){ return real.porVeiculo[b]-real.porVeiculo[a]; })
+    .map(function(k){ return '<tr><td>'+k+'</td><td align="right">'+midiaFmtBRL(real.porVeiculo[k])+'</td><td align="right">'+pct(real.porVeiculo[k])+'</td></tr>'; }).join('');
+  var linhasProd = Object.keys(real.producaoPorCliente).sort(function(a,b){ return real.producaoPorCliente[b]-real.producaoPorCliente[a]; })
+    .map(function(k){ return '<tr><td>'+k+'</td><td align="right">'+midiaFmtBRL(real.producaoPorCliente[k])+'</td><td align="right">'+pct(real.producaoPorCliente[k])+'</td></tr>'; }).join('');
+
+  var css='body{font-family:Arial,sans-serif;padding:34px;color:#111}'+
+    '.logo{width:160px;margin-bottom:12px;display:block}'+
+    'h1{font-size:17px;margin:0 0 4px}.sub{font-size:11px;color:#666;margin-bottom:20px}'+
+    'h2{font-size:12px;text-transform:uppercase;letter-spacing:.05em;margin:22px 0 8px;color:#444;border-bottom:1px solid #ddd;padding-bottom:4px}'+
+    'table{width:100%;border-collapse:collapse;margin-bottom:6px}'+
+    'th{background:#111;color:#fff;padding:6px 8px;font-size:9px;text-transform:uppercase;text-align:left}'+
+    'td{padding:5px 8px;border-bottom:1px solid #eee;font-size:10px}'+
+    'tr.tot td{font-weight:700;border-top:2px solid #111;border-bottom:none;background:#fafafa}'+
+    '.box{border:1px solid #ddd;border-radius:6px;padding:14px;margin-bottom:8px}'+
+    '.box .l{display:flex;justify-content:space-between;font-size:11px;padding:4px 0}'+
+    '.box .l.b{font-weight:700;border-top:1px solid #ccc;margin-top:6px;padding-top:8px;font-size:12px}'+
+    '.warn{color:#b26a00}'+
+    '.footer{border-top:1px solid #eee;margin-top:20px;padding-top:10px;font-size:9px;color:#999;line-height:1.6}'+
+    '@media print{.np{display:none}}';
+  var body='<img src="'+LOGO+'" class="logo">'+
+    '<h1>Conciliação de Mídia — '+periodo+'</h1>'+
+    '<div class="sub">Fonte: VBS · FT/FTPRIC/FT0001 (Investimento por Cliente) · Gerado em '+new Date().toLocaleString('pt-BR')+'</div>'+
+    '<div class="box">'+
+      '<div class="l"><span>Mídia faturada</span><strong>'+midiaFmtBRL(midiaTotal)+' &nbsp;('+pct(midiaTotal)+')</strong></div>'+
+      '<div class="l warn"><span>Produção (não faz parte do Budget de mídia)</span><strong>'+midiaFmtBRL(prodTotal)+' &nbsp;('+pct(prodTotal)+')</strong></div>'+
+      '<div class="l b"><span>Total faturado no VBS</span><span>'+midiaFmtBRL(geral)+'</span></div>'+
+    '</div>'+
+    '<h2>Mídia faturada, por categoria de veículo</h2>'+
+    '<table><thead><tr><th>Categoria</th><th>Valor</th><th>% do total VBS</th></tr></thead><tbody>'+linhasCat+
+    '<tr class="tot"><td>Total Mídia</td><td align="right">'+midiaFmtBRL(midiaTotal)+'</td><td align="right">'+pct(midiaTotal)+'</td></tr></tbody></table>'+
+    '<h2>Produção, por cliente</h2>'+
+    '<table><thead><tr><th>Cliente</th><th>Valor</th><th>% do total VBS</th></tr></thead><tbody>'+linhasProd+
+    '<tr class="tot"><td>Total Produção</td><td align="right">'+midiaFmtBRL(prodTotal)+'</td><td align="right">'+pct(prodTotal)+'</td></tr></tbody></table>'+
+    '<div class="footer"><strong>Euphoria Creative Agency</strong> — Documento interno, uso confidencial.<br>'+
+      'O VBS devolve mídia e produção na mesma consulta, separadas pelo campo Tipo_Indicador_Faturamento. '+
+      'A produção chega com o meio preenchido como "Produção" e, por isso, era somada junto da mídia. '+
+      'O pacing considera apenas mídia, porque o Budget é exclusivamente de mídia.<br>'+
+      'Os "Custos Internos" são classificados pelo VBS como produção e estão no total de produção acima.</div>'+
+    '<button class="np" onclick="window.print()" style="margin-top:18px;background:#111;color:#fff;border:none;padding:11px 24px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700">🖨 Imprimir / Salvar PDF</button>';
+  var w=window.open('','_blank');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Conciliação de Mídia</title><style>'+css+'</style></head><body>'+body+'</body></html>');
+  w.document.close();
 }
 
 function midiaRenderTabelaDetalheVeiculo(porVeiculo){
