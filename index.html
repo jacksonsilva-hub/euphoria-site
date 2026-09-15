@@ -1813,6 +1813,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
         </div>
       </div>
 
+      <div id="rj-alerta" style="display:none;margin-bottom:16px"></div>
+
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px" id="rj-kpis"></div>
 
       <div class="table-card" style="margin-bottom:18px">
@@ -4162,6 +4164,31 @@ function rjColetar(){
 
 function rjRender(){
   if(!document.getElementById('rj-tbody')) return;
+
+  // Cadastro x historico fora de sincronia distorce folha, custo/hora e toda a
+  // analise daqui - entao avisa antes de mostrar qualquer numero.
+  var divs = pplDivergenciasSalario();
+  var alerta = document.getElementById('rj-alerta');
+  if(divs.length){
+    alerta.style.display='';
+    alerta.innerHTML = '<div style="background:rgba(251,191,36,.08);border:1px solid var(--amber);border-radius:8px;padding:12px 14px">'+
+      '<div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:6px">⚠️ '+divs.length+
+        ' colaborador(es) com salário divergente do histórico</div>'+
+      '<div style="font-size:11px;color:var(--text2);line-height:1.6;margin-bottom:8px">'+
+        'O cadastro não bate com o último reajuste registrado. Enquanto não corrigir, a folha e o custo/hora dessas pessoas saem errados.</div>'+
+      '<div style="font-size:11px;font-family:var(--font-mono);color:var(--text3);line-height:1.7;margin-bottom:10px">'+
+        divs.slice(0,8).map(function(d){
+          return d.nome+': cadastro R$ '+Math.round(d.cadastro).toLocaleString('pt-BR')+
+                 ' · histórico R$ '+Math.round(d.historico).toLocaleString('pt-BR')+
+                 ' <span style="opacity:.6">('+d.data+(d.motivo?', '+d.motivo:'')+')</span>';
+        }).join('<br>')+(divs.length>8?'<br>… e mais '+(divs.length-8):'')+'</div>'+
+      '<button class="btn btn-primary" onclick="pplCorrigirDivergencias()" style="font-size:11px;padding:5px 12px">Corrigir todos</button>'+
+    '</div>';
+  } else {
+    alerta.style.display='none';
+    alerta.innerHTML='';
+  }
+
   var dados = rjColetar();
   var itens = dados.itens;
   var fmt = function(v){ return 'R$ '+(Math.round(v)).toLocaleString('pt-BR'); };
@@ -4927,12 +4954,56 @@ function pplSalvarHist(){
     ts:Date.now()
   });
   savePplHist(hist);
-  // Update salario atual
-  var d=getPplData();
-  var idx=d.findIndex(function(x){return x.id===_pplHistId;});
-  var novoVal=parseFloat(document.getElementById('hist-novo').value)||0;
-  if(idx>=0&&novoVal>0){d[idx].salario=novoVal;savePplData(d);}
+  pplSincronizarSalario(_pplHistId);
   pplRenderHistList();
+}
+
+// O salario vigente e o do registro de DATA mais recente - nao o do ultimo
+// lancado. Antes gravava-se direto o valor recem-digitado, entao lancar um
+// reajuste antigo depois de um recente (corrigindo historico, por exemplo)
+// rebaixava o salario da pessoa silenciosamente. Editar e excluir registros
+// tambem nao mexiam no salario, deixando cadastro e historico divergentes.
+function pplSincronizarSalario(pessoaId){
+  var h=(getPplHist()[pessoaId]||[]).filter(function(r){
+    return r.data && (parseFloat(r.novo)||0)>0;
+  });
+  if(!h.length) return;
+  h.sort(function(a,b){ return ferData(a.data)-ferData(b.data); });
+  var vigente=parseFloat(h[h.length-1].novo)||0;
+  if(!vigente) return;
+  var d=getPplData();
+  var idx=d.findIndex(function(x){return x.id===pessoaId;});
+  if(idx>=0 && d[idx].salario!==vigente){ d[idx].salario=vigente; savePplData(d); }
+}
+
+// Percorre todo mundo e aponta quem esta com o cadastro fora de sincronia com
+// o historico - resultado do bug acima, que pode ter afetado varias pessoas.
+function pplDivergenciasSalario(){
+  var hist=getPplHist();
+  return getPplData().filter(function(p){ return (p.status||'ativo')==='ativo'; }).map(function(p){
+    var h=(hist[p.id]||[]).filter(function(r){ return r.data && (parseFloat(r.novo)||0)>0; });
+    if(!h.length) return null;
+    h.sort(function(a,b){ return ferData(a.data)-ferData(b.data); });
+    var u=h[h.length-1];
+    var vigente=parseFloat(u.novo)||0;
+    var atual=parseFloat(p.salario)||0;
+    if(!vigente || Math.abs(vigente-atual)<0.01) return null;
+    return {id:p.id, nome:p.nome, cadastro:atual, historico:vigente, data:u.data, motivo:u.motivo||''};
+  }).filter(Boolean);
+}
+
+function pplCorrigirDivergencias(){
+  var divs=pplDivergenciasSalario();
+  if(!divs.length){ alert('Nenhuma divergência encontrada.'); return; }
+  var txt=divs.map(function(d){
+    return '• '+d.nome+': R$ '+Math.round(d.cadastro).toLocaleString('pt-BR')+
+           ' → R$ '+Math.round(d.historico).toLocaleString('pt-BR');
+  }).join('\n');
+  if(!confirm('Corrigir '+divs.length+' salário(s) para o valor do último reajuste registrado?\n\n'+txt)) return;
+  divs.forEach(function(d){ pplSincronizarSalario(d.id); });
+  if(typeof rjRender==='function') rjRender();
+  if(typeof pplRenderTable==='function') pplRenderTable();
+  alert(divs.length+' salário(s) corrigido(s).');
 }
 function pplRenderHistList(){
   var hist=getPplHist();
@@ -4963,6 +5034,7 @@ function pplDeleteHist(idx){
   var hist=getPplHist();
   hist[_pplHistId].splice(idx,1);
   savePplHist(hist);
+  pplSincronizarSalario(_pplHistId);
   pplRenderHistList();
 }
 
@@ -4990,6 +5062,7 @@ function pplSalvarHistEdicao(idx){
     ts:Date.now()
   };
   savePplHist(hist);
+  pplSincronizarSalario(_pplHistId);
   // Restaura botão original
   var btn=document.querySelector('#ppl-hist-modal .btn-primary');
   btn.textContent='+ Adicionar Registro';
