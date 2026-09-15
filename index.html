@@ -1427,6 +1427,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       <button class="tab-btn" onclick="switchPeopleTab('utilization',event)">⏱️ Utilization</button>
       <button class="tab-btn" onclick="switchPeopleTab('profitability',event)">💰 Rentabilidade</button>
       <button class="tab-btn" onclick="switchPeopleTab('ferias',event)">🏖️ Férias & Ausências</button>
+      <button class="tab-btn" onclick="switchPeopleTab('reajustes',event)">📈 Reajustes</button>
     </div>
 
     <!-- ── EQUIPE ── -->
@@ -1786,6 +1787,92 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
               <tbody id="aus-tbody"><tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text3)">Nenhuma ausência registrada</td></tr></tbody>
             </table>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- REAJUSTES SALARIAIS -->
+    <div class="tab-panel" id="people-reajustes">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px">
+        <div>
+          <div style="font-size:20px;font-weight:700">Análise de Reajuste Salarial</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:4px">Quem está defasado, equidade interna por cargo e simulação de impacto na folha</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+          <div>
+            <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Departamento</label>
+            <select id="rj-f-depto" onchange="rjRender()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer"><option value="">Todos</option></select>
+          </div>
+          <div>
+            <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Vínculo</label>
+            <select id="rj-f-tipo" onchange="rjRender()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
+              <option value="">Todos</option><option value="pj">PJ</option><option value="clt">CLT</option>
+            </select>
+          </div>
+          <button class="btn" onclick="rjImprimir()" style="font-size:11px;padding:6px 12px">📄 Relatório</button>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px" id="rj-kpis"></div>
+
+      <div class="table-card" style="margin-bottom:18px">
+        <div class="table-header">
+          <span class="table-title">Simulador de Impacto na Folha</span>
+          <span class="table-meta" id="rj-sim-meta">—</span>
+        </div>
+        <div style="padding:14px 16px;display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap">
+          <div>
+            <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Reajuste (%)</label>
+            <input id="rj-sim-pct" type="number" step="0.1" value="5" oninput="rjRender()" style="width:90px;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:6px;font-family:var(--font-mono);font-size:13px;outline:none">
+          </div>
+          <div>
+            <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Aplicar a</label>
+            <select id="rj-sim-escopo" onchange="rjRender()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:6px;font-size:12px;outline:none;cursor:pointer">
+              <option value="todos">Todos do filtro</option>
+              <option value="defasados">Só quem está há 12+ meses sem reajuste</option>
+              <option value="abaixo">Só quem está abaixo da mediana do cargo</option>
+            </select>
+          </div>
+          <div id="rj-sim-out" style="flex:1;min-width:280px;font-size:12px;line-height:1.8"></div>
+        </div>
+      </div>
+
+      <div class="table-card" style="margin-bottom:18px">
+        <div class="table-header">
+          <span class="table-title">Situação individual</span>
+          <span class="table-meta" id="rj-tbl-meta">—</span>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr>
+              <th>Colaborador</th><th>Cargo</th><th>Depto</th>
+              <th style="text-align:right">Salário atual</th>
+              <th>Último reajuste</th>
+              <th style="text-align:right">%</th>
+              <th style="text-align:right">Meses desde</th>
+              <th style="text-align:right">vs. mediana do cargo</th>
+              <th>Situação</th>
+            </tr></thead>
+            <tbody id="rj-tbody"><tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text3)">Sem colaboradores cadastrados</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <div class="table-header">
+          <span class="table-title">Equidade interna por cargo</span>
+          <span class="table-meta" id="rj-eq-meta">—</span>
+        </div>
+        <div style="font-size:10px;color:var(--text3);padding:0 16px 10px">Só aparecem cargos com 2+ pessoas, onde a comparação faz sentido. Amplitude alta pode ser senioridade legítima — ou defasagem.</div>
+        <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr>
+              <th>Cargo</th><th style="text-align:right">Pessoas</th>
+              <th style="text-align:right">Menor</th><th style="text-align:right">Mediana</th><th style="text-align:right">Maior</th>
+              <th style="text-align:right">Amplitude</th>
+            </tr></thead>
+            <tbody id="rj-eq-tbody"><tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text3)">—</td></tr></tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -3986,6 +4073,232 @@ function switchPeopleTab(tab,e){
   if(tab==='utilization')pplCarregarUtilization();
   if(tab==='profitability')pplCarregarProfitability();
   if(tab==='ferias'){ ferPopularDeptos(); ferRender(); }
+  if(tab==='reajustes'){ rjPopularDeptos(); rjRender(); }
+}
+
+// ── ANÁLISE DE REAJUSTE SALARIAL ─────────────────────────────────────────────
+// Usa o historico salarial que ja era gravado em euphoria_people_hist
+// ({data, anterior, novo, motivo} por pessoa). Quem nunca teve reajuste conta a
+// partir da admissao - senao a pessoa mais defasada da casa fica invisivel.
+function rjPopularDeptos(){
+  var sel = document.getElementById('rj-f-depto');
+  if(!sel) return;
+  var atual = sel.value;
+  var deptos = {};
+  getPplData().forEach(function(p){ if(p.depto) deptos[p.depto]=1; });
+  sel.innerHTML = '<option value="">Todos</option>'+Object.keys(deptos).sort().map(function(d){
+    return '<option value="'+d+'">'+d+'</option>'; }).join('');
+  sel.value = atual;
+}
+
+function rjMesesEntre(dtIni, dtFim){
+  if(!dtIni) return null;
+  return (dtFim.getFullYear()-dtIni.getFullYear())*12 + (dtFim.getMonth()-dtIni.getMonth());
+}
+
+// Ultimo reajuste efetivo: ignora registros sem data ou que nao mudaram o valor.
+function rjUltimoReajuste(pessoaId){
+  var h = (getPplHist()[pessoaId]||[]).filter(function(r){
+    return r.data && (parseFloat(r.novo)||0) > 0 && (parseFloat(r.novo)||0) !== (parseFloat(r.anterior)||0);
+  });
+  if(!h.length) return null;
+  h.sort(function(a,b){ return ferData(a.data) - ferData(b.data); });
+  var u = h[h.length-1];
+  var ant = parseFloat(u.anterior)||0, nov = parseFloat(u.novo)||0;
+  return { data: ferData(u.data), anterior: ant, novo: nov,
+           pct: ant>0 ? ((nov-ant)/ant*100) : null, motivo: u.motivo||'', qtd: h.length };
+}
+
+function rjMediana(arr){
+  if(!arr.length) return 0;
+  var s = arr.slice().sort(function(a,b){ return a-b; });
+  var m = Math.floor(s.length/2);
+  return s.length%2 ? s[m] : (s[m-1]+s[m])/2;
+}
+
+function rjCusto(p, salario){
+  var ben = parseFloat(p.beneficios)||0;
+  return p.tipo==='pj' ? (salario+ben) : (salario+ben)*1.77;
+}
+
+function rjColetar(){
+  var hoje = new Date();
+  var fDepto = document.getElementById('rj-f-depto').value;
+  var fTipo = document.getElementById('rj-f-tipo').value;
+  var ativos = getPplData().filter(function(p){
+    if((p.status||'ativo')!=='ativo') return false;
+    if(fDepto && p.depto!==fDepto) return false;
+    if(fTipo && p.tipo!==fTipo) return false;
+    return true;
+  });
+  // Mediana por cargo calculada sobre TODOS os ativos, nao sobre o filtro -
+  // senao filtrar por departamento mudaria a referencia de equidade.
+  var porCargo = {};
+  getPplData().filter(function(p){ return (p.status||'ativo')==='ativo'; }).forEach(function(p){
+    var c = (p.cargo||'—').trim();
+    (porCargo[c] = porCargo[c] || []).push(parseFloat(p.salario)||0);
+  });
+  var medianaCargo = {};
+  Object.keys(porCargo).forEach(function(c){ medianaCargo[c] = rjMediana(porCargo[c]); });
+
+  var itens = ativos.map(function(p){
+    var sal = parseFloat(p.salario)||0;
+    var u = rjUltimoReajuste(p.id);
+    var admissao = p.admissao ? ferData(p.admissao) : null;
+    var refData = u ? u.data : admissao;
+    var meses = refData ? rjMesesEntre(refData, hoje) : null;
+    var cargo = (p.cargo||'—').trim();
+    var med = medianaCargo[cargo]||0;
+    var grupo = (porCargo[cargo]||[]).length;
+    return {
+      p:p, nome:p.nome, cargo:cargo, depto:p.depto||'—', tipo:p.tipo, salario:sal,
+      ultimo:u, nunca:!u, meses:meses, admissao:admissao,
+      mediana:med, comparavel:grupo>=2,
+      desvioMed: (grupo>=2 && med>0) ? ((sal-med)/med*100) : null
+    };
+  });
+  return {itens:itens, medianaCargo:medianaCargo, porCargo:porCargo};
+}
+
+function rjRender(){
+  if(!document.getElementById('rj-tbody')) return;
+  var dados = rjColetar();
+  var itens = dados.itens;
+  var fmt = function(v){ return 'R$ '+(Math.round(v)).toLocaleString('pt-BR'); };
+
+  var defasados = itens.filter(function(i){ return i.meses!==null && i.meses>=12; });
+  var criticos = itens.filter(function(i){ return i.meses!==null && i.meses>=18; });
+  var comMeses = itens.filter(function(i){ return i.meses!==null; });
+  var mediaMeses = comMeses.length ? comMeses.reduce(function(s,i){return s+i.meses;},0)/comMeses.length : 0;
+  var comPct = itens.filter(function(i){ return i.ultimo && i.ultimo.pct!==null; });
+  var mediaPct = comPct.length ? comPct.reduce(function(s,i){return s+i.ultimo.pct;},0)/comPct.length : null;
+
+  document.getElementById('rj-kpis').innerHTML = [
+    {l:'Folha atual (custo)', v:fmt(itens.reduce(function(s,i){ return s+rjCusto(i.p, i.salario); },0)), s:itens.length+' pessoa(s) ativa(s)'},
+    {l:'12+ meses sem reajuste', v:String(defasados.length), s:criticos.length+' com 18+ meses', c:defasados.length?'neg':''},
+    {l:'Média desde o último', v:(mediaMeses?mediaMeses.toFixed(0):'—')+' meses', s:'considerando admissão de quem nunca teve'},
+    {l:'Reajuste médio concedido', v:(mediaPct!==null?mediaPct.toFixed(1)+'%':'—'), s:comPct.length+' com histórico registrado'}
+  ].map(function(k){
+    return '<div class="kpi-card"><div class="kpi-label">'+k.l+'</div>'+
+      '<div class="kpi-value '+(k.c||'')+'" style="font-size:17px">'+k.v+'</div>'+
+      '<div class="kpi-sub">'+k.s+'</div></div>';
+  }).join('');
+
+  // ── Simulador ──
+  var pct = parseFloat(document.getElementById('rj-sim-pct').value)||0;
+  var escopo = document.getElementById('rj-sim-escopo').value;
+  var alvo = itens.filter(function(i){
+    if(escopo==='defasados') return i.meses!==null && i.meses>=12;
+    if(escopo==='abaixo') return i.desvioMed!==null && i.desvioMed<0;
+    return true;
+  });
+  var custoAtual = itens.reduce(function(s,i){ return s+rjCusto(i.p, i.salario); },0);
+  var custoNovo = itens.reduce(function(s,i){
+    var novoSal = alvo.indexOf(i)>=0 ? i.salario*(1+pct/100) : i.salario;
+    return s+rjCusto(i.p, novoSal);
+  },0);
+  var deltaMes = custoNovo-custoAtual;
+  // 12 salarios + 13o + 1/3 de ferias = 13,333 folhas/ano no modelo da casa.
+  var FOLHAS_ANO = 12 + 1 + (1/3);
+  document.getElementById('rj-sim-meta').textContent = alvo.length+' de '+itens.length+' pessoa(s)';
+  document.getElementById('rj-sim-out').innerHTML =
+    '<div>Impacto mensal: <strong style="color:var(--amber)">+'+fmt(deltaMes)+'</strong> '+
+      '<span style="color:var(--text3)">(folha vai de '+fmt(custoAtual)+' para '+fmt(custoNovo)+')</span></div>'+
+    '<div>Impacto anual: <strong style="color:var(--amber)">+'+fmt(deltaMes*FOLHAS_ANO)+'</strong> '+
+      '<span style="color:var(--text3)">— 12 salários + 13º + 1/3 de férias</span></div>'+
+    (alvo.length===0 ? '<div style="color:var(--text3)">Ninguém se enquadra nesse escopo.</div>' : '');
+
+  // ── Tabela individual ──
+  itens.sort(function(a,b){ return (b.meses===null?-1:b.meses) - (a.meses===null?-1:a.meses); });
+  document.getElementById('rj-tbl-meta').textContent = itens.length+' colaborador(es)';
+  document.getElementById('rj-tbody').innerHTML = itens.length ? itens.map(function(i){
+    var sit, cor;
+    if(i.meses===null){ sit='Sem data de admissão'; cor='var(--text3)'; }
+    else if(i.meses>=18){ sit='Crítico'; cor='var(--neg)'; }
+    else if(i.meses>=12){ sit='Revisar'; cor='var(--amber)'; }
+    else { sit='Em dia'; cor='var(--pos)'; }
+    var ultTxt = i.nunca
+      ? '<span style="color:var(--text3)">nunca — desde a admissão</span>'
+      : ferFmtData(i.ultimo.data)+(i.ultimo.motivo?' <span style="color:var(--text3);font-size:10px">('+i.ultimo.motivo+')</span>':'');
+    var pctTxt = (i.ultimo && i.ultimo.pct!==null) ? i.ultimo.pct.toFixed(1)+'%' : '—';
+    var devTxt = i.desvioMed===null
+      ? '<span style="color:var(--text3)" title="cargo com só uma pessoa">—</span>'
+      : '<span style="color:'+(i.desvioMed<-10?'var(--neg)':(i.desvioMed>10?'var(--text2)':'var(--text3)'))+'">'+
+        (i.desvioMed>=0?'+':'')+i.desvioMed.toFixed(0)+'%</span>';
+    return '<tr>'+
+      '<td><strong>'+i.nome+'</strong>'+(i.tipo==='pj'?' <span style="font-size:9px;color:var(--text3)">PJ</span>':'')+'</td>'+
+      '<td style="font-size:11px">'+i.cargo+'</td>'+
+      '<td style="font-size:11px;color:var(--text3)">'+i.depto+'</td>'+
+      '<td style="text-align:right">'+fmt(i.salario)+'</td>'+
+      '<td style="font-size:11px">'+ultTxt+'</td>'+
+      '<td style="text-align:right;font-size:11px">'+pctTxt+'</td>'+
+      '<td style="text-align:right;color:'+cor+'">'+(i.meses===null?'—':i.meses)+'</td>'+
+      '<td style="text-align:right;font-size:11px">'+devTxt+'</td>'+
+      '<td><span style="font-size:10px;color:'+cor+'">'+sit+'</span></td>'+
+    '</tr>';
+  }).join('') : '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text3)">Sem colaboradores ativos no filtro</td></tr>';
+
+  // ── Equidade por cargo ──
+  var cargos = Object.keys(dados.porCargo).filter(function(c){ return dados.porCargo[c].length>=2; });
+  document.getElementById('rj-eq-meta').textContent = cargos.length+' cargo(s) com 2+ pessoas';
+  document.getElementById('rj-eq-tbody').innerHTML = cargos.length ? cargos.sort(function(a,b){
+    return dados.porCargo[b].length - dados.porCargo[a].length;
+  }).map(function(c){
+    var v = dados.porCargo[c], min=Math.min.apply(null,v), max=Math.max.apply(null,v);
+    var amp = min>0 ? ((max-min)/min*100) : 0;
+    return '<tr><td>'+c+'</td><td style="text-align:right">'+v.length+'</td>'+
+      '<td style="text-align:right">'+fmt(min)+'</td>'+
+      '<td style="text-align:right"><strong>'+fmt(dados.medianaCargo[c])+'</strong></td>'+
+      '<td style="text-align:right">'+fmt(max)+'</td>'+
+      '<td style="text-align:right;color:'+(amp>50?'var(--amber)':'var(--text3)')+'">'+amp.toFixed(0)+'%</td></tr>';
+  }).join('') : '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text3)">Nenhum cargo com 2+ pessoas — sem base de comparação</td></tr>';
+}
+
+function rjImprimir(){
+  var dados = rjColetar();
+  if(!dados.itens.length){ alert('Sem colaboradores ativos no filtro.'); return; }
+  var fmt = function(v){ return 'R$ '+(Math.round(v)).toLocaleString('pt-BR'); };
+  var itens = dados.itens.slice().sort(function(a,b){ return (b.meses===null?-1:b.meses)-(a.meses===null?-1:a.meses); });
+  var linhas = itens.map(function(i){
+    var sit = i.meses===null?'—':(i.meses>=18?'Crítico':(i.meses>=12?'Revisar':'Em dia'));
+    return '<tr><td>'+i.nome+'</td><td>'+i.cargo+'</td><td>'+i.depto+'</td>'+
+      '<td align="right">'+fmt(i.salario)+'</td>'+
+      '<td>'+(i.nunca?'nunca':ferFmtData(i.ultimo.data))+'</td>'+
+      '<td align="right">'+((i.ultimo&&i.ultimo.pct!==null)?i.ultimo.pct.toFixed(1)+'%':'—')+'</td>'+
+      '<td align="right">'+(i.meses===null?'—':i.meses)+'</td>'+
+      '<td align="right">'+(i.desvioMed===null?'—':(i.desvioMed>=0?'+':'')+i.desvioMed.toFixed(0)+'%')+'</td>'+
+      '<td>'+sit+'</td></tr>';
+  }).join('');
+  var eq = Object.keys(dados.porCargo).filter(function(c){ return dados.porCargo[c].length>=2; }).map(function(c){
+    var v=dados.porCargo[c], min=Math.min.apply(null,v), max=Math.max.apply(null,v);
+    return '<tr><td>'+c+'</td><td align="right">'+v.length+'</td><td align="right">'+fmt(min)+'</td>'+
+      '<td align="right">'+fmt(dados.medianaCargo[c])+'</td><td align="right">'+fmt(max)+'</td>'+
+      '<td align="right">'+(min>0?((max-min)/min*100).toFixed(0)+'%':'—')+'</td></tr>';
+  }).join('');
+  var css='body{font-family:Arial,sans-serif;padding:34px;color:#111}'+
+    '.logo{width:160px;margin-bottom:12px;display:block}h1{font-size:17px;margin:0 0 4px}'+
+    '.sub{font-size:11px;color:#666;margin-bottom:18px}'+
+    'h2{font-size:12px;text-transform:uppercase;letter-spacing:.05em;margin:20px 0 8px;color:#444;border-bottom:1px solid #ddd;padding-bottom:4px}'+
+    'table{width:100%;border-collapse:collapse;margin-bottom:8px}'+
+    'th{background:#111;color:#fff;padding:6px 8px;font-size:9px;text-transform:uppercase;text-align:left}'+
+    'td{padding:5px 8px;border-bottom:1px solid #eee;font-size:10px}'+
+    '.footer{border-top:1px solid #eee;margin-top:18px;padding-top:10px;font-size:9px;color:#999;line-height:1.6}'+
+    '@media print{.np{display:none}@page{size:landscape}}';
+  var body='<img src="'+LOGO+'" class="logo">'+
+    '<h1>Análise de Reajuste Salarial</h1>'+
+    '<div class="sub">'+itens.length+' colaborador(es) ativo(s) · Gerado em '+new Date().toLocaleString('pt-BR')+'</div>'+
+    '<h2>Situação individual</h2>'+
+    '<table><thead><tr><th>Colaborador</th><th>Cargo</th><th>Depto</th><th>Salário</th><th>Último reajuste</th>'+
+    '<th>%</th><th>Meses desde</th><th>vs. mediana</th><th>Situação</th></tr></thead><tbody>'+linhas+'</tbody></table>'+
+    (eq ? '<h2>Equidade interna por cargo</h2><table><thead><tr><th>Cargo</th><th>Pessoas</th><th>Menor</th>'+
+      '<th>Mediana</th><th>Maior</th><th>Amplitude</th></tr></thead><tbody>'+eq+'</tbody></table>' : '')+
+    '<div class="footer"><strong>Euphoria Creative Agency</strong> — Documento confidencial, uso restrito.<br>'+
+      'Quem nunca teve reajuste registrado é contado a partir da data de admissão. '+
+      'A mediana por cargo considera todos os ativos, independente do filtro aplicado, e só é exibida para cargos com 2 ou mais pessoas.</div>'+
+    '<button class="np" onclick="window.print()" style="margin-top:18px;background:#111;color:#fff;border:none;padding:11px 24px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700">🖨 Imprimir / Salvar PDF</button>';
+  var w=window.open('','_blank');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Análise de Reajuste Salarial</title><style>'+css+'</style></head><body>'+body+'</body></html>');
+  w.document.close();
 }
 
 function pplCustoTotal(p){
