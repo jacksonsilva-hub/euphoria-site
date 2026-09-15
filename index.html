@@ -1793,29 +1793,98 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
 
     <!-- REAJUSTES SALARIAIS -->
     <div class="tab-panel" id="people-reajustes">
-      <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px">
+      <div style="margin-bottom:14px">
+        <div style="font-size:20px;font-weight:700">Análise de Reajuste Salarial</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:4px">Quem recebeu reajuste, quanto, quem está defasado e quanto custa o próximo</div>
+      </div>
+
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:16px;display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap">
         <div>
-          <div style="font-size:20px;font-weight:700">Análise de Reajuste Salarial</div>
-          <div style="font-size:12px;color:var(--text3);margin-top:4px">Quem está defasado, equidade interna por cargo e simulação de impacto na folha</div>
+          <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Ano do reajuste</label>
+          <select id="rj-f-ano" onchange="rjRender()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer"><option value="">Todos</option></select>
         </div>
-        <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
-          <div>
-            <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Departamento</label>
-            <select id="rj-f-depto" onchange="rjRender()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer"><option value="">Todos</option></select>
-          </div>
-          <div>
-            <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Vínculo</label>
-            <select id="rj-f-tipo" onchange="rjRender()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
-              <option value="">Todos</option><option value="pj">PJ</option><option value="clt">CLT</option>
-            </select>
-          </div>
-          <button class="btn" onclick="rjImprimir()" style="font-size:11px;padding:6px 12px">📄 Relatório</button>
+        <div>
+          <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Departamento</label>
+          <select id="rj-f-depto" onchange="rjRender()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer"><option value="">Todos</option></select>
         </div>
+        <div>
+          <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Cargo</label>
+          <select id="rj-f-cargo" onchange="rjRender()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer"><option value="">Todos</option></select>
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Motivo</label>
+          <select id="rj-f-motivo" onchange="rjRender()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer"><option value="">Todos</option></select>
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Vínculo</label>
+          <select id="rj-f-tipo" onchange="rjRender()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
+            <option value="">Todos</option><option value="pj">PJ</option><option value="clt">CLT</option>
+          </select>
+        </div>
+        <div style="flex:1"></div>
+        <button class="btn" onclick="rjLimparFiltros()" style="font-size:11px;padding:6px 12px">Limpar</button>
+        <button class="btn" onclick="rjImprimir()" style="font-size:11px;padding:6px 12px">📄 Relatório</button>
       </div>
 
       <div id="rj-alerta" style="display:none;margin-bottom:16px"></div>
 
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px" id="rj-kpis"></div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:18px" id="rj-kpis"></div>
+
+      <div class="table-card" style="margin-bottom:18px">
+        <div class="table-header">
+          <span class="table-title">Reajustes concedidos</span>
+          <span class="table-meta" id="rj-ev-meta">—</span>
+          <div style="margin-left:auto;display:flex;gap:6px">
+            <button class="btn tab-btn-mini active" id="rj-ord-pct" onclick="rjOrdenar('pct',event)" style="font-size:10px;padding:3px 10px">Maior %</button>
+            <button class="btn tab-btn-mini" id="rj-ord-valor" onclick="rjOrdenar('valor',event)" style="font-size:10px;padding:3px 10px">Maior R$</button>
+            <button class="btn tab-btn-mini" id="rj-ord-data" onclick="rjOrdenar('data',event)" style="font-size:10px;padding:3px 10px">Mais recente</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr>
+              <th>#</th><th>Colaborador</th><th>Cargo</th><th>Depto</th><th>Data</th>
+              <th style="text-align:right">De</th><th style="text-align:right">Para</th>
+              <th style="text-align:right">Aumento R$</th><th style="text-align:right">%</th><th>Motivo</th>
+            </tr></thead>
+            <tbody id="rj-ev-tbody"><tr><td colspan="10" style="text-align:center;padding:24px;color:var(--text3)">Nenhum reajuste registrado no filtro</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px">
+        <div class="table-card">
+          <div class="table-header">
+            <span class="table-title">Acumulado por pessoa</span>
+            <span class="table-meta" id="rj-pes-meta">—</span>
+          </div>
+          <div style="font-size:10px;color:var(--text3);padding:0 16px 8px">Soma dos reajustes no período filtrado. Quem aparece no topo recebeu mais.</div>
+          <div style="overflow-x:auto;max-height:340px">
+            <table class="tbl">
+              <thead><tr><th>Colaborador</th><th style="text-align:right">Qtd</th><th style="text-align:right">Total R$</th><th style="text-align:right">% acum.</th></tr></thead>
+              <tbody id="rj-pes-tbody"><tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text3)">—</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="table-header">
+            <span class="table-title">Por motivo</span>
+            <span class="table-meta" id="rj-mot-meta">—</span>
+          </div>
+          <div style="font-size:10px;color:var(--text3);padding:0 16px 8px">Onde o orçamento de reajuste foi aplicado.</div>
+          <div style="overflow-x:auto;max-height:340px">
+            <table class="tbl">
+              <thead><tr><th>Motivo</th><th style="text-align:right">Qtd</th><th style="text-align:right">Total R$</th><th style="text-align:right">% médio</th></tr></thead>
+              <tbody id="rj-mot-tbody"><tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text3)">—</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-card" style="margin-bottom:18px">
+        <div class="table-header"><span class="table-title">Reajustes por ano</span><span class="table-meta" id="rj-chart-meta">—</span></div>
+        <div style="padding:14px 16px;height:220px"><canvas id="rj-chart"></canvas></div>
+      </div>
 
       <div class="table-card" style="margin-bottom:18px">
         <div class="table-header">
@@ -4082,15 +4151,179 @@ function switchPeopleTab(tab,e){
 // Usa o historico salarial que ja era gravado em euphoria_people_hist
 // ({data, anterior, novo, motivo} por pessoa). Quem nunca teve reajuste conta a
 // partir da admissao - senao a pessoa mais defasada da casa fica invisivel.
+var _rjOrdem = 'pct';
+
 function rjPopularDeptos(){
-  var sel = document.getElementById('rj-f-depto');
-  if(!sel) return;
-  var atual = sel.value;
-  var deptos = {};
-  getPplData().forEach(function(p){ if(p.depto) deptos[p.depto]=1; });
-  sel.innerHTML = '<option value="">Todos</option>'+Object.keys(deptos).sort().map(function(d){
-    return '<option value="'+d+'">'+d+'</option>'; }).join('');
-  sel.value = atual;
+  if(!document.getElementById('rj-f-depto')) return;
+  var pessoas = getPplData(), hist = getPplHist();
+  var deptos={}, cargos={}, motivos={}, anos={};
+  pessoas.forEach(function(p){
+    if(p.depto) deptos[p.depto]=1;
+    if(p.cargo) cargos[String(p.cargo).trim()]=1;
+    (hist[p.id]||[]).forEach(function(r){
+      if(r.motivo) motivos[r.motivo]=1;
+      if(r.data) anos[String(r.data).substring(0,4)]=1;
+    });
+  });
+  var enche = function(id, vals, ordemDesc){
+    var sel=document.getElementById(id); if(!sel) return;
+    var atual=sel.value;
+    var lista=Object.keys(vals).sort();
+    if(ordemDesc) lista.reverse();
+    sel.innerHTML='<option value="">Todos</option>'+lista.map(function(v){
+      return '<option value="'+v+'">'+v+'</option>'; }).join('');
+    sel.value=atual;
+  };
+  enche('rj-f-depto',deptos); enche('rj-f-cargo',cargos);
+  enche('rj-f-motivo',motivos); enche('rj-f-ano',anos,true);
+}
+
+function rjLimparFiltros(){
+  ['rj-f-ano','rj-f-depto','rj-f-cargo','rj-f-motivo','rj-f-tipo'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.value='';
+  });
+  rjRender();
+}
+
+function rjOrdenar(o, e){
+  _rjOrdem=o;
+  ['pct','valor','data'].forEach(function(k){
+    var b=document.getElementById('rj-ord-'+k); if(b) b.classList.toggle('active', k===o);
+  });
+  rjRender();
+}
+
+// Cada reajuste e um evento proprio. A tabela de "situacao individual" mostra
+// so o ultimo de cada pessoa; aqui listamos todos, que e o que permite ranquear
+// quem mais recebeu no periodo e por qual motivo.
+function rjEventos(){
+  var hist=getPplHist();
+  var fAno=document.getElementById('rj-f-ano').value;
+  var fDepto=document.getElementById('rj-f-depto').value;
+  var fCargo=document.getElementById('rj-f-cargo').value;
+  var fMotivo=document.getElementById('rj-f-motivo').value;
+  var fTipo=document.getElementById('rj-f-tipo').value;
+  var evs=[];
+  getPplData().forEach(function(p){
+    if((p.status||'ativo')!=='ativo') return;
+    if(fDepto && p.depto!==fDepto) return;
+    if(fCargo && String(p.cargo||'').trim()!==fCargo) return;
+    if(fTipo && p.tipo!==fTipo) return;
+    (hist[p.id]||[]).forEach(function(r){
+      if(!r.data) return;
+      var ant=parseFloat(r.anterior)||0, nov=parseFloat(r.novo)||0;
+      if(!nov || nov===ant) return; // registro sem mudanca nao e reajuste
+      if(fAno && String(r.data).substring(0,4)!==fAno) return;
+      if(fMotivo && r.motivo!==fMotivo) return;
+      evs.push({
+        id:p.id, nome:p.nome, cargo:String(p.cargo||'—').trim(), depto:p.depto||'—', tipo:p.tipo,
+        data:ferData(r.data), dataStr:r.data, anterior:ant, novo:nov,
+        delta:nov-ant, pct: ant>0 ? ((nov-ant)/ant*100) : null, motivo:r.motivo||'—'
+      });
+    });
+  });
+  return evs;
+}
+
+function rjRenderEventos(){
+  var evs=rjEventos();
+  var fmt=function(v){ return 'R$ '+Math.round(v).toLocaleString('pt-BR'); };
+  var ord=evs.slice().sort(function(a,b){
+    if(_rjOrdem==='valor') return b.delta-a.delta;
+    if(_rjOrdem==='data') return b.data-a.data;
+    return (b.pct===null?-999:b.pct)-(a.pct===null?-999:a.pct);
+  });
+  var totalR$=evs.reduce(function(s,e){ return s+e.delta; },0);
+  document.getElementById('rj-ev-meta').textContent =
+    evs.length+' reajuste(s) · '+fmt(totalR$)+'/mês concedidos';
+  document.getElementById('rj-ev-tbody').innerHTML = ord.length ? ord.map(function(e,i){
+    return '<tr>'+
+      '<td style="color:var(--text3);font-size:10px">'+(i+1)+'</td>'+
+      '<td><strong>'+e.nome+'</strong>'+(e.tipo==='pj'?' <span style="font-size:9px;color:var(--text3)">PJ</span>':'')+'</td>'+
+      '<td style="font-size:11px">'+e.cargo+'</td>'+
+      '<td style="font-size:11px;color:var(--text3)">'+e.depto+'</td>'+
+      '<td style="font-size:11px">'+ferFmtData(e.data)+'</td>'+
+      '<td style="text-align:right;color:var(--text3)">'+fmt(e.anterior)+'</td>'+
+      '<td style="text-align:right">'+fmt(e.novo)+'</td>'+
+      '<td style="text-align:right;color:var(--pos)">+'+fmt(e.delta)+'</td>'+
+      '<td style="text-align:right;color:var(--pos);font-weight:700">'+(e.pct===null?'—':e.pct.toFixed(1)+'%')+'</td>'+
+      '<td style="font-size:10px;color:var(--text3)">'+e.motivo+'</td>'+
+    '</tr>';
+  }).join('') : '<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--text3)">Nenhum reajuste registrado no filtro</td></tr>';
+
+  // Acumulado por pessoa
+  var porPes={};
+  evs.forEach(function(e){
+    var a=porPes[e.id]=porPes[e.id]||{nome:e.nome,qtd:0,total:0,primeiro:null,ultimo:null};
+    a.qtd++; a.total+=e.delta;
+    if(!a.primeiro||e.data<a.primeiro.data) a.primeiro=e;
+    if(!a.ultimo||e.data>a.ultimo.data) a.ultimo=e;
+  });
+  var pes=Object.keys(porPes).map(function(k){
+    var a=porPes[k];
+    a.pctAcum = (a.primeiro && a.primeiro.anterior>0) ? ((a.ultimo.novo-a.primeiro.anterior)/a.primeiro.anterior*100) : null;
+    return a;
+  }).sort(function(a,b){ return b.total-a.total; });
+  document.getElementById('rj-pes-meta').textContent=pes.length+' pessoa(s)';
+  document.getElementById('rj-pes-tbody').innerHTML = pes.length ? pes.map(function(a){
+    return '<tr><td>'+a.nome+'</td><td style="text-align:right">'+a.qtd+'</td>'+
+      '<td style="text-align:right;color:var(--pos)">+'+fmt(a.total)+'</td>'+
+      '<td style="text-align:right">'+(a.pctAcum===null?'—':a.pctAcum.toFixed(1)+'%')+'</td></tr>';
+  }).join('') : '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text3)">—</td></tr>';
+
+  // Por motivo
+  var porMot={};
+  evs.forEach(function(e){
+    var m=porMot[e.motivo]=porMot[e.motivo]||{qtd:0,total:0,somaPct:0,nPct:0};
+    m.qtd++; m.total+=e.delta;
+    if(e.pct!==null){ m.somaPct+=e.pct; m.nPct++; }
+  });
+  var mots=Object.keys(porMot).sort(function(a,b){ return porMot[b].total-porMot[a].total; });
+  document.getElementById('rj-mot-meta').textContent=mots.length+' motivo(s)';
+  document.getElementById('rj-mot-tbody').innerHTML = mots.length ? mots.map(function(m){
+    var v=porMot[m];
+    return '<tr><td>'+m+'</td><td style="text-align:right">'+v.qtd+'</td>'+
+      '<td style="text-align:right;color:var(--pos)">+'+fmt(v.total)+'</td>'+
+      '<td style="text-align:right">'+(v.nPct?(v.somaPct/v.nPct).toFixed(1)+'%':'—')+'</td></tr>';
+  }).join('') : '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text3)">—</td></tr>';
+
+  rjRenderChart(evs);
+  return evs;
+}
+
+var _rjChart=null;
+function rjRenderChart(evs){
+  var cv=document.getElementById('rj-chart');
+  if(!cv || typeof Chart==='undefined') return;
+  var porAno={};
+  evs.forEach(function(e){
+    var a=String(e.dataStr).substring(0,4);
+    var x=porAno[a]=porAno[a]||{total:0,qtd:0,somaPct:0,nPct:0};
+    x.total+=e.delta; x.qtd++;
+    if(e.pct!==null){ x.somaPct+=e.pct; x.nPct++; }
+  });
+  var anos=Object.keys(porAno).sort();
+  document.getElementById('rj-chart-meta').textContent = anos.length? anos[0]+' a '+anos[anos.length-1] : '—';
+  if(_rjChart) _rjChart.destroy();
+  if(!anos.length) return;
+  _rjChart=new Chart(cv,{
+    type:'bar',
+    data:{labels:anos,datasets:[
+      {label:'Total concedido (R$/mês)',data:anos.map(function(a){return porAno[a].total;}),
+       backgroundColor:'rgba(74,222,128,.45)',borderRadius:4,borderSkipped:false,yAxisID:'y'},
+      {label:'% médio',type:'line',data:anos.map(function(a){return porAno[a].nPct?porAno[a].somaPct/porAno[a].nPct:0;}),
+       borderColor:'rgba(251,191,36,.9)',backgroundColor:'rgba(251,191,36,.1)',tension:.3,pointRadius:4,yAxisID:'y1'}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#888',font:{size:10},boxWidth:12}}},
+      scales:{
+        x:{grid:{display:false},ticks:{color:'#888',font:{size:10}}},
+        y:{position:'left',grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#555',font:{size:10},
+           callback:function(v){ return 'R$ '+(v/1000).toFixed(0)+'k'; }}},
+        y1:{position:'right',grid:{display:false},ticks:{color:'#888',font:{size:10},
+            callback:function(v){ return v.toFixed(0)+'%'; }}}
+      }}
+  });
 }
 
 function rjMesesEntre(dtIni, dtFim){
@@ -4127,10 +4360,12 @@ function rjColetar(){
   var hoje = new Date();
   var fDepto = document.getElementById('rj-f-depto').value;
   var fTipo = document.getElementById('rj-f-tipo').value;
+  var fCargo = document.getElementById('rj-f-cargo').value;
   var ativos = getPplData().filter(function(p){
     if((p.status||'ativo')!=='ativo') return false;
     if(fDepto && p.depto!==fDepto) return false;
     if(fTipo && p.tipo!==fTipo) return false;
+    if(fCargo && String(p.cargo||'').trim()!==fCargo) return false;
     return true;
   });
   // Mediana por cargo calculada sobre TODOS os ativos, nao sobre o filtro -
@@ -4189,6 +4424,8 @@ function rjRender(){
     alerta.innerHTML='';
   }
 
+  rjPopularDeptos();
+  var evs = rjRenderEventos();
   var dados = rjColetar();
   var itens = dados.itens;
   var fmt = function(v){ return 'R$ '+(Math.round(v)).toLocaleString('pt-BR'); };
@@ -4204,7 +4441,8 @@ function rjRender(){
     {l:'Folha atual (custo)', v:fmt(itens.reduce(function(s,i){ return s+rjCusto(i.p, i.salario); },0)), s:itens.length+' pessoa(s) ativa(s)'},
     {l:'12+ meses sem reajuste', v:String(defasados.length), s:criticos.length+' com 18+ meses', c:defasados.length?'neg':''},
     {l:'Média desde o último', v:(mediaMeses?mediaMeses.toFixed(0):'—')+' meses', s:'considerando admissão de quem nunca teve'},
-    {l:'Reajuste médio concedido', v:(mediaPct!==null?mediaPct.toFixed(1)+'%':'—'), s:comPct.length+' com histórico registrado'}
+    {l:'Reajuste médio concedido', v:(mediaPct!==null?mediaPct.toFixed(1)+'%':'—'), s:comPct.length+' com histórico registrado'},
+    {l:'Concedido no filtro', v:fmt(evs.reduce(function(s,e){return s+e.delta;},0)), s:evs.length+' reajuste(s) · R$/mês', c:evs.length?'pos':''}
   ].map(function(k){
     return '<div class="kpi-card"><div class="kpi-label">'+k.l+'</div>'+
       '<div class="kpi-value '+(k.c||'')+'" style="font-size:17px">'+k.v+'</div>'+
