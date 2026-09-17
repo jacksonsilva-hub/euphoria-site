@@ -2239,6 +2239,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     <div class="tab-panel active" id="aloc-lancar">
       <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
         <button class="btn btn-primary" onclick="alocAbrirModal()">+ Nova Alocação</button>
+        <button class="btn" onclick="document.getElementById('aloc-imp-file').click()" style="font-size:11px">📥 Importar Planilha</button>
+        <input type="file" id="aloc-imp-file" accept=".xlsx,.xls" style="display:none" onchange="alocImportarArquivo(this)">
         <button class="btn" onclick="alocExportCSV()" style="font-size:11px">📊 Exportar Excel</button>
         <select id="aloc-f-status" onchange="alocRenderTabela()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
           <option value="">Todos os status</option>
@@ -2404,6 +2406,23 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       <div id="aloc-cap-kpis" class="kpi-grid" style="margin-bottom:20px"></div>
       <div class="charts-row" style="margin-bottom:20px">
         <div class="chart-card chart-full"><div class="chart-title">Capacidade Total vs Alocado por Departamento</div><div style="position:relative;height:280px"><canvas id="chartAlocCapDepto"></canvas></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL IMPORTAÇÃO DE ALOCAÇÃO -->
+  <div id="aloc-imp-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center">
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px;width:100%;max-width:940px;max-height:92vh;overflow-y:auto">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div style="font-family:var(--font-head);font-weight:700;font-size:16px">📥 Importar Alocações</div>
+        <button onclick="alocImpFechar()" style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer">✕</button>
+      </div>
+      <div id="aloc-imp-corpo"></div>
+      <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end;align-items:center;flex-wrap:wrap">
+        <span style="font-size:10px;color:var(--text3);margin-right:auto">Nada é gravado até você confirmar.</span>
+        <button class="btn" onclick="alocImpFechar()">Cancelar</button>
+        <button class="btn" onclick="alocImpConfirmar('somar')">Somar às existentes</button>
+        <button class="btn btn-primary" onclick="alocImpConfirmar('substituir')">Substituir tudo</button>
       </div>
     </div>
   </div>
@@ -6732,6 +6751,218 @@ var _alocClientesVBS=[];
 var _alocProjetosVBS=[];
 var _alocSortCol='colaborador';
 var _alocSortDir=1; // 1=asc, -1=desc
+// ── IMPORTACAO DA PLANILHA DE ALOCACAO ───────────────────────────────────────
+// A planilha "Alocação Vendido Equipe" tem uma aba por departamento, cabecalho
+// na linha 2 e dados a partir da 3. Duas conversoes de unidade sao obrigatorias
+// e foram decididas com o financeiro:
+//  - "Alocação" e fator de dedicacao (1,0 = pessoa integral), nao horas. Vira
+//    horas multiplicando pelas horas/mes do cadastro (160 como padrao).
+//  - "Valor Vendido" e anual (a planilha calcula mensal*12), mas a intranet
+//    compara com custo mensal. Entra dividido por 12.
+// Sem essas duas, o painel mostraria margem ~12x inflada parecendo correto.
+var ALOC_ABAS_IGNORAR = /vis(a|ã)o geral|consolidado|resumo/i;
+var _alocImpPendente = null;
+
+function alocImpNorm(s){
+  return String(s==null?'':s).trim().toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g,'');
+}
+
+// Acha a linha de cabecalho procurando "cliente" e "colaborador" nas 6
+// primeiras linhas - assim a aba nao precisa comecar exatamente na linha 2.
+function alocImpAcharCabecalho(rows){
+  for(var r=0; r<Math.min(rows.length,6); r++){
+    var linha=(rows[r]||[]).map(alocImpNorm);
+    var iCli=linha.findIndex(function(c){ return c==='cliente'; });
+    var iCol=linha.findIndex(function(c){ return c.indexOf('colaborador')===0; });
+    if(iCli>=0 && iCol>=0){
+      var acha=function(teste){ return linha.findIndex(teste); };
+      return {
+        linha:r,
+        cliente:iCli, colaborador:iCol,
+        posicao: acha(function(c){ return c.indexOf('posic')===0 || c==='cargo'; }),
+        alocacao: acha(function(c){ return c.indexOf('alocac')===0; }),
+        valor: acha(function(c){ return c.indexOf('valor vendido')===0; }),
+        duracao: acha(function(c){ return c.indexOf('duracao')===0; }),
+        proporcional: acha(function(c){ return c.indexOf('valor proporcional')===0; })
+      };
+    }
+  }
+  return null;
+}
+
+var ALOC_MESES = {janeiro:1,fevereiro:2,marco:3,abril:4,maio:5,junho:6,julho:7,
+                  agosto:8,setembro:9,outubro:10,novembro:11,dezembro:12};
+
+// "Junho a Dezembro" / "Agosto e Setembro" -> {ini:'2026-06', fim:'2026-12'}.
+// Texto que nao descreve meses (ex.: "Dois Meses") vira periodo vazio em vez de
+// um chute - melhor campo em branco do que data inventada.
+function alocImpPeriodo(txt, ano){
+  if(!txt) return {ini:'',fim:''};
+  var t=alocImpNorm(txt);
+  var achados=[];
+  Object.keys(ALOC_MESES).forEach(function(m){
+    var i=t.indexOf(m);
+    if(i>=0) achados.push({pos:i, num:ALOC_MESES[m]});
+  });
+  if(!achados.length) return {ini:'',fim:''};
+  achados.sort(function(a,b){ return a.pos-b.pos; });
+  var pad=function(n){ return (n<10?'0':'')+n; };
+  var ini=achados[0].num, fim=achados[achados.length-1].num;
+  return {ini:ano+'-'+pad(ini), fim:ano+'-'+pad(fim)};
+}
+
+function alocImportarArquivo(input){
+  var f=input.files && input.files[0];
+  if(!f) return;
+  if(typeof XLSX==='undefined'){ alert('Biblioteca de planilha não carregou. Recarregue a página e tente de novo.'); return; }
+  var leitor=new FileReader();
+  leitor.onload=function(ev){
+    try{
+      var wb=XLSX.read(new Uint8Array(ev.target.result), {type:'array'});
+      alocImpProcessar(wb, f.name);
+    }catch(e){
+      alert('Não consegui ler a planilha: '+e.message);
+    }
+    input.value=''; // permite reimportar o mesmo arquivo
+  };
+  leitor.readAsArrayBuffer(f);
+}
+
+function alocImpProcessar(wb, nomeArq){
+  var ppl=getPplData();
+  var pplMap={};
+  ppl.forEach(function(p){ pplMap[alocImpNorm(p.nome)]=p; });
+  var anoRef=new Date().getFullYear();
+  var itens=[], ignoradas=[], abasLidas=[];
+
+  wb.SheetNames.forEach(function(nomeAba){
+    if(ALOC_ABAS_IGNORAR.test(nomeAba)) return;
+    var rows=XLSX.utils.sheet_to_json(wb.Sheets[nomeAba], {header:1, raw:true, defval:null});
+    var cab=alocImpAcharCabecalho(rows);
+    if(!cab) return;
+    var n=0;
+    for(var r=cab.linha+1; r<rows.length; r++){
+      var row=rows[r]||[];
+      var cli=row[cab.cliente], col=row[cab.colaborador];
+      if(cli==null||col==null) continue;
+      cli=String(cli).trim(); col=String(col).trim();
+      if(!cli||!col) continue;
+
+      var fator = cab.alocacao>=0 ? parseFloat(row[cab.alocacao]) : NaN;
+      if(isNaN(fator)) fator=0;
+      var vendidoAno = cab.valor>=0 ? parseFloat(row[cab.valor]) : NaN;
+      if(isNaN(vendidoAno)) vendidoAno=0;
+
+      var semHC = alocImpNorm(col).indexOf('sem headcount')===0;
+      var pessoa = semHC ? null : pplMap[alocImpNorm(col)];
+      var horasPessoa = pessoa ? (parseFloat(pessoa.horas)||160) : 160;
+      var per = alocImpPeriodo(cab.duracao>=0 ? row[cab.duracao] : '', anoRef);
+
+      itens.push({
+        colaborador: col,
+        depto: pessoa ? (pessoa.depto||nomeAba) : nomeAba,
+        cliente: cli,
+        projeto: cab.posicao>=0 && row[cab.posicao] ? String(row[cab.posicao]).trim() : '',
+        horas: Math.round(fator*horasPessoa*100)/100,
+        valorVendido: Math.round(vendidoAno/12*100)/100,
+        absorcao: '',
+        status: 'aprovado',
+        mesInicio: per.ini, mesFim: per.fim,
+        obs: semHC ? 'Vaga aberta — posição vendida sem pessoa alocada' : '',
+        link: '',
+        _aba: nomeAba, _fator: fator, _semHC: semHC, _achou: !!pessoa
+      });
+      if(!semHC && !pessoa) ignoradas.push(col);
+      n++;
+    }
+    if(n) abasLidas.push(nomeAba+' ('+n+')');
+  });
+
+  if(!itens.length){
+    alert('Não encontrei alocações nesta planilha.\n\nEspero uma aba com as colunas "Cliente" e "Colaborador" no cabeçalho.');
+    return;
+  }
+  _alocImpPendente = itens;
+  alocImpPreview(itens, ignoradas, abasLidas, nomeArq);
+}
+
+function alocImpPreview(itens, ignoradas, abasLidas, nomeArq){
+  var fmt=function(v){ return 'R$ '+Math.round(v).toLocaleString('pt-BR'); };
+  var semHC=itens.filter(function(i){ return i._semHC; }).length;
+  var naoAchou=itens.filter(function(i){ return !i._achou && !i._semHC; });
+  var semPeriodo=itens.filter(function(i){ return !i.mesInicio; }).length;
+  var totalVend=itens.reduce(function(s,i){ return s+i.valorVendido; },0);
+  var totalH=itens.reduce(function(s,i){ return s+i.horas; },0);
+  var nomesUnicos={}; naoAchou.forEach(function(i){ nomesUnicos[i.colaborador]=1; });
+  var listaNomes=Object.keys(nomesUnicos);
+
+  var av='';
+  if(listaNomes.length){
+    av+='<div style="background:rgba(251,191,36,.08);border:1px solid var(--amber);border-radius:6px;padding:10px 12px;margin-bottom:10px;font-size:11px;line-height:1.6">'+
+      '<strong style="color:var(--amber)">'+listaNomes.length+' nome(s) não encontrados no cadastro de People</strong><br>'+
+      '<span style="color:var(--text3)">Vão entrar assim mesmo, mas ficam com custo zero até o nome bater. Verifique se é grafia diferente:</span><br>'+
+      '<span style="font-family:var(--font-mono);color:var(--text2)">'+listaNomes.slice(0,12).join(' · ')+(listaNomes.length>12?' …':'')+'</span></div>';
+  }
+  if(semPeriodo){
+    av+='<div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--text3)">'+
+      semPeriodo+' linha(s) sem período reconhecível na coluna Duração (ex.: "Dois Meses"). Entram sem mês de início/fim — preencha depois se precisar.</div>';
+  }
+
+  var linhas=itens.slice(0,60).map(function(i){
+    return '<tr'+(i._semHC?' style="opacity:.65"':'')+'>'+
+      '<td style="font-size:10px;color:var(--text3)">'+i._aba+'</td>'+
+      '<td>'+i.colaborador+(i._semHC?' <span style="font-size:9px;color:var(--amber)">vaga</span>':(i._achou?'':' <span style="font-size:9px;color:var(--amber)">?</span>'))+'</td>'+
+      '<td style="font-size:11px">'+i.cliente+'</td>'+
+      '<td style="text-align:right;font-size:11px">'+i._fator+'</td>'+
+      '<td style="text-align:right">'+i.horas+'h</td>'+
+      '<td style="text-align:right">'+fmt(i.valorVendido)+'</td>'+
+      '<td style="font-size:10px;color:var(--text3)">'+(i.mesInicio?i.mesInicio+' → '+i.mesFim:'—')+'</td>'+
+    '</tr>';
+  }).join('');
+
+  document.getElementById('aloc-imp-corpo').innerHTML=
+    '<div style="font-size:11px;color:var(--text3);margin-bottom:10px">'+nomeArq+' · abas lidas: '+abasLidas.join(', ')+'</div>'+
+    '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px">'+
+      [['Alocações',itens.length],['Vagas abertas',semHC],['Horas/mês',Math.round(totalH)+'h'],['Vendido/mês',fmt(totalVend)]]
+      .map(function(k){ return '<div style="background:var(--bg3);border-radius:6px;padding:8px 10px">'+
+        '<div style="font-size:9px;color:var(--text3);text-transform:uppercase">'+k[0]+'</div>'+
+        '<div style="font-size:15px;font-weight:700">'+k[1]+'</div></div>'; }).join('')+
+    '</div>'+
+    av+
+    '<div style="font-size:10px;color:var(--text3);margin-bottom:6px">Conversões aplicadas: horas = Alocação × horas/mês da pessoa (160 padrão) · valor vendido = anual ÷ 12'+
+      (itens.length>60?' · mostrando as 60 primeiras de '+itens.length:'')+'</div>'+
+    '<div style="max-height:320px;overflow:auto;border:1px solid var(--border);border-radius:6px">'+
+      '<table class="tbl"><thead><tr><th>Aba</th><th>Colaborador</th><th>Cliente</th>'+
+      '<th style="text-align:right">Alocação</th><th style="text-align:right">Horas</th>'+
+      '<th style="text-align:right">Vendido/mês</th><th>Período</th></tr></thead><tbody>'+linhas+'</tbody></table></div>';
+  document.getElementById('aloc-imp-modal').style.display='flex';
+}
+
+function alocImpFechar(){
+  document.getElementById('aloc-imp-modal').style.display='none';
+  _alocImpPendente=null;
+}
+
+function alocImpConfirmar(modo){
+  if(!_alocImpPendente) return;
+  var d = modo==='substituir' ? [] : getAlocData();
+  var base=Date.now();
+  _alocImpPendente.forEach(function(i,idx){
+    var o={};
+    ['colaborador','depto','cliente','projeto','horas','valorVendido','absorcao','status','mesInicio','mesFim','obs','link']
+      .forEach(function(k){ o[k]=i[k]; });
+    o.id=String(base+idx);
+    d.push(o);
+  });
+  saveAlocData(d);
+  var n=_alocImpPendente.length;
+  alocImpFechar();
+  alocRenderTabela();
+  alocPopularFiltros();
+  alert(n+' alocação(ões) importada(s)'+(modo==='substituir'?' (as anteriores foram substituídas)':' e somadas às existentes')+'.');
+}
+
 function getAlocData(){return JSON.parse(lsGet('euphoria_alocacao_v1')||'[]');}
 function saveAlocData(d){lsSet('euphoria_alocacao_v1',JSON.stringify(d));backupAutoSave();}
 
