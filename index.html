@@ -1583,11 +1583,73 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
 
     <!-- ── TURNOVER ── -->
     <div class="tab-panel" id="people-turnover">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:16px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+        <div>
+          <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Ano da saída</label>
+          <select id="to-f-ano" onchange="pplRenderTurnover()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer"><option value="">Todos</option></select>
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Mês</label>
+          <select id="to-f-mes" onchange="pplRenderTurnover()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
+            <option value="">Todos</option><option value="1">Jan</option><option value="2">Fev</option><option value="3">Mar</option><option value="4">Abr</option><option value="5">Mai</option><option value="6">Jun</option><option value="7">Jul</option><option value="8">Ago</option><option value="9">Set</option><option value="10">Out</option><option value="11">Nov</option><option value="12">Dez</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Gênero</label>
+          <select id="to-f-genero" onchange="pplRenderTurnover()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer"><option value="">Todos</option></select>
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Raça/Etnia</label>
+          <select id="to-f-raca" onchange="pplRenderTurnover()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer"><option value="">Todas</option></select>
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Departamento</label>
+          <select id="to-f-depto" onchange="pplRenderTurnover()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer"><option value="">Todos</option></select>
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Motivo</label>
+          <select id="to-f-motivo" onchange="pplRenderTurnover()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer"><option value="">Todos</option></select>
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Vínculo</label>
+          <select id="to-f-tipo" onchange="pplRenderTurnover()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
+            <option value="">Todos</option><option value="pj">PJ</option><option value="clt">CLT</option>
+          </select>
+        </div>
+        <div style="flex:1"></div>
+        <button class="btn" onclick="toLimparFiltros()" style="font-size:11px;padding:6px 12px">Limpar</button>
+      </div>
+
       <div id="turnover-kpis" class="kpi-grid" style="margin-bottom:20px"></div>
+      <div id="to-aviso" style="display:none;margin-bottom:16px"></div>
+
       <div class="charts-row" style="margin-bottom:20px">
-        <div class="chart-card"><div class="chart-title">Headcount Evolution 2026</div><div style="position:relative;height:220px"><canvas id="chartHeadcount"></canvas></div></div>
+        <div class="chart-card"><div class="chart-title" id="to-chart-hc-titulo">Headcount Evolution</div><div style="position:relative;height:220px"><canvas id="chartHeadcount"></canvas></div></div>
         <div class="chart-card"><div class="chart-title">Motivos de Desligamento</div><div style="position:relative;height:220px"><canvas id="chartMotivos"></canvas></div></div>
       </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+        <div class="chart-card">
+          <div class="chart-title">Turnover por Gênero</div>
+          <div id="turnover-genero-table"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Turnover por Raça/Etnia</div>
+          <div id="turnover-raca-table"></div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+        <div class="chart-card">
+          <div class="chart-title">Tempo de casa dos desligados</div>
+          <div id="turnover-tempo-table"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Saídas por ano</div>
+          <div id="turnover-ano-table"></div>
+        </div>
+      </div>
+
       <div class="charts-row">
         <div class="chart-card chart-full">
           <div class="chart-title">Turnover por Departamento</div>
@@ -4899,57 +4961,221 @@ function pplRenderDEI(){
 }
 
 // ── TURNOVER ─────────────────────────────────────────
-function pplRenderTurnover(){
-  var d=getPplData();
-  var ativos=d.filter(function(p){return p.status==='ativo';}).length;
-  var desligados=d.filter(function(p){return p.status==='desligado';}).length;
-  var taxa=ativos+desligados>0?(desligados/(ativos+desligados)*100):0;
-  var meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-  // Headcount by month (simplified: adds by admissao month, subtracts by desligamento month)
-  var hcMonth=new Array(12).fill(0);
-  d.forEach(function(p){
-    var adm=p.admissao?new Date(p.admissao):null;
-    var des=p.desligamento?new Date(p.desligamento):null;
-    if(adm&&adm.getFullYear()<=2026){
-      for(var m=0;m<12;m++){
-        var inPeriod=adm.getMonth()<=m&&adm.getFullYear()===2026;
-        var desante=des&&(des.getFullYear()<2026||(des.getFullYear()===2026&&des.getMonth()<m));
-        if((inPeriod||adm.getFullYear()<2026)&&!desante)hcMonth[m]++;
-      }
-    }
+// ── TURNOVER ──────────────────────────────────────────────────────────────────
+// Filtros demograficos (genero, raca) alem dos operacionais. Duas ressalvas que
+// o codigo respeita e a tela explicita:
+//  1. A taxa acumulada (desligados / ja passaram pela casa) nao e taxa anual -
+//     ela so cresce com o tempo. Quando um ano e escolhido, calculamos a taxa
+//     anual de verdade: saidas no ano / headcount medio do ano.
+//  2. Recorte demografico em grupo pequeno gera percentual enganoso (1 saida em
+//     3 pessoas = 33%), entao o N vem junto e grupos < 5 saem marcados.
+function toLimparFiltros(){
+  ['to-f-ano','to-f-mes','to-f-genero','to-f-raca','to-f-depto','to-f-motivo','to-f-tipo'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.value='';
   });
+  pplRenderTurnover();
+}
 
-  var motMap={};
-  d.filter(function(p){return p.status==='desligado'&&p.motivo_saida;}).forEach(function(p){motMap[p.motivo_saida]=(motMap[p.motivo_saida]||0)+1;});
+function toPopularFiltros(){
+  var d=getPplData();
+  var anos={}, gen={}, raca={}, dep={}, mot={};
+  d.forEach(function(p){
+    if(p.desligamento) anos[String(p.desligamento).substring(0,4)]=1;
+    if(p.genero) gen[p.genero]=1;
+    if(p.raca) raca[p.raca]=1;
+    if(p.depto) dep[p.depto]=1;
+    if(p.motivo_saida) mot[p.motivo_saida]=1;
+  });
+  var enche=function(id,vals,labelTodos,desc){
+    var sel=document.getElementById(id); if(!sel) return;
+    var atual=sel.value, lista=Object.keys(vals).sort();
+    if(desc) lista.reverse();
+    sel.innerHTML='<option value="">'+labelTodos+'</option>'+lista.map(function(v){return '<option value="'+v+'">'+v+'</option>';}).join('');
+    sel.value=atual;
+  };
+  enche('to-f-ano',anos,'Todos',true); enche('to-f-genero',gen,'Todos');
+  enche('to-f-raca',raca,'Todas'); enche('to-f-depto',dep,'Todos');
+  enche('to-f-motivo',mot,'Todos');
+}
 
-  var kpis=[
-    {label:'Headcount Atual',value:ativos,sub:'colaboradores ativos'},
-    {label:'Desligados',value:desligados,sub:'no histórico'},
-    {label:'Taxa Turnover',value:taxa.toFixed(1)+'%',sub:'histórico geral'},
-    {label:'Turnover Voluntário',value:d.filter(function(p){return p.motivo_saida==='Iniciativa própria';}).length,sub:'desligamentos'},
-  ];
-  document.getElementById('turnover-kpis').innerHTML=kpis.map(function(k){return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-value" style="font-size:18px">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
+// Quantas pessoas estavam ativas numa data — usado pro headcount medio, que e o
+// denominador correto da taxa anual.
+function toAtivosEm(pessoas, data){
+  return pessoas.filter(function(p){
+    var adm=p.admissao?ferData(p.admissao):null;
+    if(!adm||adm>data) return false;
+    var des=p.desligamento?ferData(p.desligamento):null;
+    if(des&&des<=data) return false;
+    return true;
+  }).length;
+}
+
+function toFiltrar(pessoas){
+  var f={
+    genero:document.getElementById('to-f-genero').value,
+    raca:document.getElementById('to-f-raca').value,
+    depto:document.getElementById('to-f-depto').value,
+    tipo:document.getElementById('to-f-tipo').value
+  };
+  return pessoas.filter(function(p){
+    if(f.genero&&p.genero!==f.genero) return false;
+    if(f.raca&&p.raca!==f.raca) return false;
+    if(f.depto&&p.depto!==f.depto) return false;
+    if(f.tipo&&p.tipo!==f.tipo) return false;
+    return true;
+  });
+}
+
+// Saidas: alem dos filtros demograficos, recorta por ano/mes/motivo da saida.
+function toSaidas(pessoas){
+  var fAno=document.getElementById('to-f-ano').value;
+  var fMes=document.getElementById('to-f-mes').value;
+  var fMot=document.getElementById('to-f-motivo').value;
+  return pessoas.filter(function(p){
+    if(p.status!=='desligado'||!p.desligamento) return false;
+    var s=String(p.desligamento);
+    if(fAno&&s.substring(0,4)!==fAno) return false;
+    if(fMes&&parseInt(s.substring(5,7),10)!==parseInt(fMes,10)) return false;
+    if(fMot&&p.motivo_saida!==fMot) return false;
+    return true;
+  });
+}
+
+function toTabela(titulo, linhas, colTotal){
+  if(!linhas.length) return '<div style="font-size:11px;color:var(--text3);padding:14px">Sem dados no filtro</div>';
+  return '<table class="tbl"><thead><tr><th>'+titulo+'</th><th style="text-align:right">Ativos</th>'+
+    '<th style="text-align:right">Saídas</th><th style="text-align:right">'+(colTotal||'Taxa')+'</th><th>Risco</th></tr></thead><tbody>'+
+    linhas.map(function(r){
+      var pequeno=(r.a+r.des)<5;
+      var cl=pequeno?'badge-gray':(r.t>30?'badge-red':r.t>15?'badge-amber':'badge-green');
+      var lbl=pequeno?'N baixo':(r.t>30?'Alto':r.t>15?'Médio':'Baixo');
+      return '<tr><td>'+r.nome+'</td><td style="text-align:right">'+r.a+'</td>'+
+        '<td style="text-align:right">'+r.des+'</td>'+
+        '<td style="text-align:right">'+r.t.toFixed(1)+'%</td>'+
+        '<td><span class="badge '+cl+'" title="'+(pequeno?'Grupo pequeno: o percentual oscila muito com uma saída':'')+'">'+lbl+'</span></td></tr>';
+    }).join('')+'</tbody></table>';
+}
+
+function toAgrupar(base, saidas, campo){
+  var chaves={};
+  base.forEach(function(p){ chaves[p[campo]||'Não informado']=1; });
+  saidas.forEach(function(p){ chaves[p[campo]||'Não informado']=1; });
+  return Object.keys(chaves).map(function(k){
+    var a=base.filter(function(p){ return (p[campo]||'Não informado')===k && p.status==='ativo'; }).length;
+    var des=saidas.filter(function(p){ return (p[campo]||'Não informado')===k; }).length;
+    return {nome:k, a:a, des:des, t:(a+des)>0?(des/(a+des)*100):0};
+  }).sort(function(x,y){ return y.t-x.t; });
+}
+
+function pplRenderTurnover(){
+  toPopularFiltros();
+  var todos=getPplData();
+  var base=toFiltrar(todos);
+  var saidas=toSaidas(base);
+  var ativos=base.filter(function(p){return p.status==='ativo';}).length;
+  var fAno=document.getElementById('to-f-ano').value;
+  var meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+  // Taxa: anual de verdade quando ha ano escolhido; senao a acumulada historica.
+  var taxa, taxaLabel, taxaSub;
+  if(fAno){
+    var ano=parseInt(fAno,10);
+    var hcIni=toAtivosEm(base,new Date(ano,0,1)), hcFim=toAtivosEm(base,new Date(ano,11,31));
+    var hcMedio=(hcIni+hcFim)/2;
+    taxa = hcMedio>0 ? (saidas.length/hcMedio*100) : 0;
+    taxaLabel='Taxa Turnover '+fAno;
+    taxaSub='saídas ÷ headcount médio ('+Math.round(hcMedio)+')';
+  } else {
+    // Denominador e sempre todo mundo que passou pela casa; o numerador
+    // respeita os filtros de mes/motivo. Assim, filtrar por "Iniciativa
+    // propria" da a taxa de saida voluntaria, e nao a taxa total de novo.
+    var desTot=base.filter(function(p){return p.status==='desligado';}).length;
+    taxa = (ativos+desTot)>0 ? (saidas.length/(ativos+desTot)*100) : 0;
+    var recortado=saidas.length!==desTot;
+    taxaLabel=recortado?'Turnover do recorte':'Turnover acumulado';
+    taxaSub=recortado?('sobre '+(ativos+desTot)+' que já passaram'):'de todos que já passaram';
+  }
+
+  // Tempo medio de casa dos que sairam
+  var temposMeses=saidas.map(function(p){
+    if(!p.admissao||!p.desligamento) return null;
+    var a=ferData(p.admissao), s=ferData(p.desligamento);
+    return (s.getFullYear()-a.getFullYear())*12+(s.getMonth()-a.getMonth());
+  }).filter(function(v){ return v!==null&&v>=0; });
+  var tempoMedio=temposMeses.length?temposMeses.reduce(function(s,v){return s+v;},0)/temposMeses.length:0;
+  var volunt=saidas.filter(function(p){return p.motivo_saida==='Iniciativa própria';}).length;
+
+  document.getElementById('turnover-kpis').innerHTML=[
+    {label:'Headcount Atual',value:ativos,sub:'ativos no filtro'},
+    {label:'Saídas',value:saidas.length,sub:fAno?('em '+fAno):'no histórico'},
+    {label:taxaLabel,value:taxa.toFixed(1)+'%',sub:taxaSub},
+    {label:'Voluntário',value:volunt+(saidas.length?' ('+(volunt/saidas.length*100).toFixed(0)+'%)':''),sub:'iniciativa própria'},
+    {label:'Tempo médio de casa',value:temposMeses.length?(tempoMedio/12).toFixed(1)+' anos':'—',sub:'de quem saiu'}
+  ].map(function(k){return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-value" style="font-size:18px">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
+
+  // Aviso quando o recorte ficou pequeno demais pra sustentar percentual
+  var av=document.getElementById('to-aviso');
+  var temFiltroDemo=document.getElementById('to-f-genero').value||document.getElementById('to-f-raca').value;
+  if(temFiltroDemo&&(ativos+saidas.length)<10){
+    av.style.display='';
+    av.innerHTML='<div style="background:rgba(251,191,36,.08);border:1px solid var(--amber);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--text2);line-height:1.6">'+
+      '⚠️ Recorte com apenas '+(ativos+saidas.length)+' pessoa(s). Percentuais sobre grupos pequenos variam muito com uma única saída — use os números absolutos para concluir algo.</div>';
+  } else { av.style.display='none'; av.innerHTML=''; }
+
+  // Headcount mes a mes (usa o ano filtrado, ou o ano corrente)
+  var anoGraf=fAno?parseInt(fAno,10):new Date().getFullYear();
+  document.getElementById('to-chart-hc-titulo').textContent='Headcount Evolution '+anoGraf;
+  var hcMonth=[];
+  for(var m=0;m<12;m++) hcMonth.push(toAtivosEm(base,new Date(anoGraf,m+1,0)));
 
   var c1=document.getElementById('chartHeadcount');
   if(_pplCharts.hc)_pplCharts.hc.destroy();
   _pplCharts.hc=new Chart(c1,{type:'line',data:{labels:meses,datasets:[{label:'Headcount',data:hcMonth,borderColor:'rgba(255,255,255,0.8)',backgroundColor:'rgba(255,255,255,0.05)',fill:true,tension:0.3,pointRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#666',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',font:{size:10}}}}}});
 
+  var motMap={};
+  saidas.forEach(function(p){ if(p.motivo_saida) motMap[p.motivo_saida]=(motMap[p.motivo_saida]||0)+1; });
   var c2=document.getElementById('chartMotivos');
   if(_pplCharts.mot)_pplCharts.mot.destroy();
-  if(Object.keys(motMap).length)_pplCharts.mot=new Chart(c2,{type:'bar',data:{labels:Object.keys(motMap),datasets:[{data:Object.values(motMap),backgroundColor:'rgba(248,113,113,0.5)',borderRadius:4,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555'}},y:{grid:{display:false},ticks:{color:'#888',font:{size:10}}}}}});
+  if(Object.keys(motMap).length)_pplCharts.mot=new Chart(c2,{type:'bar',data:{labels:Object.keys(motMap),datasets:[{data:Object.values(motMap),backgroundColor:'rgba(248,113,113,0.5)',borderRadius:4,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',precision:0}},y:{grid:{display:false},ticks:{color:'#888',font:{size:10}}}}}});
 
-  // Turnover by depto
-  var deptos=[...new Set(d.map(function(p){return p.depto;}))];
-  var rows=deptos.map(function(dep){
-    var pd=d.filter(function(p){return p.depto===dep;});
-    var a=pd.filter(function(p){return p.status==='ativo';}).length;
-    var des=pd.filter(function(p){return p.status==='desligado';}).length;
-    var t=(a+des)>0?(des/(a+des)*100):0;
-    return {dep,a,des,t};
-  }).sort(function(a,b){return b.t-a.t;});
-  document.getElementById('turnover-depto-table').innerHTML='<table class="tbl"><thead><tr><th>Departamento</th><th style="text-align:right">Ativos</th><th style="text-align:right">Desligados</th><th style="text-align:right">Taxa Turnover</th><th>Risco</th></tr></thead><tbody>'+
-    rows.map(function(r){var cl=r.t>30?'badge-red':r.t>15?'badge-amber':'badge-green';return '<tr><td>'+r.dep+'</td><td style="text-align:right">'+r.a+'</td><td style="text-align:right">'+r.des+'</td><td style="text-align:right">'+r.t.toFixed(1)+'%</td><td><span class="badge '+cl+'">'+(r.t>30?'Alto':r.t>15?'Médio':'Baixo')+'</span></td></tr>';}).join('')+
-  '</tbody></table>';
+  document.getElementById('turnover-genero-table').innerHTML=toTabela('Gênero',toAgrupar(base,saidas,'genero'));
+  document.getElementById('turnover-raca-table').innerHTML=toTabela('Raça/Etnia',toAgrupar(base,saidas,'raca'));
+  document.getElementById('turnover-depto-table').innerHTML=toTabela('Departamento',toAgrupar(base,saidas,'depto'));
+
+  // Tempo de casa por faixa
+  var faixas=[{l:'Menos de 6 meses',min:0,max:5},{l:'6 a 12 meses',min:6,max:11},
+              {l:'1 a 2 anos',min:12,max:23},{l:'2 a 4 anos',min:24,max:47},{l:'4 anos ou mais',min:48,max:9999}];
+  var totT=temposMeses.length;
+  document.getElementById('turnover-tempo-table').innerHTML = totT
+    ? '<table class="tbl"><thead><tr><th>Tempo até a saída</th><th style="text-align:right">Saídas</th><th style="text-align:right">%</th></tr></thead><tbody>'+
+      faixas.map(function(f){
+        var n=temposMeses.filter(function(v){ return v>=f.min&&v<=f.max; }).length;
+        return '<tr><td>'+f.l+'</td><td style="text-align:right">'+n+'</td>'+
+          '<td style="text-align:right;color:'+(f.max<=11&&n/totT>0.3?'var(--neg)':'var(--text2)')+'">'+(n/totT*100).toFixed(0)+'%</td></tr>';
+      }).join('')+'</tbody></table>'
+    : '<div style="font-size:11px;color:var(--text3);padding:14px">Sem saídas com data de admissão e desligamento no filtro</div>';
+
+  // Saidas por ano (ignora o filtro de ano, pra sempre dar a serie completa)
+  var semAno=base.filter(function(p){
+    if(p.status!=='desligado'||!p.desligamento) return false;
+    var fMot=document.getElementById('to-f-motivo').value;
+    if(fMot&&p.motivo_saida!==fMot) return false;
+    return true;
+  });
+  var porAno={};
+  semAno.forEach(function(p){ var a=String(p.desligamento).substring(0,4); porAno[a]=(porAno[a]||0)+1; });
+  var anos=Object.keys(porAno).sort();
+  document.getElementById('turnover-ano-table').innerHTML = anos.length
+    ? '<table class="tbl"><thead><tr><th>Ano</th><th style="text-align:right">Saídas</th><th style="text-align:right">Headcount médio</th><th style="text-align:right">Taxa anual</th></tr></thead><tbody>'+
+      anos.map(function(a){
+        var an=parseInt(a,10);
+        var hm=(toAtivosEm(base,new Date(an,0,1))+toAtivosEm(base,new Date(an,11,31)))/2;
+        var tx=hm>0?(porAno[a]/hm*100):0;
+        return '<tr><td>'+a+'</td><td style="text-align:right">'+porAno[a]+'</td>'+
+          '<td style="text-align:right;color:var(--text3)">'+Math.round(hm)+'</td>'+
+          '<td style="text-align:right;color:'+(tx>40?'var(--neg)':tx>25?'var(--amber)':'var(--text2)')+'">'+tx.toFixed(1)+'%</td></tr>';
+      }).join('')+'</tbody></table>'
+    : '<div style="font-size:11px;color:var(--text3);padding:14px">Sem saídas registradas</div>';
 }
 
 // ── ORGANOGRAMA ──────────────────────────────────────
