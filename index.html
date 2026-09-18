@@ -1432,6 +1432,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       <button class="tab-btn" onclick="switchPeopleTab('profitability',event)">💰 Rentabilidade</button>
       <button class="tab-btn" onclick="switchPeopleTab('ferias',event)">🏖️ Férias & Ausências</button>
       <button class="tab-btn" onclick="switchPeopleTab('reajustes',event)">📈 Reajustes</button>
+      <button class="tab-btn" onclick="switchPeopleTab('movimentacoes',event)">🔄 Movimentações</button>
     </div>
 
     <!-- ── EQUIPE ── -->
@@ -2011,6 +2012,81 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
             <tbody id="rj-eq-tbody"><tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text3)">—</td></tr></tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <!-- MOVIMENTAÇÕES INTERNAS -->
+    <div class="tab-panel" id="people-movimentacoes">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px">
+        <div>
+          <div style="font-size:20px;font-weight:700">Movimentações Internas</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:4px">Mudanças de cargo e departamento, com data efetiva — inclusive agendadas para o futuro</div>
+        </div>
+        <button class="btn btn-primary" onclick="movAbrirModal()" style="font-size:11px;padding:6px 14px">+ Nova Movimentação</button>
+      </div>
+
+      <div id="mov-alerta" style="display:none;margin-bottom:16px"></div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px" id="mov-kpis"></div>
+
+      <div class="table-card">
+        <div class="table-header">
+          <span class="table-title">Histórico e agendamentos</span>
+          <span class="table-meta" id="mov-meta">—</span>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr>
+              <th>Colaborador</th><th>Data efetiva</th>
+              <th>De</th><th>Para</th><th>Motivo</th><th>Situação</th><th></th>
+            </tr></thead>
+            <tbody id="mov-tbody"><tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Nenhuma movimentação registrada</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL MOVIMENTAÇÃO -->
+  <div class="modal-overlay" id="mov-modal" style="display:none">
+    <div class="modal" style="max-width:560px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+        <div style="font-family:var(--font-head);font-weight:700;font-size:16px">🔄 Nova Movimentação</div>
+        <button onclick="movFecharModal()" style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div style="grid-column:1/-1">
+          <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Colaborador *</label>
+          <select id="mov-f-pessoa" onchange="movPreencherAtual()" class="field-input" style="width:100%"></select>
+        </div>
+        <div style="grid-column:1/-1;background:var(--bg3);border-radius:6px;padding:10px 12px;font-size:11px;color:var(--text3)" id="mov-f-atual">Selecione o colaborador</div>
+        <div>
+          <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Novo cargo</label>
+          <input id="mov-f-cargo" class="field-input" style="width:100%" placeholder="deixe vazio para manter">
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Novo departamento</label>
+          <select id="mov-f-depto" class="field-input" style="width:100%"></select>
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Data efetiva *</label>
+          <input id="mov-f-data" type="date" class="field-input" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Motivo</label>
+          <select id="mov-f-motivo" class="field-input" style="width:100%">
+            <option>Transferência de área</option><option>Promoção</option>
+            <option>Mudança de cargo</option><option>Reestruturação</option><option>Outro</option>
+          </select>
+        </div>
+        <div style="grid-column:1/-1">
+          <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Observações</label>
+          <textarea id="mov-f-obs" rows="2" class="field-input" style="width:100%;resize:vertical"></textarea>
+        </div>
+      </div>
+      <div style="font-size:10px;color:var(--text3);margin-top:12px;line-height:1.5" id="mov-f-aviso"></div>
+      <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
+        <button class="btn" onclick="movFecharModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="movSalvar()">Salvar</button>
       </div>
     </div>
   </div>
@@ -3772,7 +3848,7 @@ function migrarLocalStorage(){
   var migKey = 'euphoria_migrated_'+ent;
   if(localStorage.getItem(migKey)) return; // já migrou
   var keys = [
-    'euphoria_people_v2','euphoria_people_hist','euphoria_ferias','euphoria_ausencias',
+    'euphoria_people_v2','euphoria_people_hist','euphoria_movimentacoes','euphoria_ferias','euphoria_ausencias',
     'euphoria_alocacao_v1','euphoria_lancamentos',
     'crm_prospects','crm_responsaveis',
     'euphoria_ts','euphoria_projetos','euphoria_juridico','euphoria_ti_ativos',
@@ -3916,7 +3992,7 @@ function backupAutoSave(){
 function backupColetar(){
   var ent = currentUser&&currentUser.entidade ? currentUser.entidade : 'BR';
   var keys = [
-    'euphoria_people_v2','euphoria_people_hist','euphoria_ferias','euphoria_ausencias',
+    'euphoria_people_v2','euphoria_people_hist','euphoria_movimentacoes','euphoria_ferias','euphoria_ausencias',
     'euphoria_alocacao_v1','euphoria_lancamentos',
     'crm_prospects','crm_responsaveis',
     'euphoria_ts','euphoria_projetos','euphoria_juridico',
@@ -4230,6 +4306,161 @@ function switchPeopleTab(tab,e){
   if(tab==='profitability')pplCarregarProfitability();
   if(tab==='ferias'){ ferPopularDeptos(); ferRender(); }
   if(tab==='reajustes'){ rjPopularDeptos(); rjRender(); }
+  if(tab==='movimentacoes'){ movRender(); }
+}
+
+// ── MOVIMENTAÇÕES INTERNAS ───────────────────────────────────────────────────
+// Trocar cargo/depto no cadastro sobrescrevia o valor antigo, sem deixar
+// rastro de quando nem por que a pessoa mudou de area. E como a mudanca costuma
+// ser combinada antes de acontecer (o Vinicius vai do Financeiro para
+// Estrategia em outubro, decidido em setembro), o registro precisa aceitar data
+// futura e so alterar o cadastro quando a data chegar.
+function getMovData(){ return JSON.parse(lsGet('euphoria_movimentacoes')||'[]'); }
+function saveMovData(d){ lsSet('euphoria_movimentacoes', JSON.stringify(d)); backupAutoSave(); }
+
+function movAbrirModal(){
+  var sel=document.getElementById('mov-f-pessoa');
+  var ativos=getPplData().filter(function(p){ return (p.status||'ativo')==='ativo'; })
+    .sort(function(a,b){ return String(a.nome).localeCompare(String(b.nome)); });
+  sel.innerHTML='<option value="">— selecione —</option>'+ativos.map(function(p){
+    return '<option value="'+p.id+'">'+p.nome+'</option>'; }).join('');
+  var deptos={};
+  getPplData().forEach(function(p){ if(p.depto) deptos[p.depto]=1; });
+  document.getElementById('mov-f-depto').innerHTML='<option value="">— manter o atual —</option>'+
+    Object.keys(deptos).sort().map(function(d){ return '<option value="'+d+'">'+d+'</option>'; }).join('');
+  document.getElementById('mov-f-cargo').value='';
+  document.getElementById('mov-f-data').value='';
+  document.getElementById('mov-f-obs').value='';
+  document.getElementById('mov-f-atual').textContent='Selecione o colaborador';
+  document.getElementById('mov-f-aviso').textContent='';
+  document.getElementById('mov-modal').style.display='flex';
+}
+function movFecharModal(){ document.getElementById('mov-modal').style.display='none'; }
+
+function movPreencherAtual(){
+  var id=document.getElementById('mov-f-pessoa').value;
+  var p=getPplData().find(function(x){ return x.id===id; });
+  document.getElementById('mov-f-atual').textContent = p
+    ? 'Hoje: '+(p.cargo||'—')+' · '+(p.depto||'—')
+    : 'Selecione o colaborador';
+}
+
+function movSalvar(){
+  var id=document.getElementById('mov-f-pessoa').value;
+  var data=document.getElementById('mov-f-data').value;
+  if(!id||!data){ alert('Colaborador e data efetiva são obrigatórios.'); return; }
+  var p=getPplData().find(function(x){ return x.id===id; });
+  if(!p){ alert('Colaborador não encontrado.'); return; }
+  var novoCargo=document.getElementById('mov-f-cargo').value.trim();
+  var novoDepto=document.getElementById('mov-f-depto').value;
+  if(!novoCargo && !novoDepto){ alert('Informe ao menos o novo cargo ou o novo departamento.'); return; }
+  var d=getMovData();
+  d.push({
+    id:String(Date.now()), pessoaId:id, nome:p.nome, data:data,
+    deCargo:p.cargo||'', paraCargo:novoCargo||p.cargo||'',
+    deDepto:p.depto||'', paraDepto:novoDepto||p.depto||'',
+    motivo:document.getElementById('mov-f-motivo').value,
+    obs:document.getElementById('mov-f-obs').value.trim(),
+    aplicada:false
+  });
+  saveMovData(d);
+  movFecharModal();
+  movRender();
+}
+
+function movAplicar(movId, silencioso){
+  var d=getMovData();
+  var m=d.find(function(x){ return x.id===movId; });
+  if(!m || m.aplicada) return false;
+  var ppl=getPplData();
+  var idx=ppl.findIndex(function(x){ return x.id===m.pessoaId; });
+  if(idx<0){ if(!silencioso) alert('Colaborador não está mais no cadastro.'); return false; }
+  if(!silencioso && !confirm('Aplicar a movimentação de '+m.nome+'?\n\n'+
+     (m.deCargo!==m.paraCargo?('Cargo: '+m.deCargo+' → '+m.paraCargo+'\n'):'')+
+     (m.deDepto!==m.paraDepto?('Departamento: '+m.deDepto+' → '+m.paraDepto):''))) return false;
+  ppl[idx].cargo=m.paraCargo;
+  ppl[idx].depto=m.paraDepto;
+  savePplData(ppl);
+  m.aplicada=true;
+  m.aplicadaEm=new Date().toISOString().slice(0,10);
+  saveMovData(d);
+  if(!silencioso){ movRender(); if(typeof pplRenderTable==='function') pplRenderTable(); }
+  return true;
+}
+
+function movRemover(movId){
+  if(!confirm('Remover este registro de movimentação?\n\nSe ela já foi aplicada, o cadastro do colaborador NÃO volta ao estado anterior.')) return;
+  saveMovData(getMovData().filter(function(x){ return x.id!==movId; }));
+  movRender();
+}
+
+function movRender(){
+  if(!document.getElementById('mov-tbody')) return;
+  var d=getMovData().slice().sort(function(a,b){ return String(b.data).localeCompare(String(a.data)); });
+  var hoje=new Date(); hoje.setHours(0,0,0,0);
+  var pendentes=d.filter(function(m){ return !m.aplicada && ferData(m.data)<=hoje; });
+  var agendadas=d.filter(function(m){ return !m.aplicada && ferData(m.data)>hoje; });
+
+  document.getElementById('mov-kpis').innerHTML=[
+    {l:'Movimentações',v:d.length,s:'no histórico'},
+    {l:'Agendadas',v:agendadas.length,s:'data ainda não chegou',c:agendadas.length?'':''},
+    {l:'A efetivar',v:pendentes.length,s:'data já passou',c:pendentes.length?'neg':''},
+    {l:'Nos últimos 12 meses',v:d.filter(function(m){
+        var dt=ferData(m.data); var lim=new Date(hoje.getFullYear()-1,hoje.getMonth(),hoje.getDate());
+        return dt>=lim && dt<=hoje; }).length, s:'já efetivadas ou não'}
+  ].map(function(k){ return '<div class="kpi-card"><div class="kpi-label">'+k.l+'</div>'+
+    '<div class="kpi-value '+(k.c||'')+'" style="font-size:18px">'+k.v+'</div>'+
+    '<div class="kpi-sub">'+k.s+'</div></div>'; }).join('');
+
+  var al=document.getElementById('mov-alerta');
+  if(pendentes.length){
+    al.style.display='';
+    al.innerHTML='<div style="background:rgba(251,191,36,.08);border:1px solid var(--amber);border-radius:8px;padding:12px 14px">'+
+      '<div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:6px">⚠️ '+pendentes.length+
+        ' movimentação(ões) com data já vencida e ainda não aplicada(s)</div>'+
+      '<div style="font-size:11px;color:var(--text2);line-height:1.6;margin-bottom:8px">'+
+        'Enquanto não aplicar, o cadastro segue com o cargo e o departamento antigos — e o custo continua sendo contado na área anterior.</div>'+
+      '<div style="font-size:11px;font-family:var(--font-mono);color:var(--text3);margin-bottom:10px">'+
+        pendentes.slice(0,6).map(function(m){ return m.nome+' — '+ferFmtData(ferData(m.data)); }).join('<br>')+'</div>'+
+      '<button class="btn btn-primary" onclick="movAplicarPendentes()" style="font-size:11px;padding:5px 12px">Aplicar todas</button></div>';
+  } else { al.style.display='none'; al.innerHTML=''; }
+
+  document.getElementById('mov-meta').textContent=d.length+' registro(s)';
+  document.getElementById('mov-tbody').innerHTML = d.length ? d.map(function(m){
+    var dt=ferData(m.data);
+    var sit, cor;
+    if(m.aplicada){ sit='Efetivada'; cor='var(--pos)'; }
+    else if(dt>hoje){ sit='Agendada'; cor='var(--amber)'; }
+    else { sit='A efetivar'; cor='var(--neg)'; }
+    var de=[], para=[];
+    if(m.deCargo!==m.paraCargo){ de.push(m.deCargo||'—'); para.push(m.paraCargo||'—'); }
+    if(m.deDepto!==m.paraDepto){ de.push(m.deDepto||'—'); para.push(m.paraDepto||'—'); }
+    if(!de.length){ de.push(m.deDepto||'—'); para.push(m.paraDepto||'—'); }
+    return '<tr'+(m.aplicada?'':' style="background:rgba(255,255,255,.02)"')+'>'+
+      '<td><strong>'+m.nome+'</strong></td>'+
+      '<td style="font-size:11px">'+ferFmtData(dt)+'</td>'+
+      '<td style="font-size:11px;color:var(--text3)">'+de.join(' · ')+'</td>'+
+      '<td style="font-size:11px">'+para.join(' · ')+'</td>'+
+      '<td style="font-size:10px;color:var(--text3)">'+(m.motivo||'—')+'</td>'+
+      '<td><span style="font-size:10px;color:'+cor+'">'+sit+'</span></td>'+
+      '<td style="white-space:nowrap">'+
+        (m.aplicada?'':'<button class="btn" onclick="movAplicar(\''+m.id+'\')" style="font-size:9px;padding:3px 8px;border-color:var(--accent);color:var(--accent)">Aplicar</button> ')+
+        '<button class="btn" onclick="movRemover(\''+m.id+'\')" style="font-size:9px;padding:3px 6px">×</button></td>'+
+    '</tr>';
+  }).join('') : '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Nenhuma movimentação registrada</td></tr>';
+}
+
+function movAplicarPendentes(){
+  var hoje=new Date(); hoje.setHours(0,0,0,0);
+  var pend=getMovData().filter(function(m){ return !m.aplicada && ferData(m.data)<=hoje; });
+  if(!pend.length) return;
+  if(!confirm('Aplicar '+pend.length+' movimentação(ões) ao cadastro?\n\n'+
+    pend.map(function(m){ return '• '+m.nome+': '+(m.deDepto||'—')+' → '+(m.paraDepto||'—'); }).join('\n'))) return;
+  var n=0;
+  pend.forEach(function(m){ if(movAplicar(m.id,true)) n++; });
+  movRender();
+  if(typeof pplRenderTable==='function') pplRenderTable();
+  alert(n+' movimentação(ões) aplicada(s).');
 }
 
 // ── ANÁLISE DE REAJUSTE SALARIAL ─────────────────────────────────────────────
