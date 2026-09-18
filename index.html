@@ -1052,12 +1052,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       </div>
       <div id="crm-resp-list" style="display:flex;flex-wrap:wrap;gap:6px"></div>
     </div>
-    <div id="crm-kanban" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px">
+    <div id="crm-kanban" style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px">
       <div class="chart-card" style="padding:12px;min-height:300px"><div style="font-size:10px;color:#60a5fa;text-transform:uppercase;margin-bottom:10px;font-weight:600">Prospect</div><div id="crm-col-prospect"></div></div>
       <div class="chart-card" style="padding:12px;min-height:300px"><div style="font-size:10px;color:#fbbf24;text-transform:uppercase;margin-bottom:10px;font-weight:600">Proposta Enviada</div><div id="crm-col-proposta"></div></div>
       <div class="chart-card" style="padding:12px;min-height:300px"><div style="font-size:10px;color:#f97316;text-transform:uppercase;margin-bottom:10px;font-weight:600">Negociacao</div><div id="crm-col-negociacao"></div></div>
       <div class="chart-card" style="padding:12px;min-height:300px;border:1px solid rgba(110,231,183,0.3)"><div style="font-size:10px;color:var(--pos);text-transform:uppercase;margin-bottom:10px;font-weight:600">Ganho</div><div id="crm-col-ganho"></div></div>
       <div class="chart-card" style="padding:12px;min-height:300px;border:1px solid rgba(248,113,113,0.3)"><div style="font-size:10px;color:var(--neg);text-transform:uppercase;margin-bottom:10px;font-weight:600">Perdido</div><div id="crm-col-perdido"></div></div>
+      <div class="chart-card" style="padding:12px;min-height:300px;border:1px solid rgba(148,163,184,0.3)"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:10px;font-weight:600">Desistimos</div><div id="crm-col-desistimos"></div></div>
     </div>
     <div id="crm-tabela" style="display:none">
       <div class="table-card">
@@ -1144,7 +1145,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
           <div style="grid-column:1/-1"><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Empresa</label><input id="crm-f-empresa" type="text" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;box-sizing:border-box"></div>
           <div><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Contato</label><input id="crm-f-contato" type="text" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;box-sizing:border-box"></div>
           <div><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Email</label><input id="crm-f-email" type="email" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;box-sizing:border-box"></div>
-          <div><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Status</label><select id="crm-f-status" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;cursor:pointer"><option value="prospect">Prospect</option><option value="proposta">Proposta Enviada</option><option value="negociacao">Negociacao</option><option value="ganho">Ganho</option><option value="perdido">Perdido</option></select></div>
+          <div><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Status</label><select id="crm-f-status" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;cursor:pointer"><option value="prospect">Prospect</option><option value="proposta">Proposta Enviada</option><option value="negociacao">Negociacao</option><option value="ganho">Ganho</option><option value="perdido">Perdido</option><option value="desistimos">Desistimos (declinamos)</option></select></div>
           <div><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Tipo</label><select id="crm-f-tipo" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;cursor:pointer"><option value="fee">Fee Mensal</option><option value="projeto">Projeto</option><option value="midia">Midia</option><option value="misto">Misto</option></select></div>
           <div style="grid-column:1/-1">
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
@@ -1160,6 +1161,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
                   <option value="7" selected>Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
                   <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
                 </select>
+                <select id="crm-f-ano-ini" onchange="crmCalcValor()" style="width:100%;margin-top:5px;background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 12px;border-radius:6px;font-size:11px;outline:none;cursor:pointer"></select>
               </div>
               <div>
                 <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px">Mes Fim</label>
@@ -1169,6 +1171,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
                   <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
                   <option value="10">Outubro</option><option value="11">Novembro</option><option value="12" selected>Dezembro</option>
                 </select>
+                <select id="crm-f-ano-fim" onchange="crmCalcValor()" style="width:100%;margin-top:5px;background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 12px;border-radius:6px;font-size:11px;outline:none;cursor:pointer"></select>
               </div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-top:8px">
@@ -1196,6 +1199,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
               <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:5px">
                 <span>Comissão de Mídia</span><span id="crm-f-valor-midia">R$ 0</span>
               </div>
+              <div id="crm-aviso-valor" style="display:none;margin-bottom:8px"></div>
               <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:8px">
                 <span>Comissão de Produção</span><span id="crm-f-valor-producao">R$ 0</span>
               </div>
@@ -11994,7 +11998,11 @@ async function carregarActualVbs(){
 var _crmData = [];
 var _crmEditId = null;
 var _crmTipos = {fee:'Fee Mensal',projeto:'Projeto',midia:'Midia',misto:'Misto'};
-var _crmStatus = {prospect:'Prospect',proposta:'Proposta Enviada',negociacao:'Negociacao',ganho:'Ganho',perdido:'Perdido'};
+// "perdido" e a concorrencia que escolheu outro; "desistimos" e quando a
+// Euphoria declina. Sao coisas diferentes pra leitura do funil: desistencia
+// nossa nao significa proposta ruim, e misturar as duas mascara a taxa de
+// conversao real.
+var _crmStatus = {prospect:'Prospect',proposta:'Proposta Enviada',negociacao:'Negociacao',ganho:'Ganho',perdido:'Perdido',desistimos:'Desistimos'};
 
 function crmFmt(v){ return 'R$ '+Math.round(v||0).toLocaleString('pt-BR'); }
 
@@ -12104,7 +12112,7 @@ function crmCard(p){
 
 function crmRenderKanban(){
   var data=crmFiltrar();
-  var cols={prospect:[],proposta:[],negociacao:[],ganho:[],perdido:[]};
+  var cols={prospect:[],proposta:[],negociacao:[],ganho:[],perdido:[],desistimos:[]};
   data.forEach(function(p){ if(cols[p.status]) cols[p.status].push(p); });
   Object.keys(cols).forEach(function(st){
     var el=document.getElementById('crm-col-'+st);
@@ -12156,7 +12164,11 @@ function crmAbrirModal(id){
     var valMidiaEdit=(p.investimento_midia||0)*(p.comissao_midia||0)/100;
     var valProducaoEdit=(p.investimento_producao||0)*(p.comissao_producao||0)/100;
     document.getElementById('crm-f-valor').value=p.valor_potencial||0;
+    crmPopularAnos(p.ano_inicio||p.ano, p.ano_fim||p.ano);
+    mesesEdit = crmMesesPeriodo();
+    valFeeEdit = (p.fee_mensal||0)*mesesEdit;
     crmAtualizarLinhasValor(valFeeEdit, valMidiaEdit, valProducaoEdit, p.valor_potencial||0, mesesEdit);
+    crmAvisoValorManual((valFeeEdit+valMidiaEdit+valProducaoEdit)===0 && (p.valor_potencial||0)>0, p.valor_potencial||0);
     document.getElementById('crm-f-prob').value=p.probabilidade||25;
     document.getElementById('crm-f-resp').value=p.responsavel||'Andressa';
     document.getElementById('crm-f-followup').value=p.proximo_followup?p.proximo_followup.substring(0,10):'';
@@ -12176,7 +12188,9 @@ function crmAbrirModal(id){
     document.getElementById('crm-f-com-midia').value='';
     document.getElementById('crm-f-inv-producao').value='';
     document.getElementById('crm-f-com-producao').value='';
+    crmPopularAnos();
     crmAtualizarLinhasValor(0,0,0,0,0);
+    crmAvisoValorManual(false,0);
     document.getElementById('crm-f-prob').value='25';
     document.getElementById('crm-f-resp').value='Andressa';
     document.getElementById('crm-f-followup').value='';
@@ -12204,6 +12218,14 @@ async function crmSalvar(){
     fee_mensal:parseFloat(document.getElementById('crm-f-fee').value)||0,
     mes_inicio:parseInt(document.getElementById('crm-f-mes-ini').value)||1,
     mes_fim:parseInt(document.getElementById('crm-f-mes-fim').value)||12,
+    ano_inicio:parseInt((document.getElementById('crm-f-ano-ini')||{}).value)||null,
+    ano_fim:parseInt((document.getElementById('crm-f-ano-fim')||{}).value)||null,
+    // Sem composicao (fee e investimentos zerados) o valor foi digitado direto:
+    // marca como manual pra nao ser recalculado e zerado depois.
+    valor_manual: (parseFloat(document.getElementById('crm-f-fee').value)||0)===0 &&
+                  (parseFloat(document.getElementById('crm-f-inv-midia').value)||0)===0 &&
+                  (parseFloat(document.getElementById('crm-f-inv-producao').value)||0)===0 &&
+                  (parseFloat(document.getElementById('crm-f-valor').value)||0)>0,
     investimento_midia:parseFloat(document.getElementById('crm-f-inv-midia').value)||0,
     comissao_midia:parseFloat(document.getElementById('crm-f-com-midia').value)||0,
     investimento_producao:parseFloat(document.getElementById('crm-f-inv-producao').value)||0,
@@ -12681,11 +12703,32 @@ crmCarregar = async function(){
 // ── CRM CALCULADORA ──────────────────────────────────────────────────────────
 function crmFmtValorLinha(v){ return 'R$ ' + Math.round(v).toLocaleString('pt-BR'); }
 
+// Preenche os selects de ano do periodo. O contrato pode atravessar o ano
+// (ex.: agosto/2026 a julho/2027), entao ano de inicio e de fim sao separados.
+function crmPopularAnos(anoIni, anoFim){
+  var base = parseInt(document.getElementById('crm-sel-ano').value) || new Date().getFullYear();
+  var opcoes = [];
+  for(var a=base-2; a<=base+3; a++) opcoes.push(a);
+  [['crm-f-ano-ini', anoIni||base], ['crm-f-ano-fim', anoFim||base]].forEach(function(par){
+    var el=document.getElementById(par[0]); if(!el) return;
+    el.innerHTML = opcoes.map(function(a){ return '<option value="'+a+'">'+a+'</option>'; }).join('');
+    el.value = par[1];
+  });
+}
+
+// Quantos meses o periodo cobre, contando a virada de ano.
+function crmMesesPeriodo(){
+  var ini=parseInt(document.getElementById('crm-f-mes-ini').value)||1;
+  var fim=parseInt(document.getElementById('crm-f-mes-fim').value)||12;
+  var aIni=parseInt((document.getElementById('crm-f-ano-ini')||{}).value)||0;
+  var aFim=parseInt((document.getElementById('crm-f-ano-fim')||{}).value)||0;
+  if(aIni && aFim) return (aFim-aIni)*12 + (fim-ini) + 1;
+  return fim>=ini ? (fim-ini+1) : 0;
+}
+
 function crmCalcValor(){
   var fee = parseFloat(document.getElementById('crm-f-fee').value)||0;
-  var ini = parseInt(document.getElementById('crm-f-mes-ini').value)||1;
-  var fim = parseInt(document.getElementById('crm-f-mes-fim').value)||12;
-  var meses = fim >= ini ? (fim - ini + 1) : 0;
+  var meses = crmMesesPeriodo();
   var invMidia = parseFloat((document.getElementById('crm-f-inv-midia')||{}).value)||0;
   var comMidia = parseFloat((document.getElementById('crm-f-com-midia')||{}).value)||0;
   var invProducao = parseFloat((document.getElementById('crm-f-inv-producao')||{}).value)||0;
@@ -12693,10 +12736,33 @@ function crmCalcValor(){
 
   var valFee=fee*meses, valMidia=invMidia*comMidia/100, valProducao=invProducao*comProducao/100;
   var total = valFee + valMidia + valProducao;
-
-  crmAtualizarLinhasValor(valFee, valMidia, valProducao, total, meses);
   var hidEl = document.getElementById('crm-f-valor');
+
+  // Registro antigo pode ter valor informado direto, sem fee nem investimento -
+  // a Santa Helena, por exemplo, tem R$ 1.000.000 com tudo zerado. Recalcular
+  // por cima zerava esse valor silenciosamente no primeiro clique em qualquer
+  // campo. Enquanto a composicao nao for preenchida, o valor guardado e mantido
+  // e a tela avisa que ele nao esta sendo derivado.
+  var guardado = parseFloat(hidEl ? hidEl.value : 0)||0;
+  var semComposicao = (total===0 && guardado>0);
+  if(semComposicao){
+    crmAtualizarLinhasValor(0,0,0,guardado,meses);
+    crmAvisoValorManual(true, guardado);
+    return;
+  }
+  crmAtualizarLinhasValor(valFee, valMidia, valProducao, total, meses);
+  crmAvisoValorManual(false, 0);
   if(hidEl) hidEl.value = total;
+}
+
+function crmAvisoValorManual(ativo, valor){
+  var el=document.getElementById('crm-aviso-valor');
+  if(!el) return;
+  if(!ativo){ el.style.display='none'; el.innerHTML=''; return; }
+  el.style.display='';
+  el.innerHTML='<div style="background:rgba(251,191,36,.08);border:1px solid var(--amber);border-radius:6px;padding:8px 10px;font-size:10px;color:var(--text2);line-height:1.5">'+
+    '⚠️ Valor informado manualmente, sem composição registrada. Não dá para saber o fee nem o período de origem. '+
+    'Preencha Fee Mensal e o período para o sistema calcular — ou deixe assim e o valor é preservado.</div>';
 }
 
 function crmAtualizarLinhasValor(valFee, valMidia, valProducao, total, meses){
