@@ -10273,22 +10273,32 @@ async function midiaCarregar(){
 }
 
 function midiaParseBudgetRows(rows){
-  // range A7:U300 -> indice 0-based: 0=(vazio),1=CLIENTE,2=CAMPANHA,3=VEÍCULO,
-  // 4=PO EUPHORIA,5=PO CLIENTE,6=STATUS,7=TIPO DE FATURAMENTO,8..19=Jan..Dez,20=TOTAL
+  // Layout REAL da aba (range A7:U300), indice 0-based:
+  //   0=(vazio) 1=CLIENTE 2=CAMPANHA 3=MEIO 4=VEÍCULO 5=PO EUPHORIA
+  //   6=PO CLIENTE 7=STATUS 8=TIPO DE FATURAMENTO 9..20=Janeiro..Dezembro
+  // A versao anterior assumia que MEIO nao existia, entao lia tudo deslocado em
+  // uma coluna: os meses saiam de 8..19, ou seja, o texto de TIPO DE FATURAMENTO
+  // entrava no lugar de Janeiro, cada mes ficava um mes adiantado e DEZEMBRO era
+  // simplesmente descartado. Era isso que fazia o planejado de Wellhub aparecer
+  // R$ 3.000.000 menor e o de Suvinil R$ 3.666.667 menor - exatamente as
+  // respectivas celulas de dezembro. O filtro de "Cancelada" tambem nao pegava,
+  // porque lia a coluna PO CLIENTE no lugar de STATUS.
   // rows[0] e o cabecalho (linha 7 da planilha); dados a partir de rows[1].
   var out=[];
   for(var i=1;i<rows.length;i++){
     var r = rows[i];
     if(!r || !r[1]) continue;
-    if(String(r[6]||'').trim()==='Cancelada') continue;
+    if(String(r[7]||'').trim()==='Cancelada') continue;
     var meses=[];
-    for(var m=0;m<12;m++) meses.push(parseNum(r[8+m]));
+    // O Sheets omite celulas vazias no fim da linha, entao r pode ser mais curto.
+    for(var m=0;m<12;m++) meses.push(parseNum(r[9+m]));
     out.push({
       cliente: String(r[1]||'').trim(),
       campanha: String(r[2]||'').trim(),
-      veiculo: String(r[3]||'').trim(),
-      status: String(r[6]||'').trim(),
-      tipo: String(r[7]||'').trim(),
+      meio: String(r[3]||'').trim(),
+      veiculo: String(r[4]||'').trim(),
+      status: String(r[7]||'').trim(),
+      tipo: String(r[8]||'').trim(),
       meses: meses
     });
   }
@@ -10344,6 +10354,16 @@ var MIDIA_VEICULO_PARA_CATEGORIA = {
   'JOVEM PAN FM':'Rádio','JORNAL FM':'Rádio','THE NEWS':'Rádio',
   'GAZETA DO POVO':'Jornal','DIÁRIO DE PERNAMBUCO':'Jornal','CRUZEIRO DO SUL':'Jornal'
 };
+// A propria planilha tem a coluna MEIO, que ja e a categoria que o VBS usa no
+// faturado (Internet, Out of Home, Televisão...). Entao a categoria vem dali, e
+// o mapa veiculo->categoria fica so como rede de seguranca para linha sem MEIO
+// preenchido - deixou de ser a fonte primaria, que era fragil e exigia manter
+// uma lista de veiculos a mao.
+function midiaCategoriaDoItem(item){
+  if(item && item.meio) return item.meio;
+  return midiaCategoriaDoVeiculo(item ? item.veiculo : '');
+}
+
 function midiaCategoriaDoVeiculo(nomeVeiculo){
   return MIDIA_VEICULO_PARA_CATEGORIA[String(nomeVeiculo||'').trim().toUpperCase()] || nomeVeiculo;
 }
@@ -10352,13 +10372,13 @@ function midiaAgregarBudget(mesDeIdx, mesAteIdx, clienteFiltro, veiculoFiltro){
   var porVeiculo={}, porCliente={}, porCategoria={};
   (window._midiaBudgetRaw||[]).forEach(function(item){
     if(clienteFiltro && item.cliente.toUpperCase()!==clienteFiltro) return;
-    if(veiculoFiltro && item.veiculo.toUpperCase()!==veiculoFiltro && midiaCategoriaDoVeiculo(item.veiculo).toUpperCase()!==veiculoFiltro) return;
+    if(veiculoFiltro && item.veiculo.toUpperCase()!==veiculoFiltro && midiaCategoriaDoItem(item).toUpperCase()!==veiculoFiltro) return;
     var total=0;
     for(var m=mesDeIdx;m<=mesAteIdx;m++) total+=item.meses[m]||0;
     if(!total) return;
-    porVeiculo[item.veiculo]=(porVeiculo[item.veiculo]||0)+total;
+    if(item.veiculo) porVeiculo[item.veiculo]=(porVeiculo[item.veiculo]||0)+total;
     porCliente[item.cliente]=(porCliente[item.cliente]||0)+total;
-    var cat = midiaCategoriaDoVeiculo(item.veiculo);
+    var cat = midiaCategoriaDoItem(item);
     porCategoria[cat]=(porCategoria[cat]||0)+total;
   });
   return {porVeiculo:porVeiculo, porCliente:porCliente, porCategoria:porCategoria};
