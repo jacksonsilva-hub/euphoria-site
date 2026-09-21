@@ -5552,6 +5552,23 @@ function pplFolhaPopularAnos(){
   if(m) m.value=String(new Date().getMonth());
 }
 
+// Mes de entrada e de saida sao proporcionais. Convencao comercial de 30 dias,
+// como o financeiro ja usa: admitida no dia 21 trabalha 10/30 (30-21+1), e quem
+// sai no dia 10 recebe 10/30. Sem isso o primeiro e o ultimo mes de cada pessoa
+// saiam com o valor cheio, e a NF seria pedida a maior.
+function pplDiasTrabalhados(p, ano, mes){
+  var DIAS=30, ini=1, fim=DIAS;
+  if(p.admissao){
+    var a=ferData(p.admissao);
+    if(a.getFullYear()===ano && a.getMonth()===mes) ini=Math.min(a.getDate(), DIAS);
+  }
+  if(p.desligamento){
+    var d=ferData(p.desligamento);
+    if(d.getFullYear()===ano && d.getMonth()===mes) fim=Math.min(d.getDate(), DIAS);
+  }
+  return Math.max(0, Math.min(DIAS, fim-ini+1));
+}
+
 function pplAtivoNoMes(p, ano, mes){
   var fim=new Date(ano, mes+1, 0);
   var ini=new Date(ano, mes, 1);
@@ -5573,36 +5590,49 @@ function pplExportFolha(){
   var aoa=[];
   aoa.push(['FOLHA '+MESES[mes].toUpperCase()+'/'+ano+' — SOLICITAÇÃO DE NOTAS FISCAIS']);
   aoa.push(['Gerado pelo Euphoria OS em '+new Date().toLocaleString('pt-BR')+
-            ' · Desconto em branco para preenchimento manual; Pagamento é fórmula']);
+            ' · Desconto em branco para preenchimento manual; Pagamento é fórmula · Mês de entrada e de saída vem proporcional (dias/30)']);
   aoa.push([]);
-  aoa.push(['#','NOME COMPLETO','CARGO','DEPARTAMENTO','DATA DE ADMISSÃO','HONORÁRIOS',
+  aoa.push(['#','NOME COMPLETO','CARGO','DEPARTAMENTO','DATA DE ADMISSÃO','DIAS','HONORÁRIOS',
             'Desconto','Pagamento','NF RECEBIDA','PAGAMENTO','VBS','APROPRIAÇÃO','CONTABILIZAÇÃO','OBS']);
 
   var primeira=5; // linha 1-based onde comecam os dados
   pessoas.forEach(function(p,i){
     var linha=primeira+i;
-    var sal=pplSalarioNoMes(p, ano, mes);
+    var sal=parseFloat(pplSalarioNoMes(p, ano, mes))||0;
+    var dias=pplDiasTrabalhados(p, ano, mes);
+    var valor=dias>=30 ? sal : (sal/30*dias);
+    var obs='';
+    if(dias<30){
+      var motivo=[];
+      if(p.admissao){ var a=ferData(p.admissao);
+        if(a.getFullYear()===ano && a.getMonth()===mes) motivo.push('admissão '+ferFmtData(a)); }
+      if(p.desligamento){ var d=ferData(p.desligamento);
+        if(d.getFullYear()===ano && d.getMonth()===mes) motivo.push('desligamento '+ferFmtData(d)); }
+      obs='Proporcional '+dias+'/30 ('+motivo.join(' e ')+') · integral '+
+          (Math.round(sal*100)/100).toLocaleString('pt-BR',{minimumFractionDigits:2});
+    }
     aoa.push([
       i+1, p.nome, p.cargo||'', p.depto||'',
       p.admissao ? ferFmtData(ferData(p.admissao)) : '',
-      Math.round((parseFloat(sal)||0)*100)/100,
+      dias,
+      Math.round(valor*100)/100,
       null,
-      {f:'F'+linha+'+G'+linha},   // desconto entra negativo, como na planilha atual
-      '', 'TED', '', '', '', ''
+      {f:'G'+linha+'+H'+linha},   // desconto entra negativo, como na planilha atual
+      '', 'TED', '', '', '', obs
     ]);
   });
   var ultima=primeira+pessoas.length-1;
   aoa.push([]);
-  aoa.push(['', 'TOTAL ('+pessoas.length+' prestadores)','','','',
-            {f:'SUM(F'+primeira+':F'+ultima+')'},
+  aoa.push(['', 'TOTAL ('+pessoas.length+' prestadores)','','','','',
             {f:'SUM(G'+primeira+':G'+ultima+')'},
-            {f:'SUM(H'+primeira+':H'+ultima+')'}]);
+            {f:'SUM(H'+primeira+':H'+ultima+')'},
+            {f:'SUM(I'+primeira+':I'+ultima+')'}]);
 
   var ws=XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols']=[{wch:4},{wch:34},{wch:24},{wch:16},{wch:14},{wch:13},{wch:11},{wch:13},
-               {wch:13},{wch:12},{wch:8},{wch:13},{wch:15},{wch:18}];
+  ws['!cols']=[{wch:4},{wch:34},{wch:24},{wch:16},{wch:14},{wch:6},{wch:13},{wch:11},{wch:13},
+               {wch:13},{wch:12},{wch:8},{wch:13},{wch:15},{wch:46}];
   // Moeda nas colunas de valor
-  ['F','G','H'].forEach(function(col){
+  ['G','H','I'].forEach(function(col){
     for(var r=primeira; r<=ultima+2; r++){
       var c=ws[col+r];
       if(c && (c.t==='n' || c.f)) c.z='#,##0.00';
