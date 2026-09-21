@@ -1228,6 +1228,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     <div class="tab-nav">
       <button class="tab-btn active" onclick="switchMidiaTab('investimento',event)">📊 Investimento</button>
       <button class="tab-btn" onclick="switchMidiaTab('bv',event)">🎁 Bonificação de Volume</button>
+      <button class="tab-btn" onclick="switchMidiaTab('analise',event)">🔬 Análise</button>
     </div>
 
     <div class="tab-panel active" id="midia-investimento">
@@ -1371,6 +1372,97 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
         </div>
       </div>
     </div>
+
+    <!-- ANÁLISE -->
+    <div class="tab-panel" id="midia-analise">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:12px">
+        <div>
+          <div style="font-size:20px;font-weight:700">Análise de Mídia</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:4px">Desvio, campanhas paradas, concentração, ritmo para fechar o ano e oportunidade de BV</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+          <div>
+            <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Cliente</label>
+            <select id="an-f-cliente" onchange="anRender()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer"><option value="">Todos</option></select>
+          </div>
+          <button class="btn" onclick="anImprimir()" style="font-size:11px;padding:6px 12px">📄 Relatório</button>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:14px" id="an-status">Carregue os dados na aba Investimento primeiro.</div>
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px" id="an-kpis"></div>
+
+      <!-- 1. RITMO -->
+      <div class="table-card" style="margin-bottom:18px">
+        <div class="table-header"><span class="table-title">Ritmo para fechar o ano</span><span class="table-meta" id="an-ritmo-meta">—</span></div>
+        <div style="padding:14px 16px" id="an-ritmo"></div>
+      </div>
+
+      <!-- 2. DESVIO -->
+      <div class="table-card" style="margin-bottom:18px">
+        <div class="table-header">
+          <span class="table-title">Onde está furando o plano</span>
+          <span class="table-meta" id="an-desvio-meta">—</span>
+          <div style="margin-left:auto;display:flex;gap:6px">
+            <button class="btn" id="an-ord-falta" onclick="anOrdenar('falta',event)" style="font-size:10px;padding:3px 10px">Maior sobra</button>
+            <button class="btn" id="an-ord-excesso" onclick="anOrdenar('excesso',event)" style="font-size:10px;padding:3px 10px">Maior excesso</button>
+          </div>
+        </div>
+        <div style="font-size:10px;color:var(--text3);padding:0 16px 8px">Cliente × categoria no período filtrado na aba Investimento. O VBS não informa veículo no faturado, então este cruzamento vai até categoria.</div>
+        <div style="overflow-x:auto;max-height:420px">
+          <table class="tbl">
+            <thead><tr><th>Cliente</th><th>Categoria</th><th style="text-align:right">Planejado</th>
+            <th style="text-align:right">Faturado</th><th style="text-align:right">Desvio R$</th>
+            <th style="text-align:right">Execução</th><th>Leitura</th></tr></thead>
+            <tbody id="an-desvio-tbody"><tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">—</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 3. PARADAS -->
+      <div class="table-card" style="margin-bottom:18px">
+        <div class="table-header"><span class="table-title">Campanhas paradas</span><span class="table-meta" id="an-paradas-meta">—</span></div>
+        <div style="font-size:10px;color:var(--text3);padding:0 16px 8px">Planejadas para meses que já passaram, cujo cliente não teve faturamento na categoria correspondente.</div>
+        <div style="overflow-x:auto;max-height:340px">
+          <table class="tbl">
+            <thead><tr><th>Cliente</th><th>Campanha</th><th>Veículo</th><th>Categoria</th>
+            <th>Último mês planejado</th><th style="text-align:right">Valor parado</th><th style="text-align:right">Meses</th></tr></thead>
+            <tbody id="an-paradas-tbody"><tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">—</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 4. CONCENTRAÇÃO -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px">
+        <div class="table-card">
+          <div class="table-header"><span class="table-title">Concentração por cliente</span><span class="table-meta" id="an-conc-cli-meta">—</span></div>
+          <div id="an-conc-cliente"></div>
+        </div>
+        <div class="table-card">
+          <div class="table-header"><span class="table-title">Concentração por veículo</span><span class="table-meta" id="an-conc-vei-meta">—</span></div>
+          <div style="font-size:10px;color:var(--text3);padding:0 16px 6px">Base no planejado — é o único lado com veículo.</div>
+          <div id="an-conc-veiculo"></div>
+        </div>
+      </div>
+
+      <!-- 5. BV -->
+      <div class="table-card">
+        <div class="table-header">
+          <span class="table-title">Oportunidade de BV × plano de mídia</span>
+          <span class="table-meta" id="an-bv-meta">—</span>
+          <button class="btn" onclick="anCarregarBV()" style="font-size:10px;padding:4px 10px;margin-left:8px">↺ Buscar contratos</button>
+        </div>
+        <div style="font-size:10px;color:var(--text3);padding:0 16px 8px">Cruza o quanto falta investir para a próxima faixa com o que já está planejado naquele veículo.</div>
+        <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr><th>Veículo / Grupo BV</th><th style="text-align:right">Falta p/ próxima faixa</th>
+            <th style="text-align:right">Já planejado</th><th style="text-align:right">Gap</th>
+            <th style="text-align:right">Incremento de BV</th><th>Leitura</th></tr></thead>
+            <tbody id="an-bv-tbody"><tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text3)">Clique em "Buscar contratos"</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- TIMESHEET -->
@@ -1441,6 +1533,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
         <button class="btn btn-primary" onclick="pplAbrirModal()">+ Novo Colaborador</button>
         <button class="btn" onclick="pplImportarVBS()" class="btn-vbs" style="font-size:11px">⬇️ Importar do VBS</button>
         <button class="btn" onclick="pplExportExcel()" style="font-size:11px">📊 Exportar Excel</button>
+        <span style="display:inline-flex;gap:4px;align-items:center;border-left:1px solid var(--border);padding-left:8px;margin-left:2px">
+          <select id="folha-mes" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
+            <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option><option value="3">Abril</option><option value="4">Maio</option><option value="5">Junho</option><option value="6">Julho</option><option value="7">Agosto</option><option value="8">Setembro</option><option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
+          </select>
+          <select id="folha-ano" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:11px;outline:none;cursor:pointer"></select>
+          <button class="btn" onclick="pplExportFolha()" style="font-size:11px" title="Planilha da folha do mês para solicitar as NFs">📄 Folha / NFs</button>
+        </span>
         <select id="ppl-f-depto" onchange="pplRenderTable()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:11px;outline:none">
           <option value="">Todos departamentos</option>
           <option>Atendimento</option><option>Criação</option><option>Estratégia</option>
@@ -5084,6 +5183,7 @@ function pplRemover(id){
 
 // ── TABELA EQUIPE ─────────────────────────────────────
 function pplRenderTable(){
+  pplFolhaPopularAnos();
   pplPopularFiltrosPessoa('ppl');
   var d=getPplData();
   var fDepto=document.getElementById('ppl-f-depto');
@@ -5434,6 +5534,85 @@ function pplRenderTurnover(){
 
 // ── ORGANOGRAMA ──────────────────────────────────────
 // ── EXPORT EXCEL (Folha) ─────────────────────────────
+// ── FOLHA DO MÊS (para solicitar as NFs) ─────────────────────────────────────
+// Reproduz o layout da planilha que o financeiro ja usa (Salario <Mes>_<Ano>),
+// para a conferencia nao precisar mudar de formato. Usa pplSalarioNoMes, entao
+// um mes passado sai com o salario vigente naquela epoca, nao com o de hoje.
+// Desconto fica em branco de proposito: varia por pessoa (adiantamento,
+// coparticipacao) e nao existe no cadastro - a coluna Pagamento e uma formula,
+// entao preencher o desconto ja atualiza o liquido na planilha.
+function pplFolhaPopularAnos(){
+  var sel=document.getElementById('folha-ano'); if(!sel||sel.options.length) return;
+  var atual=new Date().getFullYear();
+  var opts=[];
+  for(var a=atual-2;a<=atual+1;a++) opts.push('<option value="'+a+'">'+a+'</option>');
+  sel.innerHTML=opts.join('');
+  sel.value=atual;
+  var m=document.getElementById('folha-mes');
+  if(m) m.value=String(new Date().getMonth());
+}
+
+function pplAtivoNoMes(p, ano, mes){
+  var fim=new Date(ano, mes+1, 0);
+  var ini=new Date(ano, mes, 1);
+  if(p.admissao){ var a=ferData(p.admissao); if(a>fim) return false; }
+  if(p.desligamento){ var d=ferData(p.desligamento); if(d<ini) return false; }
+  else if((p.status||'ativo')!=='ativo') return false;
+  return true;
+}
+
+function pplExportFolha(){
+  if(typeof XLSX==='undefined'){ alert('Biblioteca de planilha não carregou. Recarregue a página.'); return; }
+  var mes=parseInt(document.getElementById('folha-mes').value);
+  var ano=parseInt(document.getElementById('folha-ano').value);
+  var MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  var pessoas=getPplData().filter(function(p){ return pplAtivoNoMes(p, ano, mes); })
+    .sort(function(a,b){ return String(a.admissao||'').localeCompare(String(b.admissao||'')); });
+  if(!pessoas.length){ alert('Nenhum colaborador ativo em '+MESES[mes]+'/'+ano+'.'); return; }
+
+  var aoa=[];
+  aoa.push(['FOLHA '+MESES[mes].toUpperCase()+'/'+ano+' — SOLICITAÇÃO DE NOTAS FISCAIS']);
+  aoa.push(['Gerado pelo Euphoria OS em '+new Date().toLocaleString('pt-BR')+
+            ' · Desconto em branco para preenchimento manual; Pagamento é fórmula']);
+  aoa.push([]);
+  aoa.push(['#','NOME COMPLETO','CARGO','DEPARTAMENTO','DATA DE ADMISSÃO','HONORÁRIOS',
+            'Desconto','Pagamento','NF RECEBIDA','PAGAMENTO','VBS','APROPRIAÇÃO','CONTABILIZAÇÃO','OBS']);
+
+  var primeira=5; // linha 1-based onde comecam os dados
+  pessoas.forEach(function(p,i){
+    var linha=primeira+i;
+    var sal=pplSalarioNoMes(p, ano, mes);
+    aoa.push([
+      i+1, p.nome, p.cargo||'', p.depto||'',
+      p.admissao ? ferFmtData(ferData(p.admissao)) : '',
+      Math.round((parseFloat(sal)||0)*100)/100,
+      null,
+      {f:'F'+linha+'+G'+linha},   // desconto entra negativo, como na planilha atual
+      '', 'TED', '', '', '', ''
+    ]);
+  });
+  var ultima=primeira+pessoas.length-1;
+  aoa.push([]);
+  aoa.push(['', 'TOTAL ('+pessoas.length+' prestadores)','','','',
+            {f:'SUM(F'+primeira+':F'+ultima+')'},
+            {f:'SUM(G'+primeira+':G'+ultima+')'},
+            {f:'SUM(H'+primeira+':H'+ultima+')'}]);
+
+  var ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=[{wch:4},{wch:34},{wch:24},{wch:16},{wch:14},{wch:13},{wch:11},{wch:13},
+               {wch:13},{wch:12},{wch:8},{wch:13},{wch:15},{wch:18}];
+  // Moeda nas colunas de valor
+  ['F','G','H'].forEach(function(col){
+    for(var r=primeira; r<=ultima+2; r++){
+      var c=ws[col+r];
+      if(c && (c.t==='n' || c.f)) c.z='#,##0.00';
+    }
+  });
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, MESES[mes]);
+  XLSX.writeFile(wb, 'Folha_'+MESES[mes]+'_'+ano+'.xlsx');
+}
+
 function pplExportExcel(){
   var d=getPplData();
   if(!d.length){alert('Nenhum colaborador cadastrado!');return;}
@@ -10298,6 +10477,319 @@ function switchMidiaTab(tab, e){
   if(el) el.classList.add('active');
   if(e && e.target) e.target.classList.add('active');
   if(tab==='bv' && !window._bvRaw) setTimeout(bvCarregar, 60);
+}
+
+// ── ANÁLISE DE MÍDIA ─────────────────────────────────────────────────────────
+// A aba Investimento responde "planejado x faturado". Esta responde "e daí?":
+// onde remanejar verba, o que travou, onde a agencia esta exposta, se o ano
+// fecha e onde vale investir mais para subir de faixa de BV.
+// Limite real dos dados: o VBS devolve o faturado por categoria (Nome_Meio),
+// nunca por veiculo. Entao desvio e concentracao do realizado param na
+// categoria; veiculo so existe no planejado, e a tela diz isso.
+var _anOrdem='falta';
+
+function anOrdenar(o,e){
+  _anOrdem=o;
+  ['falta','excesso'].forEach(function(k){
+    var b=document.getElementById('an-ord-'+k);
+    if(b) b.style.borderColor = (k===o) ? 'var(--accent)' : 'var(--border)';
+  });
+  anRender();
+}
+
+function anFmt(v){ return 'R$ '+Math.round(v).toLocaleString('pt-BR'); }
+
+function anPopularClientes(){
+  var sel=document.getElementById('an-f-cliente'); if(!sel) return;
+  var atual=sel.value, cli={};
+  (window._midiaBudgetRaw||[]).forEach(function(i){ if(i.cliente) cli[i.cliente.toUpperCase()]=1; });
+  (window._midiaRealRaw||[]).forEach(function(r){
+    var c=String(r.Nome_Cliente||'').trim(); if(c) cli[c.toUpperCase()]=1; });
+  sel.innerHTML='<option value="">Todos</option>'+Object.keys(cli).sort().map(function(c){
+    return '<option value="'+c+'">'+c+'</option>'; }).join('');
+  sel.value=atual;
+}
+
+// Meses selecionados na aba Investimento - a Analise respeita o mesmo recorte
+// pra nao existirem dois periodos diferentes na mesma pagina.
+function anPeriodo(){
+  var de=parseInt((document.getElementById('midia-sel-mes-de')||{}).value)||1;
+  var ate=parseInt((document.getElementById('midia-sel-mes-ate')||{}).value)||12;
+  var ano=parseInt((document.getElementById('midia-sel-ano')||{}).value)||new Date().getFullYear();
+  return {deIdx:de-1, ateIdx:ate-1, ano:ano};
+}
+
+function anRender(){
+  if(!document.getElementById('an-desvio-tbody')) return;
+  var budget=window._midiaBudgetRaw||[], real=window._midiaRealRaw||[];
+  if(!budget.length && !real.length){
+    document.getElementById('an-status').textContent='Sem dados. Vá em Investimento e clique em "Carregar Dados".';
+    return;
+  }
+  anPopularClientes();
+  var per=anPeriodo();
+  var fCli=document.getElementById('an-f-cliente').value;
+  var MES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  document.getElementById('an-status').textContent=
+    'Período '+MES[per.deIdx]+' a '+MES[per.ateIdx]+'/'+per.ano+(fCli?' · '+fCli:'')+
+    ' — o período vem do filtro da aba Investimento.';
+
+  // ── agrega planejado por cliente+categoria e por veiculo ──
+  var plan={}, planVeic={}, planCli={};
+  budget.forEach(function(i){
+    if(fCli && i.cliente.toUpperCase()!==fCli) return;
+    var t=0; for(var m=per.deIdx;m<=per.ateIdx;m++) t+=i.meses[m]||0;
+    if(!t) return;
+    var cat=midiaCategoriaDoItem(i);
+    var k=i.cliente.toUpperCase()+'||'+cat.toUpperCase();
+    plan[k]=(plan[k]||0)+t;
+    planCli[i.cliente.toUpperCase()]=(planCli[i.cliente.toUpperCase()]||0)+t;
+    if(i.veiculo) planVeic[i.veiculo.toUpperCase()]=(planVeic[i.veiculo.toUpperCase()]||0)+t;
+  });
+
+  // ── agrega faturado (so midia) por cliente+categoria ──
+  var fat={}, fatCli={};
+  real.forEach(function(r){
+    var dt=r['Competência']; if(!dt) return;
+    var mi=parseInt(String(dt).substring(5,7),10)-1;
+    if(isNaN(mi)||mi<per.deIdx||mi>per.ateIdx) return;
+    var tipo=String(r.Tipo_Indicador_Faturamento||'').trim().toLowerCase();
+    if(tipo.indexOf('mídia')!==0 && tipo.indexOf('midia')!==0) return;
+    var cli=String(r.Nome_Cliente||'').trim();
+    if(fCli && cli.toUpperCase()!==fCli) return;
+    var cat=String(r.Nome_Meio||'').trim();
+    var v=parseNum(String(r.Valor_Real||'0'));
+    if(!v) return;
+    fat[cli.toUpperCase()+'||'+cat.toUpperCase()]=(fat[cli.toUpperCase()+'||'+cat.toUpperCase()]||0)+v;
+    fatCli[cli.toUpperCase()]=(fatCli[cli.toUpperCase()]||0)+v;
+  });
+
+  anRenderRitmo(budget, real, per, fCli);
+  anRenderDesvio(plan, fat);
+  anRenderParadas(budget, fat, per, fCli);
+  anRenderConcentracao(planCli, fatCli, planVeic);
+  if(window._bvRaw) anRenderBV(planVeic);
+}
+
+// ── 1. RITMO ──
+function anRenderRitmo(budget, real, per, fCli){
+  var hoje=new Date();
+  var mesAtual = (hoje.getFullYear()===per.ano) ? hoje.getMonth() : 11;
+  var planAno=0, planDecorrido=0, planRestante=0;
+  budget.forEach(function(i){
+    if(fCli && i.cliente.toUpperCase()!==fCli) return;
+    for(var m=0;m<12;m++){
+      var v=i.meses[m]||0;
+      planAno+=v;
+      if(m<=mesAtual) planDecorrido+=v; else planRestante+=v;
+    }
+  });
+  var fatAno=0, mesesComFat={};
+  real.forEach(function(r){
+    var dt=r['Competência']; if(!dt) return;
+    var tipo=String(r.Tipo_Indicador_Faturamento||'').trim().toLowerCase();
+    if(tipo.indexOf('mídia')!==0 && tipo.indexOf('midia')!==0) return;
+    var cli=String(r.Nome_Cliente||'').trim();
+    if(fCli && cli.toUpperCase()!==fCli) return;
+    var v=parseNum(String(r.Valor_Real||'0'));
+    if(!v) return;
+    fatAno+=v;
+    mesesComFat[String(dt).substring(0,7)]=1;
+  });
+  var nMeses=Object.keys(mesesComFat).length||1;
+  var ritmoAtual=fatAno/nMeses;
+  var mesesRestantes=Math.max(0, 11-mesAtual);
+  var ritmoNecessario = mesesRestantes>0 ? planRestante/mesesRestantes : 0;
+  var fator = ritmoAtual>0 ? ritmoNecessario/ritmoAtual : 0;
+  var veredito, cor;
+  if(mesesRestantes===0){ veredito='Ano encerrado no calendário.'; cor='var(--text3)'; }
+  else if(planRestante<=0){ veredito='Nada mais planejado para o período restante.'; cor='var(--text3)'; }
+  else if(fator<=1.1){ veredito='Factível — o ritmo atual dá conta do que falta.'; cor='var(--pos)'; }
+  else if(fator<=1.8){ veredito='Apertado — exige acelerar '+((fator-1)*100).toFixed(0)+'% acima do ritmo atual.'; cor='var(--amber)'; }
+  else { veredito='Improvável no ritmo atual — precisaria de '+fator.toFixed(1)+'x o que se vem veiculando por mês.'; cor='var(--neg)'; }
+
+  document.getElementById('an-ritmo-meta').textContent=nMeses+' mês(es) com faturamento';
+  document.getElementById('an-ritmo').innerHTML=
+    '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px">'+
+      [['Planejado no ano',anFmt(planAno)],['Faturado até agora',anFmt(fatAno)],
+       ['Falta veicular',anFmt(planRestante)],['Meses restantes',mesesRestantes]]
+      .map(function(k){ return '<div><div style="font-size:9px;color:var(--text3);text-transform:uppercase">'+k[0]+'</div>'+
+        '<div style="font-size:15px;font-weight:700">'+k[1]+'</div></div>'; }).join('')+
+    '</div>'+
+    '<div style="font-size:12px;line-height:1.8">'+
+      '<div>Ritmo atual: <strong>'+anFmt(ritmoAtual)+'/mês</strong> <span style="color:var(--text3)">(média dos meses com faturamento)</span></div>'+
+      '<div>Ritmo necessário: <strong style="color:'+cor+'">'+anFmt(ritmoNecessario)+'/mês</strong></div>'+
+      '<div style="color:'+cor+';margin-top:6px;font-weight:600">'+veredito+'</div>'+
+    '</div>';
+}
+
+// ── 2. DESVIO ──
+function anRenderDesvio(plan, fat){
+  var chaves={};
+  Object.keys(plan).forEach(function(k){ chaves[k]=1; });
+  Object.keys(fat).forEach(function(k){ chaves[k]=1; });
+  var linhas=Object.keys(chaves).map(function(k){
+    var parts=k.split('||');
+    var p=plan[k]||0, f=fat[k]||0;
+    return {cliente:parts[0], cat:parts[1], plan:p, fat:f, desvio:f-p,
+            exec: p>0 ? (f/p*100) : (f>0?null:0)};
+  }).filter(function(l){ return l.plan>0 || l.fat>0; });
+
+  linhas.sort(function(a,b){ return _anOrdem==='excesso' ? (b.desvio-a.desvio) : (a.desvio-b.desvio); });
+  document.getElementById('an-desvio-meta').textContent=linhas.length+' combinação(ões)';
+  document.getElementById('an-desvio-tbody').innerHTML = linhas.length ? linhas.slice(0,80).map(function(l){
+    var leitura, cor;
+    if(l.plan>0 && l.fat===0){ leitura='Planejado sem nenhuma veiculação'; cor='var(--neg)'; }
+    else if(l.plan===0 && l.fat>0){ leitura='Faturado fora do plano'; cor='var(--amber)'; }
+    else if(l.exec===null){ leitura='—'; cor='var(--text3)'; }
+    else if(l.exec<50){ leitura='Muito abaixo — verba parada'; cor='var(--neg)'; }
+    else if(l.exec<85){ leitura='Abaixo do plano'; cor='var(--amber)'; }
+    else if(l.exec<=115){ leitura='Dentro do esperado'; cor='var(--pos)'; }
+    else { leitura='Acima do plano'; cor='var(--text2)'; }
+    return '<tr>'+
+      '<td><strong>'+l.cliente+'</strong></td><td style="font-size:11px">'+l.cat+'</td>'+
+      '<td style="text-align:right">'+anFmt(l.plan)+'</td>'+
+      '<td style="text-align:right">'+anFmt(l.fat)+'</td>'+
+      '<td style="text-align:right;color:'+(l.desvio<0?'var(--neg)':'var(--pos)')+'">'+(l.desvio>=0?'+':'')+anFmt(l.desvio)+'</td>'+
+      '<td style="text-align:right">'+(l.exec===null?'—':l.exec.toFixed(0)+'%')+'</td>'+
+      '<td style="font-size:10px;color:'+cor+'">'+leitura+'</td></tr>';
+  }).join('') : '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Sem dados no filtro</td></tr>';
+}
+
+// ── 3. CAMPANHAS PARADAS ──
+function anRenderParadas(budget, fat, per, fCli){
+  var hoje=new Date();
+  var mesAtual = (hoje.getFullYear()===per.ano) ? hoje.getMonth() : 11;
+  var MES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  var paradas=[];
+  budget.forEach(function(i){
+    if(fCli && i.cliente.toUpperCase()!==fCli) return;
+    var valor=0, ultimoMes=-1;
+    for(var m=0;m<=mesAtual;m++){ if(i.meses[m]){ valor+=i.meses[m]; if(m>ultimoMes) ultimoMes=m; } }
+    if(!valor || ultimoMes<0) return;
+    var cat=midiaCategoriaDoItem(i);
+    // Se o cliente faturou nessa categoria, a campanha nao esta parada - o VBS
+    // nao separa por campanha, entao a checagem possivel e nesse nivel.
+    if((fat[i.cliente.toUpperCase()+'||'+cat.toUpperCase()]||0) > 0) return;
+    paradas.push({cliente:i.cliente, campanha:i.campanha||'—', veiculo:i.veiculo||'—',
+                  cat:cat, ultimo:ultimoMes, valor:valor, meses:mesAtual-ultimoMes});
+  });
+  paradas.sort(function(a,b){ return b.valor-a.valor; });
+  var tot=paradas.reduce(function(s,p){ return s+p.valor; },0);
+  document.getElementById('an-paradas-meta').textContent=paradas.length+' campanha(s) · '+anFmt(tot)+' parado';
+  document.getElementById('an-paradas-tbody').innerHTML = paradas.length ? paradas.slice(0,60).map(function(p){
+    return '<tr><td><strong>'+p.cliente+'</strong></td><td style="font-size:11px">'+p.campanha+'</td>'+
+      '<td style="font-size:11px;color:var(--text3)">'+p.veiculo+'</td>'+
+      '<td style="font-size:11px">'+p.cat+'</td>'+
+      '<td style="font-size:11px">'+MES[p.ultimo]+'</td>'+
+      '<td style="text-align:right;color:var(--neg)">'+anFmt(p.valor)+'</td>'+
+      '<td style="text-align:right;color:'+(p.meses>=3?'var(--neg)':'var(--amber)')+'">'+p.meses+'</td></tr>';
+  }).join('') : '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--pos)">Nenhuma campanha parada no período</td></tr>';
+}
+
+// ── 4. CONCENTRAÇÃO ──
+function anTabelaConc(mapa, totalLabel){
+  var tot=Object.keys(mapa).reduce(function(s,k){ return s+mapa[k]; },0);
+  if(!tot) return '<div style="font-size:11px;color:var(--text3);padding:14px">Sem dados</div>';
+  var lista=Object.keys(mapa).sort(function(a,b){ return mapa[b]-mapa[a]; });
+  var top1=mapa[lista[0]]/tot*100;
+  var top3=lista.slice(0,3).reduce(function(s,k){ return s+mapa[k]; },0)/tot*100;
+  var alerta = top1>=35
+    ? '<div style="font-size:10px;color:var(--amber);padding:0 16px 8px">⚠️ '+lista[0]+' concentra '+top1.toFixed(0)+'% do '+totalLabel+'. Perder esse '+(totalLabel.indexOf('cliente')>=0?'cliente':'veículo')+' abre um buraco difícil de repor.</div>'
+    : '<div style="font-size:10px;color:var(--text3);padding:0 16px 8px">Top 3 concentra '+top3.toFixed(0)+'% do '+totalLabel+'.</div>';
+  var acum=0;
+  return alerta+'<div style="overflow-x:auto;max-height:260px"><table class="tbl"><thead><tr><th>Nome</th>'+
+    '<th style="text-align:right">Valor</th><th style="text-align:right">%</th><th style="text-align:right">Acum.</th></tr></thead><tbody>'+
+    lista.slice(0,12).map(function(k){
+      var pct=mapa[k]/tot*100; acum+=pct;
+      return '<tr><td>'+k+'</td><td style="text-align:right">'+anFmt(mapa[k])+'</td>'+
+        '<td style="text-align:right;color:'+(pct>=35?'var(--amber)':'var(--text2)')+'">'+pct.toFixed(1)+'%</td>'+
+        '<td style="text-align:right;color:var(--text3)">'+acum.toFixed(0)+'%</td></tr>';
+    }).join('')+'</tbody></table></div>';
+}
+
+function anRenderConcentracao(planCli, fatCli, planVeic){
+  var baseCli = Object.keys(fatCli).length ? fatCli : planCli;
+  document.getElementById('an-conc-cli-meta').textContent = Object.keys(fatCli).length ? 'base: faturado' : 'base: planejado';
+  document.getElementById('an-conc-cliente').innerHTML=anTabelaConc(baseCli,'faturamento por cliente');
+  document.getElementById('an-conc-vei-meta').textContent=Object.keys(planVeic).length+' veículo(s)';
+  document.getElementById('an-conc-veiculo').innerHTML=anTabelaConc(planVeic,'plano por veículo');
+}
+
+// ── 5. BV ──
+async function anCarregarBV(){
+  document.getElementById('an-bv-meta').textContent='buscando...';
+  if(!window._bvRaw){ await bvCarregar(); }
+  anRender();
+  if(!window._bvRaw || !window._bvRaw.length){
+    document.getElementById('an-bv-tbody').innerHTML='<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text3)">Nenhum contrato de BV vigente no VBS</td></tr>';
+    document.getElementById('an-bv-meta').textContent='0 contrato(s)';
+  }
+}
+
+function anRenderBV(planVeic){
+  var rows=window._bvRaw||[];
+  var linhas=rows.map(function(x){
+    var nome=String(x.Nome_Grupo_BV||'').trim();
+    var falta=bvNum(x.Valor_para_alcancar_proxima_faixa);
+    var incremento=bvNum(x.Acrescimo_alcancar_prox_faixa);
+    var proxPct=bvNum(x.Percentual_proxima_faixa);
+    // O grupo de BV costuma ter o nome do veiculo; casa com o plano por nome.
+    var planejado=planVeic[nome.toUpperCase()]||0;
+    return {nome:nome, falta:falta, planejado:planejado, gap:falta-planejado,
+            incremento:incremento, proxPct:proxPct};
+  }).sort(function(a,b){ return b.incremento-a.incremento; });
+  document.getElementById('an-bv-meta').textContent=linhas.length+' contrato(s)';
+  document.getElementById('an-bv-tbody').innerHTML = linhas.length ? linhas.map(function(l){
+    var leitura, cor;
+    if(!l.proxPct){ leitura='Sem faixa progressiva cadastrada'; cor='var(--text3)'; }
+    else if(l.planejado===0){ leitura='Nada planejado neste veículo — oportunidade não endereçada'; cor='var(--amber)'; }
+    else if(l.gap<=0){ leitura='O plano já alcança a faixa de '+l.proxPct.toFixed(0)+'%'; cor='var(--pos)'; }
+    else { leitura='Faltam '+anFmt(l.gap)+' além do planejado para chegar a '+l.proxPct.toFixed(0)+'%'; cor='var(--amber)'; }
+    return '<tr><td><strong>'+l.nome+'</strong></td>'+
+      '<td style="text-align:right">'+(l.falta?anFmt(l.falta):'—')+'</td>'+
+      '<td style="text-align:right">'+(l.planejado?anFmt(l.planejado):'<span style="color:var(--text3)">—</span>')+'</td>'+
+      '<td style="text-align:right;color:'+(l.gap>0?'var(--amber)':'var(--pos)')+'">'+(l.proxPct?anFmt(Math.max(0,l.gap)):'—')+'</td>'+
+      '<td style="text-align:right;color:var(--pos)">'+(l.incremento?'+'+anFmt(l.incremento):'—')+'</td>'+
+      '<td style="font-size:10px;color:'+cor+'">'+leitura+'</td></tr>';
+  }).join('') : '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text3)">Nenhum contrato de BV</td></tr>';
+}
+
+function anImprimir(){
+  var tb=document.getElementById('an-desvio-tbody');
+  if(!tb || tb.querySelectorAll('td').length<4){ alert('Carregue os dados na aba Investimento primeiro.'); return; }
+  var sec=function(titulo, tbodyId, cols){
+    var linhas=Array.from(document.getElementById(tbodyId).querySelectorAll('tr')).map(function(tr){
+      var t=Array.from(tr.querySelectorAll('td')).map(function(td){ return td.textContent.trim(); });
+      if(t.length<cols.length) return '';
+      return '<tr>'+t.slice(0,cols.length).map(function(c,i){ return '<td'+(i>1?' align="right"':'')+'>'+c+'</td>'; }).join('')+'</tr>';
+    }).join('');
+    return '<h2>'+titulo+'</h2><table><thead><tr>'+cols.map(function(c){ return '<th>'+c+'</th>'; }).join('')+
+      '</tr></thead><tbody>'+linhas+'</tbody></table>';
+  };
+  var css='body{font-family:Arial,sans-serif;padding:32px;color:#111}.logo{width:150px;margin-bottom:10px;display:block}'+
+    'h1{font-size:17px;margin:0 0 4px}.sub{font-size:11px;color:#666;margin-bottom:16px}'+
+    'h2{font-size:12px;text-transform:uppercase;margin:18px 0 6px;color:#444;border-bottom:1px solid #ddd;padding-bottom:3px}'+
+    'table{width:100%;border-collapse:collapse;margin-bottom:6px}'+
+    'th{background:#111;color:#fff;padding:5px 7px;font-size:8px;text-transform:uppercase;text-align:left}'+
+    'td{padding:4px 7px;border-bottom:1px solid #eee;font-size:9px}'+
+    '.box{border:1px solid #ddd;border-radius:6px;padding:12px;margin-bottom:12px;font-size:11px;line-height:1.7}'+
+    '.footer{border-top:1px solid #eee;margin-top:16px;padding-top:8px;font-size:8px;color:#999;line-height:1.5}'+
+    '@media print{.np{display:none}@page{size:landscape}}';
+  var body='<img src="'+LOGO+'" class="logo"><h1>Análise de Mídia</h1>'+
+    '<div class="sub">'+document.getElementById('an-status').textContent+' · Gerado em '+new Date().toLocaleString('pt-BR')+'</div>'+
+    '<div class="box">'+document.getElementById('an-ritmo').innerText.replace(/\n/g,'<br>')+'</div>'+
+    sec('Onde está furando o plano','an-desvio-tbody',['Cliente','Categoria','Planejado','Faturado','Desvio','Execução','Leitura'])+
+    sec('Campanhas paradas','an-paradas-tbody',['Cliente','Campanha','Veículo','Categoria','Último mês','Valor parado','Meses'])+
+    sec('Oportunidade de BV','an-bv-tbody',['Veículo','Falta p/ faixa','Já planejado','Gap','Incremento','Leitura'])+
+    '<div class="footer"><strong>Euphoria Creative Agency</strong> — Documento interno, uso confidencial.<br>'+
+    'O VBS informa o faturado por categoria de meio, nunca por veículo: por isso o desvio e a concentração do realizado param na categoria, '+
+    'e a análise por veículo usa o planejado. Campanha "parada" significa que o cliente não teve faturamento na categoria dela — '+
+    'como o VBS não separa por campanha, essa é a verificação possível.</div>'+
+    '<button class="np" onclick="window.print()" style="margin-top:16px;background:#111;color:#fff;border:none;padding:10px 22px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700">🖨 Imprimir / Salvar PDF</button>';
+  var w=window.open('','_blank');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Análise de Mídia</title><style>'+css+'</style></head><body>'+body+'</body></html>');
+  w.document.close();
 }
 
 function bvNum(v){ var n = parseFloat(v); return isNaN(n) ? 0 : n; }
