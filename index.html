@@ -10552,6 +10552,23 @@ function switchMidiaTab(tab, e){
   if(el) el.classList.add('active');
   if(e && e.target) e.target.classList.add('active');
   if(tab==='bv' && !window._bvRaw) setTimeout(bvCarregar, 60);
+  // A Analise depende do budget e do faturado que a aba Investimento carrega.
+  // Antes nao havia gatilho nenhum aqui, entao a aba abria sempre vazia. Se os
+  // dados ainda nao vieram, busca sozinho em vez de pedir pro usuario ir na
+  // outra aba primeiro.
+  if(tab==='analise'){
+    if(!window._midiaBudgetRaw && !window._midiaRealRaw){
+      var st=document.getElementById('an-status');
+      if(st) st.textContent='Carregando budget e faturamento...';
+      setTimeout(function(){
+        var r=midiaCarregar();
+        if(r && typeof r.then==='function') r.then(anRender).catch(function(){ anRender(); });
+        else setTimeout(anRender, 200);
+      }, 60);
+    } else {
+      setTimeout(anRender, 60);
+    }
+  }
 }
 
 // ── ANÁLISE DE MÍDIA ─────────────────────────────────────────────────────────
@@ -10783,12 +10800,30 @@ function anTabelaConc(mapa, totalLabel){
     }).join('')+'</tbody></table></div>';
 }
 
+// "WIP" nao e veiculo: e a verba ainda sem veiculo definido. Tratar como
+// concentracao de risco ("perder esse veiculo") nao faz sentido - o que importa
+// ali e quanto do plano ainda nao foi decidido, que e uma leitura diferente e
+// mais acionavel.
+function anAvisoWIP(planVeic){
+  var tot=Object.keys(planVeic).reduce(function(s,k){ return s+planVeic[k]; },0);
+  var wip=0;
+  Object.keys(planVeic).forEach(function(k){ if(k.toUpperCase()==='WIP') wip+=planVeic[k]; });
+  if(!wip || !tot) return '';
+  return '<div style="font-size:10px;color:var(--amber);padding:0 16px 8px">⚠️ '+
+    (wip/tot*100).toFixed(0)+'% do plano ('+anFmt(wip)+') está em WIP — verba sem veículo definido. '+
+    'Enquanto não for alocada, não vira veiculação nem conta para faixa de BV.</div>';
+}
+
 function anRenderConcentracao(planCli, fatCli, planVeic){
   var baseCli = Object.keys(fatCli).length ? fatCli : planCli;
   document.getElementById('an-conc-cli-meta').textContent = Object.keys(fatCli).length ? 'base: faturado' : 'base: planejado';
   document.getElementById('an-conc-cliente').innerHTML=anTabelaConc(baseCli,'faturamento por cliente');
   document.getElementById('an-conc-vei-meta').textContent=Object.keys(planVeic).length+' veículo(s)';
-  document.getElementById('an-conc-veiculo').innerHTML=anTabelaConc(planVeic,'plano por veículo');
+  // Concentracao real so entre veiculos de verdade; WIP vira aviso proprio.
+  var semWip={};
+  Object.keys(planVeic).forEach(function(k){ if(k.toUpperCase()!=='WIP') semWip[k]=planVeic[k]; });
+  document.getElementById('an-conc-veiculo').innerHTML=
+    anAvisoWIP(planVeic)+anTabelaConc(semWip,'plano por veículo');
 }
 
 // ── 5. BV ──
@@ -11321,6 +11356,8 @@ function midiaRenderTudo(){
   midiaRenderTabela('midia-conta-tbody','midia-conta-meta', contas, 'contas');
   midiaRenderTabelaDetalheVeiculo(budget.porVeiculo);
   midiaRenderChartMensal(mesDeIdx, mesAteIdx);
+  // Mantem a Analise em sincronia com o periodo escolhido aqui.
+  if(typeof anRender==='function' && document.getElementById('an-desvio-tbody')) anRender();
 }
 
 // Relatorio de conciliacao: mostra explicitamente como o total do VBS se divide
