@@ -8974,6 +8974,32 @@ function switchPageTab(btn, panelId){
 }
 
 // ── VBS CR/CP ─────────────────────────────────────────
+// O VBS responde HTTP 200 mesmo quando falha: o erro vem dentro do corpo, em
+// Mensagem.Cod_Mensagem. Quem so lia .Retorno acabava mostrando "0 registros"
+// para um endpoint quebrado - foi o que aconteceu com o Contas a Receber, que
+// ficou dias parecendo "sem titulos" enquanto o VBS devolvia
+// 'package body "VBSEUPHORIA.PKG_BI_CR" contem erros'.
+// Centraliza a checagem: ou devolve as linhas, ou estoura com a mensagem real.
+function vbsRetorno(j, ondeChamou){
+  if(!j || !j.ok) throw new Error((j && j.error) || 'Falha ao falar com o VBS');
+  var d = j.data || {};
+  var m = d.Mensagem;
+  if(m && m.Cod_Mensagem){
+    var desc = m.Desc_Mensagem || ('erro '+m.Cod_Mensagem);
+    throw new Error('VBS'+(ondeChamou?' ('+ondeChamou+')':'')+': '+desc);
+  }
+  return d.Retorno || d.retorno || (Array.isArray(d) ? d : []);
+}
+
+// Versao tolerante: usada onde a tela agrega varias chamadas e uma falha nao
+// deve derrubar o resto. Registra o motivo em _vbsUltimoErro para a tela poder
+// avisar em vez de exibir zero silenciosamente.
+var _vbsUltimoErro = null;
+function vbsRetornoSeguro(j, ondeChamou){
+  try { return vbsRetorno(j, ondeChamou); }
+  catch(e){ _vbsUltimoErro = e.message; return []; }
+}
+
 function toApiDate(iso){if(!iso)return '';var p=iso.split('-');return p[2]+p[1]+p[0];}
 function daysAgo(d){if(!d)return null;return Math.floor((new Date()-new Date(d))/86400000);}
 function fmtVbs(v){var n=parseFloat(v);if(isNaN(n))return '---';return n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});}
@@ -9003,7 +9029,7 @@ async function loadCRVbs(){
   try{
     var r=await fetch(API+'/api/contas-receber?situacao_aberto='+ab+'&situacao_recebido='+rc+'&duplicatas_canceladas=N&baixas_canceladas=N&linha_rateio_sem_ratear=N&valores_negativos_nc=S&apresenta_encontro=N&data_emissao_de='+de+'&data_emissao_ate='+ate);
     var j=await r.json();if(!j.ok)throw new Error(j.error||'Erro VBS');
-    var rows=j.data.Retorno||[];
+    var rows=vbsRetorno(j,'Contas a Receber');
     window._crRows = rows;
     document.getElementById('cr-meta-vbs').textContent=rows.length+' registros';
     populateCRDropdown(rows);
@@ -9053,7 +9079,16 @@ async function loadCRVbs(){
     var runway=document.getElementById('cr-runway');
     if(runway){var cpTotal=window._cpTotal||0;var mediaCP=cpTotal>0?cpTotal/1:0;var r=mediaCP>0?Math.round((tot+0)/mediaCP*10)/10:null;runway.innerHTML=r?'<span style="color:var(--pos);font-weight:700;font-size:14px">Runway: '+r+' meses</span><br><span style="font-size:10px;color:var(--text3)">CR aberto ÷ média CP</span>':'<span style="color:var(--text3)">Carregue CR e CP para calcular Runway</span>';}
 
-  }catch(e){document.getElementById('cr-tbody-vbs').innerHTML='<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--neg)">'+e.message+'</td></tr>';}
+  }catch(e){
+    // Zera os KPIs junto: deixar R$ 0,00 nos cards com a tabela em erro faz
+    // parecer que nao ha titulos, quando na verdade a consulta falhou.
+    ['cr-a60','cr-a31','cr-a1','cr-av','cr-tot','cr-runway'].forEach(function(id){
+      var el=document.getElementById(id); if(el) el.textContent='—';
+    });
+    var meta=document.getElementById('cr-meta-vbs'); if(meta) meta.textContent='falha na consulta';
+    document.getElementById('cr-tbody-vbs').innerHTML='<tr><td colspan="10" style="text-align:center;padding:22px;color:var(--neg)">'+
+      e.message+'<div style="font-size:10px;color:var(--text3);margin-top:6px">Isto é uma falha da consulta, não ausência de títulos.</div></td></tr>';
+  }
 }
 
 
@@ -9080,7 +9115,7 @@ async function loadCPVbs(){
   try{
     var r=await fetch(API+'/api/contas-pagar?situacao_aberto='+ab+'&situacao_pago='+pg+'&duplicatas_canceladas=N&baixas_canceladas=N&apresenta_cancelado=N&apresenta_baixa_cancelada=N&apresenta_encontro=N&criar_rateio=N&calcula_nc=N&data_vencimento_de='+de+'&data_vencimento_ate='+ate);
     var j=await r.json();if(!j.ok)throw new Error(j.error||'Erro VBS');
-    var rows=j.data.Retorno||[];
+    var rows=vbsRetorno(j,'Contas a Pagar');
     window._cpRows = rows;
     window._cpTotal = rows.reduce(function(s,x){return s+parseFloat(x.Valor_Aberto_CP||0);},0);
     document.getElementById('cp-meta-vbs').textContent=rows.length+' registros';
@@ -10934,7 +10969,7 @@ async function bvCarregar(){
     if(j.data && j.data.Mensagem && j.data.Mensagem.Cod_Mensagem){
       throw new Error(j.data.Mensagem.Desc_Mensagem||'erro interno da API do VBS');
     }
-    window._bvRaw = (j.data && j.data.Retorno) ? j.data.Retorno : [];
+    window._bvRaw = vbsRetorno(j,'Bonificação de Volume');
     var hora = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
     status.textContent = window._bvRaw.length+' contrato(s) '+(st==='V'?'vigente(s)':'encerrado(s)')+' · lido do VBS às '+hora;
     bvRender();
@@ -11098,7 +11133,7 @@ async function midiaCarregar(){
       throw new Error('Real (VBS): '+(realJson.data.Mensagem.Desc_Mensagem||'erro interno da API'));
     }
     window._midiaBudgetRaw = midiaParseBudgetRows(budgetJson.data||[]);
-    window._midiaRealRaw = (realJson.data && realJson.data.Retorno) ? realJson.data.Retorno : [];
+    window._midiaRealRaw = vbsRetorno(realJson,'faturamento de mídia');
     statusEl.textContent = window._midiaBudgetRaw.length+' linhas de budget · '+window._midiaRealRaw.length+' linhas de faturamento real ('+ano+')';
     midiaPopularFiltros();
     midiaRenderTudo();
@@ -11451,7 +11486,7 @@ async function dreCarregarVbs(){
       var ate = String(lastDay).padStart(2,'0')+m+ano;
       return fetch(API+'/api/faturamento?data_de='+de+'&data_ate='+ate+'&intervalo_data=2&tipo_faturamento=1&valor=2')
         .then(function(r){return r.json();})
-        .then(function(j){return {mes:m, rows:j.ok?(j.data.Retorno||[]):[]}; })
+        .then(function(j){return {mes:m, rows:vbsRetornoSeguro(j,'DRE')}; })
         .catch(function(){return {mes:m, rows:[]};});
     });
 
@@ -11901,7 +11936,7 @@ async function recCarregar(){
     promises.push(
       fetch(API+'/api/faturamento?data_de='+deDt+'&data_ate='+ateDt+'&intervalo_data=2&tipo_faturamento=1&valor=2')
         .then(function(r){return r.json();})
-        .then(function(j){return j.ok&&j.data.Retorno?j.data.Retorno:[];})
+        .then(function(j){return vbsRetornoSeguro(j,'receita');})
         .catch(function(){return [];})
     );
     cur.setMonth(cur.getMonth()+1);
@@ -12571,7 +12606,7 @@ async function dashCarregarRentabilidadeReal(){
     var res = await fetch(API+'/api/rentabilidade?periodo_de='+de+'&periodo_ate='+ate);
     var j = await res.json();
     if(!j.ok) throw new Error(j.error||'Erro VBS');
-    var rows = (j.data && j.data.Retorno) ? j.data.Retorno : [];
+    var rows = vbsRetorno(j,'rentabilidade');
     var receita = 0, rentabilidade = 0;
     rows.forEach(function(r){
       receita += parseFloat(r.Valor_Receita_Total||0);
@@ -12605,7 +12640,7 @@ async function carregarActualVbs(){
       var ate = String(lastDay).padStart(2,'0')+m+ano;
       return fetch(API+'/api/faturamento?data_de='+de+'&data_ate='+ate+'&intervalo_data=2&tipo_faturamento=1&valor=2')
         .then(function(r){return r.json();})
-        .then(function(j){return j.ok?(j.data.Retorno||[]):[];})
+        .then(function(j){return vbsRetornoSeguro(j,'fluxo de caixa');})
         .catch(function(){return [];});
     });
 
@@ -12719,7 +12754,7 @@ async function carregarActualVbs(){
       promises2025.push(
         fetch(API+'/api/faturamento?data_de='+de2+'&data_ate='+ate2+'&intervalo_data=2&tipo_faturamento=1&valor=2')
           .then(function(r){return r.json();})
-          .then(function(j){return j.ok?(j.data.Retorno||[]):[];})
+          .then(function(j){return vbsRetornoSeguro(j,'fluxo de caixa');})
           .catch(function(){return [];})
       );
     }
