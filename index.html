@@ -223,6 +223,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       <button class="tab-btn" onclick="switchFinTab('receita',event)">💰 Receita</button>
       <button class="tab-btn" onclick="switchFinTab('cr',event)">Contas a Receber</button>
       <button class="tab-btn" onclick="switchFinTab('cp',event)">Contas a Pagar</button>
+      <button class="tab-btn" onclick="switchFinTab('nfs',event)">🧾 Controle de NFs</button>
       <button class="tab-btn" onclick="switchFinTab('cashflow',event)">Fluxo de Caixa</button>
       <button class="tab-btn" onclick="switchFinTab('clientes',event)">Clientes</button>
       <button class="tab-btn" onclick="switchFinTab('pl',event)">P&L Completo</button>
@@ -550,6 +551,47 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
 </tr></thead>
 <tbody id="cr-tbody-vbs"><tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text3)">Selecione o período e clique em Buscar</td></tr></tbody></table></div></div>
 </div>
+<div class="tab-panel" id="fin-nfs">
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:12px">
+    <div>
+      <div style="font-size:20px;font-weight:700">Controle de Notas Fiscais</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:4px">Despesas lançadas sem a NF do fornecedor registrada no VBS</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+      <div>
+        <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Ano</label>
+        <select id="nf-ano" onchange="nfCarregar()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer"></select>
+      </div>
+      <div>
+        <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Tipo</label>
+        <select id="nf-f-tipo" onchange="nfRender()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer"><option value="">Todos</option></select>
+      </div>
+      <div>
+        <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Situação</label>
+        <select id="nf-f-status" onchange="nfRender()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
+          <option value="">Todas</option><option value="pendente">Pendente</option><option value="cobrado">Cobrado</option>
+          <option value="recebida">NF recebida</option><option value="na">Não se aplica</option>
+        </select>
+      </div>
+      <button class="btn btn-primary btn-vbs" id="nf-btn" onclick="nfCarregar()" style="font-size:11px;padding:6px 14px">↺ Carregar do VBS</button>
+      <button class="btn" onclick="nfExportar()" style="font-size:11px;padding:6px 12px">📊 Excel</button>
+    </div>
+  </div>
+  <div style="font-size:11px;color:var(--text3);margin-bottom:14px" id="nf-status">Clique em "Carregar do VBS".</div>
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px" id="nf-kpis"></div>
+  <div class="table-card">
+    <div class="table-header"><span class="table-title">Títulos sem NF do fornecedor</span><span class="table-meta" id="nf-meta">—</span></div>
+    <div style="font-size:10px;color:var(--text3);padding:0 16px 10px">Banco, intercompany e reembolso normalmente não têm nota de fornecedor — marque como "Não se aplica" para tirá-los da lista de cobrança.</div>
+    <div style="overflow-x:auto;max-height:520px">
+      <table class="tbl">
+        <thead><tr><th>Fornecedor</th><th>Tipo</th><th>Emissão</th><th>Vencimento</th>
+        <th style="text-align:right">Valor</th><th style="text-align:right">Dias</th><th>Lançado por</th><th>Situação</th><th>Obs</th></tr></thead>
+        <tbody id="nf-tbody"><tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text3)">—</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <div class="tab-panel" id="fin-cp">
 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
 <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:8px">
@@ -3901,6 +3943,178 @@ function toggleSidebar() {
   document.getElementById('logo-mini').style.display = col ? 'block' : 'none';
 }
 
+// ── CONTROLE DE NOTAS FISCAIS DE FORNECEDOR ─────────────────────────────────
+// O VBS guarda a NF do fornecedor no proprio titulo (Numero_Doc_NF_Terceiro_CP),
+// entao da pra listar sozinho o que foi lancado sem nota. Em 2026 sao 127
+// titulos, R$ 4,24 mi.
+// Mas "sem NF" nao e sinonimo de pendencia: banco (Itau, Santander, Jeeves),
+// intercompany e reembolso de funcionario legitimamente nao tem nota de
+// fornecedor. Por isso existe a triagem - sem ela a lista viraria ruido e
+// ninguem usaria. O VBS diz o que falta; quem decide se e cobravel e o usuario.
+// A triagem fica em euphoria_nf_ctrl, chaveada pelo titulo, e sobrevive a
+// recarga dos dados do VBS.
+function getNfCtrl(){ return JSON.parse(lsGet('euphoria_nf_ctrl')||'{}'); }
+function saveNfCtrl(d){ lsSet('euphoria_nf_ctrl', JSON.stringify(d)); backupAutoSave(); }
+
+// O VBS nao devolve um id unico simples para o titulo, entao compomos uma chave
+// estavel com os campos que nao mudam.
+function nfChave(x){
+  return [x.Nome_Terceiro_CP, x.Data_Emissao_CP, x.Data_Vencimento_CP, x.Valor_Documento_CP]
+    .map(function(v){ return String(v==null?'':v); }).join('|');
+}
+
+function nfNum(v){ var n=parseFloat(v); return isNaN(n)?0:n; }
+function nfFmt(v){ return 'R$ '+Math.round(nfNum(v)).toLocaleString('pt-BR'); }
+function nfVazio(v){ return v===null||v===undefined||v===''||v==='0'||v===0; }
+
+function nfPopularAnos(){
+  var sel=document.getElementById('nf-ano'); if(!sel||sel.options.length) return;
+  var a=new Date().getFullYear(), o=[];
+  for(var y=a-2;y<=a;y++) o.push('<option value="'+y+'">'+y+'</option>');
+  sel.innerHTML=o.join(''); sel.value=a;
+}
+
+async function nfCarregar(){
+  nfPopularAnos();
+  var ano=document.getElementById('nf-ano').value;
+  var btn=document.getElementById('nf-btn'), st=document.getElementById('nf-status');
+  if(btn){ btn.disabled=true; btn.textContent='Buscando...'; }
+  st.textContent='Consultando o Contas a Pagar do VBS (pode levar ~40s)...';
+  try{
+    var r=await fetch(API+'/api/contas-pagar?data_vencimento_de=0101'+ano+'&data_vencimento_ate=3112'+ano,{cache:'no-store'});
+    var j=await r.json();
+    var rows=vbsRetorno(j,'Contas a Pagar');
+    window._nfRaw=rows.filter(function(x){ return nfVazio(x.Numero_Doc_NF_Terceiro_CP); });
+    var tipos={};
+    window._nfRaw.forEach(function(x){ if(x.Tipo_Documento2_CP) tipos[x.Tipo_Documento2_CP]=1; });
+    var selT=document.getElementById('nf-f-tipo'), atual=selT.value;
+    selT.innerHTML='<option value="">Todos</option>'+Object.keys(tipos).sort().map(function(t){
+      return '<option value="'+t+'">'+t+'</option>'; }).join('');
+    selT.value=atual;
+    st.textContent=rows.length+' titulo(s) no ano · '+window._nfRaw.length+' sem NF do fornecedor · lido as '+
+      new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    nfRender();
+  }catch(e){
+    st.textContent='Erro ao consultar o VBS: '+e.message;
+    document.getElementById('nf-kpis').innerHTML='';
+    document.getElementById('nf-tbody').innerHTML='<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--neg)">'+e.message+'</td></tr>';
+  }finally{ if(btn){ btn.disabled=false; btn.textContent='↺ Carregar do VBS'; } }
+}
+
+function nfStatusDe(x, ctrl){
+  var c=ctrl[nfChave(x)];
+  if(c && c.status) return c.status;
+  // Pre-classifica o que notoriamente nao tem nota de fornecedor, pra lista de
+  // cobranca ja nascer limpa. Continua editavel pelo usuario.
+  var t=String(x.Tipo_Documento2_CP||'').toUpperCase();
+  if(t==='INTERCOMPANY'||t==='FUNCIONARIO') return 'na';
+  return 'pendente';
+}
+
+function nfRender(){
+  if(!document.getElementById('nf-tbody')) return;
+  var rows=window._nfRaw||[];
+  var ctrl=getNfCtrl();
+  var fTipo=document.getElementById('nf-f-tipo').value;
+  var fStatus=document.getElementById('nf-f-status').value;
+  var hoje=new Date(); hoje.setHours(0,0,0,0);
+  var dt=function(v){ return v?ferData(String(v).substring(0,10)):null; };
+
+  var itens=rows.map(function(x){
+    var k=nfChave(x), c=ctrl[k]||{};
+    var emis=dt(x.Data_Emissao_CP);
+    return {chave:k, status:nfStatusDe(x,ctrl), obs:c.obs||'',
+            fornecedor:String(x.Nome_Terceiro_CP||'(sem fornecedor)'),
+            tipo:String(x.Tipo_Documento2_CP||'-'),
+            emissao:emis, venc:dt(x.Data_Vencimento_CP),
+            valor:nfNum(x.Valor_Documento_CP),
+            dias:emis?Math.floor((hoje-emis)/86400000):null,
+            usuario:String(x.Nome_Usuario_Incl_CP||'-')};
+  });
+  var visiveis=itens.filter(function(i){
+    if(fTipo && i.tipo!==fTipo) return false;
+    if(fStatus && i.status!==fStatus) return false;
+    return true;
+  }).sort(function(a,b){ return (b.dias||0)-(a.dias||0); });
+
+  var soma=function(arr){ return arr.reduce(function(s,i){ return s+i.valor; },0); };
+  var pend=itens.filter(function(i){ return i.status==='pendente'; });
+  var cob=itens.filter(function(i){ return i.status==='cobrado'; });
+  var rec=itens.filter(function(i){ return i.status==='recebida'; });
+  var velho=pend.length?Math.max.apply(null,pend.map(function(i){ return i.dias||0; })):0;
+
+  document.getElementById('nf-kpis').innerHTML=[
+    {l:'Sem NF no VBS', v:String(itens.length), s:nfFmt(soma(itens))},
+    {l:'Pendentes de cobranca', v:String(pend.length), s:nfFmt(soma(pend)), c:pend.length?'neg':''},
+    {l:'Ja cobrados', v:String(cob.length), s:nfFmt(soma(cob))},
+    {l:'NF recebida', v:String(rec.length), s:nfFmt(soma(rec)), c:'pos'},
+    {l:'Mais antigo pendente', v:(velho?velho+' dias':'-'), s:'desde a emissao', c:velho>90?'neg':''}
+  ].map(function(k){ return '<div class="kpi-card"><div class="kpi-label">'+k.l+'</div>'+
+    '<div class="kpi-value '+(k.c||'')+'" style="font-size:17px">'+k.v+'</div>'+
+    '<div class="kpi-sub">'+k.s+'</div></div>'; }).join('');
+
+  document.getElementById('nf-meta').textContent=visiveis.length+' no filtro';
+  var opt=function(v,sel,txt){ return '<option value="'+v+'"'+(sel===v?' selected':'')+'>'+txt+'</option>'; };
+  var esc=function(s){ return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); };
+  document.getElementById('nf-tbody').innerHTML = visiveis.length ? visiveis.map(function(i){
+    var cor = i.status==='pendente' ? ((i.dias||0)>90?'var(--neg)':'var(--amber)')
+            : i.status==='recebida' ? 'var(--pos)' : 'var(--text3)';
+    return '<tr'+(i.status==='na'?' style="opacity:.5"':'')+'>'+
+      '<td><strong>'+i.fornecedor+'</strong></td>'+
+      '<td style="font-size:10px;color:var(--text3)">'+i.tipo+'</td>'+
+      '<td style="font-size:11px">'+(i.emissao?ferFmtData(i.emissao):'-')+'</td>'+
+      '<td style="font-size:11px">'+(i.venc?ferFmtData(i.venc):'-')+'</td>'+
+      '<td style="text-align:right">'+nfFmt(i.valor)+'</td>'+
+      '<td style="text-align:right;color:'+cor+'">'+(i.dias!==null?i.dias:'-')+'</td>'+
+      '<td style="font-size:10px;color:var(--text3)">'+i.usuario+'</td>'+
+      '<td><select onchange="nfSetStatus(this.value,\''+esc(i.chave)+'\')" '+
+        'style="background:var(--bg3);border:1px solid var(--border);color:'+cor+';padding:3px 6px;border-radius:4px;font-size:10px;outline:none;cursor:pointer">'+
+        opt('pendente',i.status,'Pendente')+opt('cobrado',i.status,'Cobrado')+
+        opt('recebida',i.status,'NF recebida')+opt('na',i.status,'Nao se aplica')+'</select></td>'+
+      '<td><input value="'+String(i.obs).replace(/"/g,'&quot;')+'" placeholder="-" '+
+        'onchange="nfSetObs(this.value,\''+esc(i.chave)+'\')" '+
+        'style="width:150px;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--text2);font-size:10px;outline:none;padding:2px"></td>'+
+    '</tr>';
+  }).join('') : '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--pos)">Nenhum titulo no filtro</td></tr>';
+}
+
+function nfSetStatus(valor, chave){
+  var d=getNfCtrl();
+  d[chave]=d[chave]||{};
+  d[chave].status=valor;
+  d[chave].em=new Date().toISOString().slice(0,10);
+  saveNfCtrl(d); nfRender();
+}
+function nfSetObs(valor, chave){
+  var d=getNfCtrl(); d[chave]=d[chave]||{}; d[chave].obs=valor; saveNfCtrl(d);
+}
+
+function nfExportar(){
+  var rows=window._nfRaw||[];
+  if(!rows.length){ alert('Carregue os dados do VBS primeiro.'); return; }
+  if(typeof XLSX==='undefined'){ alert('Biblioteca de planilha nao carregou.'); return; }
+  var ctrl=getNfCtrl();
+  var rot={pendente:'Pendente',cobrado:'Cobrado',recebida:'NF recebida',na:'Nao se aplica'};
+  var dt=function(v){ return v?ferFmtData(ferData(String(v).substring(0,10))):''; };
+  var ano=document.getElementById('nf-ano').value;
+  var aoa=[['CONTROLE DE NOTAS FISCAIS DE FORNECEDOR - '+ano],
+           ['Titulos lancados sem NF do fornecedor no VBS · gerado em '+new Date().toLocaleString('pt-BR')],[],
+           ['Fornecedor','Tipo','Emissao','Vencimento','Valor','Situacao','Observacao','Lancado por']];
+  rows.forEach(function(x){
+    var c=ctrl[nfChave(x)]||{};
+    aoa.push([String(x.Nome_Terceiro_CP||''), String(x.Tipo_Documento2_CP||''),
+      dt(x.Data_Emissao_CP), dt(x.Data_Vencimento_CP),
+      nfNum(x.Valor_Documento_CP), rot[nfStatusDe(x,ctrl)]||'', c.obs||'',
+      String(x.Nome_Usuario_Incl_CP||'')]);
+  });
+  var ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=[{wch:40},{wch:14},{wch:12},{wch:12},{wch:14},{wch:14},{wch:34},{wch:22}];
+  for(var r=5;r<=aoa.length;r++){ var c=ws['E'+r]; if(c&&c.t==='n') c.z='#,##0.00'; }
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'NFs pendentes');
+  XLSX.writeFile(wb, 'Controle_NFs_'+ano+'.xlsx');
+}
+
 function switchFinTab(tab, e) {
   document.querySelectorAll('#page-financeiro .tab-btn').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('#page-financeiro .tab-panel').forEach(function(p){ p.classList.remove('active'); });
@@ -3910,6 +4124,7 @@ function switchFinTab(tab, e) {
   if (tab==='dashboard' && G.pl) { setTimeout(function(){ renderAll(); }, 100); }
   if (tab==='clientes' && G.clientes) { setTimeout(function(){ populateClientesFilter(); renderClientesTab(); }, 80); }
   if (tab==='pl') setTimeout(function(){ renderPLFull(); }, 50);
+  if (tab==='nfs'){ nfPopularAnos(); if(!window._nfRaw) setTimeout(nfCarregar,60); else nfRender(); }
   if (tab==='cashflow') setTimeout(function(){ renderCashflow(); }, 50);
   if (tab==='dre') setTimeout(function(){ dreRender(); }, 50);
   if (tab==='receita') setTimeout(function(){ recCarregar(); }, 50);
@@ -3983,7 +4198,7 @@ function migrarLocalStorage(){
   var migKey = 'euphoria_migrated_'+ent;
   if(localStorage.getItem(migKey)) return; // já migrou
   var keys = [
-    'euphoria_people_v2','euphoria_people_hist','euphoria_movimentacoes','euphoria_ferias','euphoria_ausencias',
+    'euphoria_people_v2','euphoria_people_hist','euphoria_movimentacoes','euphoria_nf_ctrl','euphoria_ferias','euphoria_ausencias',
     'euphoria_alocacao_v1','euphoria_lancamentos',
     'crm_prospects','crm_responsaveis',
     'euphoria_ts','euphoria_projetos','euphoria_juridico','euphoria_ti_ativos',
@@ -4127,7 +4342,7 @@ function backupAutoSave(){
 function backupColetar(){
   var ent = currentUser&&currentUser.entidade ? currentUser.entidade : 'BR';
   var keys = [
-    'euphoria_people_v2','euphoria_people_hist','euphoria_movimentacoes','euphoria_ferias','euphoria_ausencias',
+    'euphoria_people_v2','euphoria_people_hist','euphoria_movimentacoes','euphoria_nf_ctrl','euphoria_ferias','euphoria_ausencias',
     'euphoria_alocacao_v1','euphoria_lancamentos',
     'crm_prospects','crm_responsaveis',
     'euphoria_ts','euphoria_projetos','euphoria_juridico',
