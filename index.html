@@ -1342,6 +1342,33 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       </div>
       <div style="font-size:11px;color:var(--text3);margin-bottom:16px" id="bv-status">Clique em "Carregar do VBS" para buscar os contratos de BV.</div>
 
+      <!-- BV REALIZADO -->
+      <div style="margin-bottom:8px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">BV realizado — o que já foi faturado</div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px" id="bv-real-kpis"></div>
+      <div id="bv-real-aviso" style="display:none;margin-bottom:14px"></div>
+      <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-bottom:22px">
+        <div class="table-card">
+          <div class="table-header"><span class="table-title">Por veículo que paga o BV</span><span class="table-meta" id="bv-real-terc-meta">—</span></div>
+          <div style="overflow-x:auto;max-height:300px">
+            <table class="tbl">
+              <thead><tr><th>Terceiro / Veículo</th><th style="text-align:right">Lanç.</th>
+              <th style="text-align:right">Volume</th><th style="text-align:right">Incentivo</th><th style="text-align:right">%</th></tr></thead>
+              <tbody id="bv-real-terc-tbody"><tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text3)">—</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="table-header"><span class="table-title">Por mês</span><span class="table-meta" id="bv-real-mes-meta">—</span></div>
+          <div style="overflow-x:auto;max-height:300px">
+            <table class="tbl">
+              <thead><tr><th>Mês</th><th style="text-align:right">Lanç.</th><th style="text-align:right">Incentivo</th></tr></thead>
+              <tbody id="bv-real-mes-tbody"><tr><td colspan="3" style="text-align:center;padding:20px;color:var(--text3)">—</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:8px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">Contratos com tabela progressiva</div>
       <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:18px" id="bv-kpis"></div>
 
       <div style="margin-bottom:8px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">Faixas de BV por veículo</div>
@@ -10976,6 +11003,9 @@ async function bvCarregar(){
     var hora = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
     status.textContent = window._bvRaw.length+' contrato(s) '+(st==='V'?'vigente(s)':'encerrado(s)')+' · lido do VBS às '+hora;
     bvRender();
+    // O realizado vem de outro endpoint e nao depende de haver contrato.
+    var anoRef=(document.getElementById('midia-sel-ano')||{}).value||String(new Date().getFullYear());
+    await bvCarregarRealizado(anoRef);
   }catch(e){
     status.textContent = 'Erro ao consultar o VBS: '+e.message;
     document.getElementById('bv-kpis').innerHTML='';
@@ -10984,6 +11014,84 @@ async function bvCarregar(){
   }finally{
     if(btn){ btn.disabled=false; btn.textContent='↺ Carregar do VBS'; }
   }
+}
+
+// O BV0001 (mapa) so enxerga contrato cadastrado com tabela progressiva. Na
+// pratica a Euphoria fatura BV quase todo via "Pedido Manual - BV", sem grupo
+// nem contrato vinculado - entao a aba mostrava zero enquanto havia mais de R$
+// 1 milhao faturado no ano. O BV0002 (mapa-detalhado) le o realizado por
+// periodo e enxerga os dois casos, inclusive os marcados "Sem Contrato".
+async function bvCarregarRealizado(ano){
+  var elAviso=document.getElementById('bv-real-aviso');
+  try{
+    var url=API+'/api/bv/mapa-detalhado?periodo_de=01'+ano+'&periodo_ate=12'+ano+'&tipo_periodo=C';
+    var r=await fetch(url,{cache:'no-store'});
+    var j=await r.json();
+    window._bvRealRaw=vbsRetorno(j,'BV realizado');
+    bvRenderRealizado();
+  }catch(e){
+    window._bvRealRaw=[];
+    document.getElementById('bv-real-kpis').innerHTML='';
+    if(elAviso){ elAviso.style.display='';
+      elAviso.innerHTML='<div style="font-size:11px;color:var(--neg)">Não foi possível carregar o BV realizado: '+e.message+'</div>'; }
+  }
+}
+
+function bvRenderRealizado(){
+  var rows=window._bvRealRaw||[];
+  var n=function(v){ var x=parseFloat(v); return isNaN(x)?0:x; };
+  var incentivo=0, volume=0, pago=0, semContrato=0, incSemContrato=0;
+  var porTerc={}, porMes={};
+  var MES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  rows.forEach(function(x){
+    var inc=n(x.Incentivo_faturado);
+    incentivo+=inc; volume+=n(x.Volume_Faturado); pago+=n(x.Volume_Pago);
+    if(String(x.Indicador_contrato||'').toLowerCase().indexOf('sem')===0){ semContrato++; incSemContrato+=inc; }
+    var t=String(x.Nome_Fantasia_Terceiro||'(sem terceiro)').trim();
+    var a=porTerc[t]=porTerc[t]||{n:0,inc:0,vol:0};
+    a.n++; a.inc+=inc; a.vol+=n(x.Volume_Faturado);
+    var d=String(x.Data_competencia||'');
+    if(d.length>=7){ var mi=parseInt(d.substring(5,7),10)-1;
+      var b=porMes[mi]=porMes[mi]||{n:0,inc:0}; b.n++; b.inc+=inc; }
+  });
+  var pctSem = incentivo>0 ? (incSemContrato/incentivo*100) : 0;
+
+  document.getElementById('bv-real-kpis').innerHTML=[
+    {l:'Incentivo faturado', v:bvFmt(incentivo), s:rows.length+' lançamento(s)', c:'pos'},
+    {l:'Volume que gerou BV', v:bvFmt(volume), s:'base do incentivo'},
+    {l:'Volume já pago', v:bvFmt(pago), s:'recebido do veículo'},
+    {l:'Sem contrato', v:pctSem.toFixed(0)+'%', s:semContrato+' de '+rows.length+' lançamentos', c:pctSem>50?'neg':''},
+    {l:'Veículos pagantes', v:String(Object.keys(porTerc).length), s:'terceiros com BV'}
+  ].map(function(k){
+    return '<div class="kpi-card"><div class="kpi-label">'+k.l+'</div>'+
+      '<div class="kpi-value '+(k.c||'')+'" style="font-size:16px">'+k.v+'</div>'+
+      '<div class="kpi-sub">'+k.s+'</div></div>'; }).join('');
+
+  var av=document.getElementById('bv-real-aviso');
+  if(pctSem>50){
+    av.style.display='';
+    av.innerHTML='<div style="background:rgba(251,191,36,.08);border:1px solid var(--amber);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--text2);line-height:1.6">'+
+      '⚠️ <strong style="color:var(--amber)">'+pctSem.toFixed(0)+'% do BV ('+bvFmt(incSemContrato)+') foi lançado manualmente, sem contrato vinculado.</strong><br>'+
+      'Esses lançamentos entram no faturamento normalmente, mas ficam fora da tabela progressiva — então não há como o sistema calcular faixa atual nem quanto falta para a próxima. '+
+      'Cadastrar o contrato de BV no VBS é o que liga as duas coisas.</div>';
+  } else { av.style.display='none'; av.innerHTML=''; }
+
+  var tercs=Object.keys(porTerc).sort(function(a,b){ return porTerc[b].inc-porTerc[a].inc; });
+  document.getElementById('bv-real-terc-meta').textContent=tercs.length+' veículo(s)';
+  document.getElementById('bv-real-terc-tbody').innerHTML = tercs.length ? tercs.map(function(t){
+    var a=porTerc[t];
+    return '<tr><td>'+t+'</td><td style="text-align:right">'+a.n+'</td>'+
+      '<td style="text-align:right;color:var(--text3)">'+bvFmt(a.vol)+'</td>'+
+      '<td style="text-align:right;color:var(--pos)">'+bvFmt(a.inc)+'</td>'+
+      '<td style="text-align:right">'+(incentivo>0?(a.inc/incentivo*100).toFixed(1)+'%':'—')+'</td></tr>';
+  }).join('') : '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text3)">Nenhum BV faturado no período</td></tr>';
+
+  var meses=Object.keys(porMes).map(Number).sort(function(a,b){ return a-b; });
+  document.getElementById('bv-real-mes-meta').textContent=meses.length+' mês(es)';
+  document.getElementById('bv-real-mes-tbody').innerHTML = meses.length ? meses.map(function(mi){
+    return '<tr><td>'+MES[mi]+'</td><td style="text-align:right">'+porMes[mi].n+'</td>'+
+      '<td style="text-align:right;color:var(--pos)">'+bvFmt(porMes[mi].inc)+'</td></tr>';
+  }).join('') : '<tr><td colspan="3" style="text-align:center;padding:20px;color:var(--text3)">—</td></tr>';
 }
 
 function bvRender(){
