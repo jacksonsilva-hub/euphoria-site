@@ -1369,6 +1369,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       </div>
 
       <div style="margin-bottom:8px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">Contratos com tabela progressiva</div>
+      <div id="bv-aviso-contratos" style="display:none;margin-bottom:12px"></div>
       <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:18px" id="bv-kpis"></div>
 
       <div style="margin-bottom:8px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">Faixas de BV por veículo</div>
@@ -11002,10 +11003,11 @@ async function bvCarregar(){
     window._bvRaw = vbsRetorno(j,'Bonificação de Volume');
     var hora = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
     status.textContent = window._bvRaw.length+' contrato(s) '+(st==='V'?'vigente(s)':'encerrado(s)')+' · lido do VBS às '+hora;
-    bvRender();
-    // O realizado vem de outro endpoint e nao depende de haver contrato.
+    // O realizado precisa vir ANTES: os contratos sao renderizados ja
+    // reconciliados com ele (o VBS devolve Volume_acumulado zerado).
     var anoRef=(document.getElementById('midia-sel-ano')||{}).value||String(new Date().getFullYear());
     await bvCarregarRealizado(anoRef);
+    bvRender();
   }catch(e){
     status.textContent = 'Erro ao consultar o VBS: '+e.message;
     document.getElementById('bv-kpis').innerHTML='';
@@ -11094,21 +11096,52 @@ function bvRenderRealizado(){
   }).join('') : '<tr><td colspan="3" style="text-align:center;padding:20px;color:var(--text3)">—</td></tr>';
 }
 
+// O BV0001 devolve Volume_acumulado = 0 em todos os contratos, mesmo onde ha
+// faturamento. Como o BV0002 traz Nome_Grupo_BV com exatamente os mesmos nomes
+// dos contratos, da pra reconstruir o volume real somando por grupo - e e isso
+// que faz as tres visoes da aba conversarem.
+// Consequencia pratica: o "falta investir" do VBS vinha sempre igual ao limiar
+// da faixa, porque partia de volume zero. Com o volume real, NEOOH, WDC e GLOBO
+// ja passaram a proxima faixa, e TV Doutor precisa de R$ 1,38 mi em vez dos
+// R$ 2 mi que a tela mostrava.
+function bvRealizadoPorGrupo(){
+  var mapa={};
+  (window._bvRealRaw||[]).forEach(function(x){
+    var g=String(x.Nome_Grupo_BV||'').trim();
+    if(!g || g.indexOf('<<')===0) return;
+    var n=function(v){ var y=parseFloat(v); return isNaN(y)?0:y; };
+    var a=mapa[g]=mapa[g]||{lanc:0, volume:0, incentivo:0};
+    a.lanc++; a.volume+=n(x.Volume_acumulado); a.incentivo+=n(x.Incentivo_faturado);
+  });
+  return mapa;
+}
+
 function bvRender(){
   var rows = window._bvRaw || [];
+  var realPorGrupo = bvRealizadoPorGrupo();
   var totVolume=0, totBVestimado=0, totPotencial=0, totIncremento=0, totFaturado=0;
   var itens = rows.map(function(x){
-    var volume = bvNum(x.Volume_acumulado);
+    // Volume vem do realizado quando o VBS devolve zero, que e o caso de todos
+    // os contratos hoje. Sem isso a faixa e o "falta investir" partem de zero.
+    var nomeGrupo = String(x.Nome_Grupo_BV||'').trim();
+    var real = realPorGrupo[nomeGrupo];
+    var volumeVbs = bvNum(x.Volume_acumulado);
+    var volume = volumeVbs || (real ? real.volume : 0);
+    var volumeReconciliado = !volumeVbs && !!real && real.volume>0;
     // "Efetivo" e o BV do que foi realmente pago; "direito" e sobre o acumulado.
     var bvEstimado = bvNum(x.Incentivo_efetivo) || bvNum(x.Incentivo_direito);
     var incremento = bvNum(x.Acrescimo_alcancar_prox_faixa);
+    var limiarProx = bvNum(x.Valor_proxima_faixa);
+    // O "falta investir" do VBS assume volume zero. Com o volume real, recalcula.
     var faltaInvestir = bvNum(x.Valor_para_alcancar_proxima_faixa);
+    if(volumeReconciliado && limiarProx>0) faltaInvestir = Math.max(0, limiarProx - volume);
+    var jaAlcancou = volumeReconciliado && limiarProx>0 && volume>=limiarProx;
     var seAlcancar = bvNum(x.Valor_se_alcancar_proxima_faixa);
     totVolume += volume;
     totBVestimado += bvEstimado;
     totIncremento += incremento;
     totPotencial += (seAlcancar || bvEstimado);
-    totFaturado += bvNum(x.Incentivo_faturado);
+    totFaturado += bvNum(x.Incentivo_faturado) || (real ? real.incentivo : 0);
     return {
       nome: x.Nome_Grupo_BV || '(sem nome)',
       apuracao: x.Apuracao || '—',
@@ -11121,11 +11154,23 @@ function bvRender(){
       incremento: incremento,
       seAlcancar: seAlcancar,
       bvEstimado: bvEstimado,
-      faturado: bvNum(x.Incentivo_faturado),
-      aFaturar: bvNum(x.Incentivo_faturar)
+      faturado: bvNum(x.Incentivo_faturado) || (real ? real.incentivo : 0),
+      aFaturar: bvNum(x.Incentivo_faturar),
+      reconciliado: volumeReconciliado, jaAlcancou: jaAlcancou, lancamentos: real?real.lanc:0
     };
   });
 
+  var nRecalc = itens.filter(function(i){ return i.reconciliado; }).length;
+  var elAvisoC = document.getElementById('bv-aviso-contratos');
+  if(elAvisoC){
+    if(nRecalc){
+      elAvisoC.style.display='';
+      elAvisoC.innerHTML='<div style="background:rgba(251,191,36,.08);border:1px solid var(--amber);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--text2);line-height:1.6">'+
+        '⚠️ <strong style="color:var(--amber)">O VBS devolve volume acumulado zerado em todos os contratos</strong>, mesmo onde já houve faturamento. '+
+        'Em '+nRecalc+' contrato(s) o volume foi recalculado aqui somando os lançamentos do próprio VBS pelo grupo de BV — por isso o "falta investir" '+
+        'ficou menor que o mostrado lá. Vale conferir com o VBS por que o acumulado não está sendo computado no contrato.</div>';
+    } else { elAvisoC.style.display='none'; elAvisoC.innerHTML=''; }
+  }
   document.getElementById('bv-kpis').innerHTML = [
     {l:'Volume acumulado', v:bvFmt(totVolume), s:'investimento que conta pro BV'},
     {l:'BV estimado', v:bvFmt(totBVestimado), s:'na faixa atual', c:'pos'},
@@ -11143,8 +11188,14 @@ function bvRender(){
     var temProx = i.proxFaixa > 0;
     var noTopo = !temProx && i.faixaAtual > 0;
     var msg, cor;
-    if(noTopo){ msg='Faixa máxima já atingida'; cor='var(--pos)'; }
-    else if(temProx){ msg='Faltam <strong>'+bvFmt(i.faltaInvestir)+'</strong> para a faixa de '+bvPct(i.proxFaixa); cor='var(--amber)'; }
+    if(i.jaAlcancou){
+      msg='Volume de <strong>'+bvFmt(i.volume)+'</strong> já supera o limiar da faixa de '+bvPct(i.proxFaixa)+
+          '<div style="font-size:10px;color:var(--text3);margin-top:3px">Confirme no VBS: o contrato está com volume zerado lá.</div>';
+      cor='var(--pos)';
+    }
+    else if(noTopo){ msg='Faixa máxima já atingida'; cor='var(--pos)'; }
+    else if(temProx){ msg='Faltam <strong>'+bvFmt(i.faltaInvestir)+'</strong> para a faixa de '+bvPct(i.proxFaixa)+
+      (i.reconciliado?'<div style="font-size:10px;color:var(--text3);margin-top:3px">Sobre volume real de '+bvFmt(i.volume)+' ('+i.lancamentos+' lanç.)</div>':''); cor='var(--amber)'; }
     else { msg='Sem faixa progressiva cadastrada neste contrato'; cor='var(--text3)'; }
     // Barra: quanto do caminho até a próxima faixa já foi percorrido.
     var alvo = i.valorProxFaixa || (i.volume + i.faltaInvestir);
@@ -11173,10 +11224,12 @@ function bvRender(){
       '<td><strong>'+i.nome+'</strong></td>'+
       '<td style="font-size:11px;color:var(--text3)">'+i.apuracao+'</td>'+
       '<td style="font-size:11px">'+d(i.ini)+' → '+d(i.fim)+'</td>'+
-      '<td style="text-align:right">'+bvFmt(i.volume)+'</td>'+
+      '<td style="text-align:right">'+bvFmt(i.volume)+
+        (i.reconciliado?' <span style="font-size:9px;color:var(--amber)" title="Somado dos lançamentos; o VBS devolve zero neste contrato">recalc.</span>':'')+'</td>'+
       '<td style="text-align:right;'+(i.faixaAtual>0?'color:var(--pos)':'color:var(--text3)')+'">'+bvPct(i.faixaAtual)+'</td>'+
       '<td style="text-align:right">'+(i.proxFaixa>0?bvPct(i.proxFaixa):'<span style="color:var(--text3)">—</span>')+'</td>'+
-      '<td style="text-align:right">'+(i.faltaInvestir>0?bvFmt(i.faltaInvestir):'<span style="color:var(--text3)">—</span>')+'</td>'+
+      '<td style="text-align:right">'+(i.jaAlcancou?'<span style="color:var(--pos)">atingido</span>':
+        (i.faltaInvestir>0?bvFmt(i.faltaInvestir):'<span style="color:var(--text3)">—</span>'))+'</td>'+
       '<td style="text-align:right;'+(i.incremento>0?'color:var(--pos);font-weight:700':'color:var(--text3)')+'">'+(i.incremento>0?'+'+bvFmt(i.incremento):'—')+'</td>'+
       '<td style="text-align:right">'+bvFmt(i.bvEstimado)+'</td>'+
     '</tr>';
