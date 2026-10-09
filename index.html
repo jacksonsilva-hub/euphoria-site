@@ -1289,12 +1289,15 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     </div>
 
     <div class="table-card" style="margin-bottom:16px">
-      <div class="table-header"><span class="table-title">Planejado por Veículo (detalhe)</span><span class="table-meta" id="midia-veiculo-detalhe-meta">0 veículos</span></div>
-      <div style="font-size:10px;color:var(--text3);padding:0 16px 10px">Detalhe do Budget por veículo/fornecedor específico. Sem coluna de Faturado aqui, já que o VBS não abre o real nesse nível de detalhe.</div>
+      <div class="table-header"><span class="table-title">Por Veículo — Planejado vs. Faturado</span>
+        <span class="table-meta" id="midia-veiculo-detalhe-meta">0 veículos</span>
+        <button class="btn btn-vbs" id="midia-btn-veic" onclick="midiaCarregarFaturadoVeiculo()" style="font-size:10px;padding:4px 10px;margin-left:8px">↺ Buscar faturado</button>
+      </div>
+      <div style="font-size:10px;color:var(--text3);padding:0 16px 10px" id="midia-veic-nota">O faturado por veículo sai dos pedidos de faturamento do VBS — consulta pesada (~45s), por isso fica sob demanda.</div>
       <div style="overflow-x:auto;max-height:340px;overflow-y:auto">
         <table class="tbl">
-          <thead><tr><th>Veículo</th><th style="text-align:right">Planejado</th></tr></thead>
-          <tbody id="midia-veiculo-detalhe-tbody"><tr><td colspan="2" style="text-align:center;padding:20px;color:var(--text3)">Sem dados — clique em Carregar Dados</td></tr></tbody>
+          <thead><tr><th>Veículo</th><th style="text-align:right">Planejado</th><th style="text-align:right">Faturado</th><th style="text-align:right">Execução</th></tr></thead>
+          <tbody id="midia-veiculo-detalhe-tbody"><tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text3)">Sem dados — clique em Carregar Dados</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -11619,15 +11622,92 @@ function midiaRelatorio(){
   w.document.close();
 }
 
+// Eu tinha dito que o VBS nao abre o faturado por veiculo - estava errado. O
+// FT0001 (investimento-clientes), que a aba usa, agrega por categoria de meio;
+// mas o FT/FTPDFT/FT0001 (pedidos de faturamento) traz Nome_Veiculo por pedido.
+// Filtrando Indicador_Faturamento=MD e Indicador_Faturado=S, o Valor_Liquido
+// soma R$ 25,16 mi contra os R$ 25,47 mi da aba - a diferenca vem do recorte
+// (pedido por data de inclusao x faturamento por competencia), nao de
+// universos distintos.
+async function midiaCarregarFaturadoVeiculo(){
+  var btn=document.getElementById('midia-btn-veic');
+  var nota=document.getElementById('midia-veic-nota');
+  var ano=(document.getElementById('midia-sel-ano')||{}).value||String(new Date().getFullYear());
+  if(btn){ btn.disabled=true; btn.textContent='Buscando...'; }
+  if(nota) nota.textContent='Consultando os pedidos de faturamento no VBS — pode levar ~45s...';
+  try{
+    var url=API+'/api/pedidos-faturamento?data_inclusao_pedido_de=0101'+ano+'&data_inclusao_pedido_ate=3112'+ano;
+    var r=await fetch(url,{cache:'no-store'});
+    var j=await r.json();
+    var rows=vbsRetorno(j,'pedidos de faturamento');
+    var n=function(v){ var x=parseFloat(v); return isNaN(x)?0:x; };
+    var porVeic={}, total=0;
+    rows.forEach(function(x){
+      if(String(x.Indicador_Faturamento||'')!=='MD') return;
+      if(String(x.Indicador_Faturado||'')!=='S') return;
+      var v=String(x.Nome_Veiculo||'(sem veículo)').trim();
+      var val=n(x.Valor_Liquido_Pedido);
+      if(!val) return;
+      porVeic[v]=(porVeic[v]||0)+val; total+=val;
+    });
+    window._midiaFatVeiculo=porVeic;
+    if(nota) nota.textContent='Faturado por veículo: '+Object.keys(porVeic).length+' veículo(s), '+
+      midiaFmtBRL(total)+' — pedidos de mídia já faturados em '+ano+'.';
+    midiaRenderTudo();
+  }catch(e){
+    if(nota) nota.textContent='Não foi possível carregar o faturado por veículo: '+e.message;
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent='↺ Buscar faturado'; }
+  }
+}
+
+// Nomes nem sempre batem entre Budget e VBS (GLOBO x GLOBOPLAY x GLOBO.COM),
+// entao casa por nome normalizado e, nao achando, por prefixo de 5+ letras.
+// Veiculo que so existe de um lado aparece mesmo assim, com o outro zerado -
+// esconder criaria a impressao de que nao houve veiculacao.
+function midiaNormVeic(s){
+  return String(s||'').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Z0-9]/g,'');
+}
+
 function midiaRenderTabelaDetalheVeiculo(porVeiculo){
   var tbody = document.getElementById('midia-veiculo-detalhe-tbody');
   var metaEl = document.getElementById('midia-veiculo-detalhe-meta');
   if(!tbody) return;
-  var nomes = Object.keys(porVeiculo).sort(function(a,b){ return porVeiculo[b]-porVeiculo[a]; });
-  if(metaEl) metaEl.textContent = nomes.length+' veículos';
-  tbody.innerHTML = nomes.map(function(n){
-    return '<tr><td>'+n+'</td><td style="text-align:right">'+midiaFmtBRL(porVeiculo[n])+'</td></tr>';
-  }).join('') || '<tr><td colspan="2" style="text-align:center;padding:20px;color:var(--text3)">Sem dados no período</td></tr>';
+  var fat = window._midiaFatVeiculo || null;
+  var linhas = {};
+  Object.keys(porVeiculo).forEach(function(n){
+    linhas[midiaNormVeic(n)] = {nome:n, plan:porVeiculo[n], fat:0};
+  });
+  if(fat){
+    Object.keys(fat).forEach(function(nf){
+      var k=midiaNormVeic(nf);
+      if(linhas[k]){ linhas[k].fat += fat[nf]; return; }
+      // tenta prefixo (GLOBO x GLOBOPLAY), exigindo 5+ caracteres pra nao casar
+      // coisas diferentes por acidente
+      var achou=null;
+      Object.keys(linhas).forEach(function(kb){
+        if(achou || kb.length<5) return;
+        if(k.indexOf(kb)===0 || kb.indexOf(k)===0) achou=kb;
+      });
+      if(achou){ linhas[achou].fat += fat[nf]; linhas[achou].aprox=true; }
+      else linhas[k]={nome:nf, plan:0, fat:fat[nf], soFaturado:true};
+    });
+  }
+  var lista = Object.keys(linhas).map(function(k){ return linhas[k]; })
+    .sort(function(a,b){ return (b.plan+b.fat)-(a.plan+a.fat); });
+  if(metaEl) metaEl.textContent = lista.length+' veículos'+(fat?' · faturado carregado':'');
+  tbody.innerHTML = lista.map(function(l){
+    var exec = l.plan>0 ? (l.fat/l.plan*100) : null;
+    var cor = exec===null ? 'var(--text3)' : (exec<50?'var(--neg)':(exec<=115?'var(--pos)':'var(--amber)'));
+    return '<tr>'+
+      '<td>'+l.nome+
+        (l.soFaturado?' <span style="font-size:9px;color:var(--amber)" title="Faturado sem linha correspondente no Budget">fora do budget</span>':'')+
+        (l.aprox?' <span style="font-size:9px;color:var(--text3)" title="Nome casado por aproximação entre Budget e VBS">~</span>':'')+'</td>'+
+      '<td style="text-align:right">'+(l.plan?midiaFmtBRL(l.plan):'<span style="color:var(--text3)">—</span>')+'</td>'+
+      '<td style="text-align:right">'+(fat?(l.fat?midiaFmtBRL(l.fat):'<span style="color:var(--text3)">—</span>'):'<span style="color:var(--text3)">?</span>')+'</td>'+
+      '<td style="text-align:right;color:'+cor+'">'+(fat&&exec!==null?exec.toFixed(0)+'%':'—')+'</td>'+
+    '</tr>';
+  }).join('') || '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text3)">Sem dados no período</td></tr>';
 }
 
 // ── DRE AUTOMÁTICA VBS ────────────────────────────────────────────────────────
