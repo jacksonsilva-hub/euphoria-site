@@ -577,7 +577,47 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       <button class="btn" onclick="nfExportar()" style="font-size:11px;padding:6px 12px">📊 Excel</button>
     </div>
   </div>
+  <div class="tab-nav" style="margin-bottom:14px">
+    <button class="tab-btn active" onclick="nfSubTab('fixas',event)">📅 Despesas Fixas</button>
+    <button class="tab-btn" onclick="nfSubTab('semnf',event)">🧾 Lançado sem NF</button>
+  </div>
   <div style="font-size:11px;color:var(--text3);margin-bottom:14px" id="nf-status">Clique em "Carregar do VBS".</div>
+
+  <div id="nf-view-fixas">
+    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px">
+      <div>
+        <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Mês</label>
+        <select id="dfx-mes" onchange="dfxRender()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
+          <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option><option value="3">Abril</option><option value="4">Maio</option><option value="5">Junho</option><option value="6">Julho</option><option value="7">Agosto</option><option value="8">Setembro</option><option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Situação</label>
+        <select id="dfx-f-sit" onchange="dfxRender()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
+          <option value="">Todas</option><option value="falta">Não lançado</option><option value="diverge">Valor divergente</option>
+          <option value="semnf">Lançado sem NF</option><option value="ok">OK</option>
+        </select>
+      </div>
+      <button class="btn" onclick="document.getElementById('dfx-file').click()" style="font-size:11px;padding:6px 12px">📥 Importar planilha</button>
+      <input type="file" id="dfx-file" accept=".xlsx,.xls" style="display:none" onchange="dfxImportar(this)">
+      <button class="btn" onclick="dfxExportar()" style="font-size:11px;padding:6px 12px">📊 Excel</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px" id="dfx-kpis"></div>
+    <div class="table-card">
+      <div class="table-header"><span class="table-title">Conferência do mês</span><span class="table-meta" id="dfx-meta">—</span></div>
+      <div style="font-size:10px;color:var(--text3);padding:0 16px 10px">Cruza as despesas fixas cadastradas com o Contas a Pagar do VBS: o que não foi lançado, o que veio com valor diferente e o que foi lançado sem nota.</div>
+      <div style="overflow-x:auto;max-height:520px">
+        <table class="tbl">
+          <thead><tr><th>Fornecedor</th><th>Receber até</th><th>Lançar até</th><th>Vence</th>
+          <th style="text-align:right">Esperado</th><th style="text-align:right">Lançado</th><th style="text-align:right">Dif.</th>
+          <th>Situação</th><th>Contato</th></tr></thead>
+          <tbody id="dfx-tbody"><tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text3)">Importe a planilha de despesas fixas para começar</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="nf-view-semnf" style="display:none">
   <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px" id="nf-kpis"></div>
   <div class="table-card">
     <div class="table-header"><span class="table-title">Títulos sem NF do fornecedor</span><span class="table-meta" id="nf-meta">—</span></div>
@@ -589,6 +629,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
         <tbody id="nf-tbody"><tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text3)">—</td></tr></tbody>
       </table>
     </div>
+  </div>
   </div>
 </div>
 
@@ -3943,6 +3984,222 @@ function toggleSidebar() {
   document.getElementById('logo-mini').style.display = col ? 'block' : 'none';
 }
 
+// ── DESPESAS FIXAS ──────────────────────────────────────────────────────────
+// A aba "Lancado sem NF" responde o que ja esta no VBS e falta nota. Esta
+// responde o contrario, e e o controle que o financeiro pedia: o que DEVERIA
+// ter chegado e nao chegou. Sem o cadastro das recorrentes nao da pra saber que
+// uma despesa fixa simplesmente nao apareceu no mes - o VBS so mostra o que foi
+// lancado, nunca o que faltou.
+// Cruza o cadastro com o Contas a Pagar do VBS e separa os tres problemas que o
+// financeiro descreveu: nao lancado, valor divergente (correcao) e lancado sem
+// nota.
+function getDfx(){ return JSON.parse(lsGet('euphoria_despesas_fixas')||'[]'); }
+function saveDfx(d){ lsSet('euphoria_despesas_fixas', JSON.stringify(d)); backupAutoSave(); }
+
+function nfSubTab(v, e){
+  document.querySelectorAll('#fin-nfs .tab-btn').forEach(function(b){ b.classList.remove('active'); });
+  if(e && e.target) e.target.classList.add('active');
+  document.getElementById('nf-view-fixas').style.display = v==='fixas' ? '' : 'none';
+  document.getElementById('nf-view-semnf').style.display = v==='semnf' ? '' : 'none';
+  if(v==='fixas') dfxRender(); else nfRender();
+}
+
+function dfxNorm(s){
+  return String(s||'').trim().toUpperCase().normalize('NFD')
+    .replace(/[̀-ͯ]/g,'').replace(/[^A-Z0-9]/g,'');
+}
+
+// "Ate 14", "Todo dia 20" ou uma data -> texto curto pra tabela.
+function dfxPrazo(v){
+  if(v===null||v===undefined||v==='') return '—';
+  if(typeof v==='number' && v>20000){ // serial de data do Excel
+    var d=new Date(Math.round((v-25569)*86400000));
+    return String(d.getUTCDate()).padStart(2,'0')+'/'+String(d.getUTCMonth()+1).padStart(2,'0');
+  }
+  var s=String(v).trim();
+  var m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m) return m[3]+'/'+m[2];
+  return s.replace(/^Todo dia\s*/i,'dia ').replace(/^At[ée]\s*/i,'até ');
+}
+
+function dfxImportar(input){
+  var f=input.files && input.files[0];
+  if(!f) return;
+  if(typeof XLSX==='undefined'){ alert('Biblioteca de planilha não carregou. Recarregue a página.'); return; }
+  var leitor=new FileReader();
+  leitor.onload=function(ev){
+    try{
+      var wb=XLSX.read(new Uint8Array(ev.target.result),{type:'array'});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+      // Acha o cabecalho procurando "Fornecedor" nas primeiras linhas, em vez de
+      // assumir posicao fixa.
+      var hi=-1, col={};
+      for(var r=0;r<Math.min(rows.length,8);r++){
+        var linha=(rows[r]||[]).map(function(c){ return dfxNorm(c); });
+        var iF=linha.indexOf('FORNECEDOR');
+        if(iF>=0){
+          hi=r; col.fornecedor=iF;
+          var acha=function(alvo){ return linha.indexOf(alvo); };
+          col.despesa=acha('DESPESA'); col.receb=acha('RECEBIMENTO');
+          col.lanc=acha('LANCAMENTOVBS'); col.venc=acha('VENCIMENTO');
+          col.conta=acha('CONTACONTABIL'); col.pgto=acha('DADOSDEPAGAMENTO');
+          col.contato=acha('NOMEDOCONTATO'); col.tel=acha('TELEFONE'); col.email=acha('EMAIL');
+          var MES=['JANEIRO','FEVEREIRO','MARCO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
+          col.meses=MES.map(function(m){ return linha.indexOf(m); });
+          break;
+        }
+      }
+      if(hi<0){ alert('Não encontrei a coluna "Fornecedor" nesta planilha.'); input.value=''; return; }
+      var itens=[];
+      for(var i=hi+1;i<rows.length;i++){
+        var row=rows[i]||[];
+        var nome=row[col.fornecedor];
+        if(nome===null||nome===undefined||!String(nome).trim()) continue;
+        var pegar=function(c){ return c>=0 ? row[c] : null; };
+        var meses=col.meses.map(function(c){
+          var v=c>=0?row[c]:null; var n=parseFloat(v); return isNaN(n)?0:n; });
+        itens.push({
+          fornecedor:String(nome).trim(),
+          despesa:String(pegar(col.despesa)||''),
+          receb:pegar(col.receb), lanc:pegar(col.lanc), venc:pegar(col.venc),
+          meses:meses,
+          conta:String(pegar(col.conta)||''), pgto:String(pegar(col.pgto)||''),
+          contato:String(pegar(col.contato)||''), tel:String(pegar(col.tel)||''),
+          email:String(pegar(col.email)||'')
+        });
+      }
+      if(!itens.length){ alert('Nenhuma despesa encontrada na planilha.'); input.value=''; return; }
+      if(!confirm(itens.length+' despesa(s) fixa(s) encontrada(s).\n\nIsso substitui o cadastro atual. Continuar?')){ input.value=''; return; }
+      saveDfx(itens);
+      dfxRender();
+      alert(itens.length+' despesa(s) fixa(s) importada(s).');
+    }catch(e){ alert('Não consegui ler a planilha: '+e.message); }
+    input.value='';
+  };
+  leitor.readAsArrayBuffer(f);
+}
+
+// Agrupa o Contas a Pagar do mes por fornecedor normalizado, somando as
+// parcelas e guardando se alguma linha veio sem NF.
+function dfxVbsDoMes(mesIdx){
+  var mapa={};
+  (window._nfCpTodos||[]).forEach(function(x){
+    var d=x.Data_Vencimento_CP;
+    if(!d) return;
+    var mi=parseInt(String(d).substring(5,7),10)-1;
+    if(mi!==mesIdx) return;
+    var k=dfxNorm(x.Nome_Terceiro_CP);
+    if(!k) return;
+    var a=mapa[k]=mapa[k]||{valor:0, n:0, semNF:0, nome:String(x.Nome_Terceiro_CP||'')};
+    var v=parseFloat(x.Valor_Documento_CP); if(isNaN(v)) v=0;
+    a.valor+=v; a.n++;
+    if(nfVazio(x.Numero_Doc_NF_Terceiro_CP)) a.semNF++;
+  });
+  return mapa;
+}
+
+function dfxRender(){
+  if(!document.getElementById('dfx-tbody')) return;
+  var fixas=getDfx();
+  var mesIdx=parseInt(document.getElementById('dfx-mes').value);
+  var fSit=document.getElementById('dfx-f-sit').value;
+  var temVbs=!!(window._nfCpTodos && window._nfCpTodos.length);
+  var vbs=temVbs?dfxVbsDoMes(mesIdx):{};
+
+  var itens=fixas.map(function(f){
+    var esperado=f.meses[mesIdx]||0;
+    var k=dfxNorm(f.fornecedor);
+    var achado=vbs[k];
+    if(!achado && k.length>=8){
+      // Nome do VBS costuma ter sufixos (LTDA, S.A.); tenta por prefixo de 12.
+      Object.keys(vbs).forEach(function(kv){
+        if(achado || kv.length<8) return;
+        if(kv.indexOf(k.substring(0,12))===0 || k.indexOf(kv.substring(0,12))===0) achado=vbs[kv];
+      });
+    }
+    var lancado=achado?achado.valor:0;
+    var dif=lancado-esperado;
+    var sit, cor;
+    if(!temVbs){ sit='—'; cor='var(--text3)'; }
+    else if(!esperado && !lancado){ sit='Sem movimento'; cor='var(--text3)'; }
+    else if(!achado){ sit='Não lançado'; cor='var(--neg)'; }
+    else if(esperado && Math.abs(dif) > Math.max(1, esperado*0.02)){ sit='Valor divergente'; cor='var(--amber)'; }
+    else if(achado.semNF){ sit='Lançado sem NF'; cor='var(--amber)'; }
+    else { sit='OK'; cor='var(--pos)'; }
+    return {f:f, esperado:esperado, lancado:lancado, dif:dif, sit:sit, cor:cor,
+            achado:!!achado, semNF:achado?achado.semNF:0};
+  });
+
+  var chave={'Não lançado':'falta','Valor divergente':'diverge','Lançado sem NF':'semnf','OK':'ok'};
+  var vis=itens.filter(function(i){ return !fSit || chave[i.sit]===fSit; });
+
+  var cont=function(s){ return itens.filter(function(i){ return i.sit===s; }); };
+  var soma=function(arr,campo){ return arr.reduce(function(s,i){ return s+i[campo]; },0); };
+  var falta=cont('Não lançado'), div=cont('Valor divergente'), snf=cont('Lançado sem NF');
+  document.getElementById('dfx-kpis').innerHTML=[
+    {l:'Despesas fixas', v:String(fixas.length), s:'cadastradas'},
+    {l:'Esperado no mês', v:nfFmt(soma(itens,'esperado')), s:'conforme planilha'},
+    {l:'Não lançado', v:String(falta.length), s:nfFmt(soma(falta,'esperado')), c:falta.length?'neg':''},
+    {l:'Valor divergente', v:String(div.length), s:nfFmt(soma(div,'dif')), c:div.length?'amber':''},
+    {l:'Lançado sem NF', v:String(snf.length), s:nfFmt(soma(snf,'lancado')), c:snf.length?'amber':''}
+  ].map(function(k){ return '<div class="kpi-card"><div class="kpi-label">'+k.l+'</div>'+
+    '<div class="kpi-value '+(k.c||'')+'" style="font-size:17px">'+k.v+'</div>'+
+    '<div class="kpi-sub">'+k.s+'</div></div>'; }).join('');
+
+  document.getElementById('dfx-meta').textContent = fixas.length
+    ? vis.length+' no filtro'+(temVbs?'':' · carregue o VBS para conferir')
+    : 'nenhuma despesa cadastrada';
+  document.getElementById('dfx-tbody').innerHTML = vis.length ? vis.map(function(i){
+    var f=i.f;
+    var contato=[f.contato, f.tel, f.email].filter(function(x){ return x && x!=='None'; }).join(' · ');
+    return '<tr>'+
+      '<td><strong>'+f.fornecedor+'</strong></td>'+
+      '<td style="font-size:10px;color:var(--text3)">'+dfxPrazo(f.receb)+'</td>'+
+      '<td style="font-size:10px;color:var(--text3)">'+dfxPrazo(f.lanc)+'</td>'+
+      '<td style="font-size:10px">'+dfxPrazo(f.venc)+'</td>'+
+      '<td style="text-align:right">'+(i.esperado?nfFmt(i.esperado):'<span style="color:var(--text3)">—</span>')+'</td>'+
+      '<td style="text-align:right">'+(i.achado?nfFmt(i.lancado):'<span style="color:var(--text3)">—</span>')+'</td>'+
+      '<td style="text-align:right;color:'+(Math.abs(i.dif)>1?(i.dif<0?'var(--neg)':'var(--amber)'):'var(--text3)')+'">'+
+        (i.achado&&i.esperado?((i.dif>=0?'+':'')+nfFmt(i.dif)):'—')+'</td>'+
+      '<td><span style="font-size:10px;color:'+i.cor+'">'+i.sit+'</span></td>'+
+      '<td style="font-size:9px;color:var(--text3)">'+(contato||'—')+'</td>'+
+    '</tr>';
+  }).join('') : '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text3)">'+
+    (fixas.length?'Nenhuma despesa no filtro':'Importe a planilha de despesas fixas para começar')+'</td></tr>';
+}
+
+function dfxExportar(){
+  var fixas=getDfx();
+  if(!fixas.length){ alert('Importe a planilha de despesas fixas primeiro.'); return; }
+  if(typeof XLSX==='undefined'){ alert('Biblioteca de planilha não carregou.'); return; }
+  var mesIdx=parseInt(document.getElementById('dfx-mes').value);
+  var MES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  var vbs=(window._nfCpTodos&&window._nfCpTodos.length)?dfxVbsDoMes(mesIdx):{};
+  var aoa=[['CONFERÊNCIA DE DESPESAS FIXAS — '+MES[mesIdx]],
+           ['Cadastro x Contas a Pagar do VBS · gerado em '+new Date().toLocaleString('pt-BR')],[],
+           ['Fornecedor','Receber até','Lançar até','Vence','Esperado','Lançado','Diferença','Situação','Contato','Telefone','E-mail','Conta contábil']];
+  fixas.forEach(function(f){
+    var esperado=f.meses[mesIdx]||0;
+    var a=vbs[dfxNorm(f.fornecedor)];
+    var lancado=a?a.valor:0;
+    var sit = !a ? (esperado?'Não lançado':'Sem movimento')
+            : (esperado && Math.abs(lancado-esperado)>Math.max(1,esperado*0.02)) ? 'Valor divergente'
+            : (a.semNF?'Lançado sem NF':'OK');
+    aoa.push([f.fornecedor, dfxPrazo(f.receb), dfxPrazo(f.lanc), dfxPrazo(f.venc),
+              esperado, lancado, (a&&esperado)?(lancado-esperado):'', sit,
+              f.contato||'', f.tel||'', f.email||'', f.conta||'']);
+  });
+  var ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=[{wch:38},{wch:12},{wch:12},{wch:12},{wch:13},{wch:13},{wch:13},{wch:17},{wch:22},{wch:16},{wch:28},{wch:18}];
+  ['E','F','G'].forEach(function(c){
+    for(var r=5;r<=aoa.length;r++){ var cel=ws[c+r]; if(cel&&cel.t==='n') cel.z='#,##0.00'; }
+  });
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, MES[mesIdx]);
+  XLSX.writeFile(wb, 'Despesas_Fixas_'+MES[mesIdx]+'.xlsx');
+}
+
 // ── CONTROLE DE NOTAS FISCAIS DE FORNECEDOR ─────────────────────────────────
 // O VBS guarda a NF do fornecedor no proprio titulo (Numero_Doc_NF_Terceiro_CP),
 // entao da pra listar sozinho o que foi lancado sem nota. Em 2026 sao 127
@@ -3984,6 +4241,7 @@ async function nfCarregar(){
     var r=await fetch(API+'/api/contas-pagar?data_vencimento_de=0101'+ano+'&data_vencimento_ate=3112'+ano,{cache:'no-store'});
     var j=await r.json();
     var rows=vbsRetorno(j,'Contas a Pagar');
+    window._nfCpTodos=rows;  // a conferencia de despesas fixas precisa de todos
     window._nfRaw=rows.filter(function(x){ return nfVazio(x.Numero_Doc_NF_Terceiro_CP); });
     var tipos={};
     window._nfRaw.forEach(function(x){ if(x.Tipo_Documento2_CP) tipos[x.Tipo_Documento2_CP]=1; });
@@ -3994,6 +4252,7 @@ async function nfCarregar(){
     st.textContent=rows.length+' titulo(s) no ano · '+window._nfRaw.length+' sem NF do fornecedor · lido as '+
       new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
     nfRender();
+    dfxRender();
   }catch(e){
     st.textContent='Erro ao consultar o VBS: '+e.message;
     document.getElementById('nf-kpis').innerHTML='';
@@ -4124,7 +4383,8 @@ function switchFinTab(tab, e) {
   if (tab==='dashboard' && G.pl) { setTimeout(function(){ renderAll(); }, 100); }
   if (tab==='clientes' && G.clientes) { setTimeout(function(){ populateClientesFilter(); renderClientesTab(); }, 80); }
   if (tab==='pl') setTimeout(function(){ renderPLFull(); }, 50);
-  if (tab==='nfs'){ nfPopularAnos(); if(!window._nfRaw) setTimeout(nfCarregar,60); else nfRender(); }
+  if (tab==='nfs'){ nfPopularAnos();
+    var mEl=document.getElementById('dfx-mes'); if(mEl && !mEl.dataset.init){ mEl.value=String(new Date().getMonth()); mEl.dataset.init='1'; } if(!window._nfRaw) setTimeout(nfCarregar,60); else nfRender(); }
   if (tab==='cashflow') setTimeout(function(){ renderCashflow(); }, 50);
   if (tab==='dre') setTimeout(function(){ dreRender(); }, 50);
   if (tab==='receita') setTimeout(function(){ recCarregar(); }, 50);
@@ -4198,7 +4458,7 @@ function migrarLocalStorage(){
   var migKey = 'euphoria_migrated_'+ent;
   if(localStorage.getItem(migKey)) return; // já migrou
   var keys = [
-    'euphoria_people_v2','euphoria_people_hist','euphoria_movimentacoes','euphoria_nf_ctrl','euphoria_ferias','euphoria_ausencias',
+    'euphoria_people_v2','euphoria_people_hist','euphoria_movimentacoes','euphoria_nf_ctrl','euphoria_despesas_fixas','euphoria_ferias','euphoria_ausencias',
     'euphoria_alocacao_v1','euphoria_lancamentos',
     'crm_prospects','crm_responsaveis',
     'euphoria_ts','euphoria_projetos','euphoria_juridico','euphoria_ti_ativos',
@@ -4342,7 +4602,7 @@ function backupAutoSave(){
 function backupColetar(){
   var ent = currentUser&&currentUser.entidade ? currentUser.entidade : 'BR';
   var keys = [
-    'euphoria_people_v2','euphoria_people_hist','euphoria_movimentacoes','euphoria_nf_ctrl','euphoria_ferias','euphoria_ausencias',
+    'euphoria_people_v2','euphoria_people_hist','euphoria_movimentacoes','euphoria_nf_ctrl','euphoria_despesas_fixas','euphoria_ferias','euphoria_ausencias',
     'euphoria_alocacao_v1','euphoria_lancamentos',
     'crm_prospects','crm_responsaveis',
     'euphoria_ts','euphoria_projetos','euphoria_juridico',
