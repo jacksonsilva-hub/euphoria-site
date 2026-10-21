@@ -1091,9 +1091,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <select id="crm-sel-ano" onchange="crmCarregar()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
-          <option value="2026">2026</option>
+          <option value="2027">2027</option><option value="2026" selected>2026</option>
           <option value="2025">2025</option>
         </select>
+        <label style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--text3);cursor:pointer;margin-left:4px" title="Mostra apenas negócios com receita no ano selecionado. Um contrato que atravessa o ano aparece nos dois, com o valor de cada um."><input type="checkbox" id="crm-so-ano" checked onchange="crmRenderView()" style="cursor:pointer">só com receita no ano</label>
         <button class="btn btn-primary" onclick="crmAbrirModal(null)" style="padding:8px 18px">+ Novo Prospect</button>
       </div>
     </div>
@@ -1148,7 +1149,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
         <div class="table-header"><span class="table-title">Prospects</span><span class="table-meta" id="crm-meta">0 registros</span></div>
         <div style="overflow-x:auto">
           <table class="tbl">
-            <thead><tr><th>Empresa</th><th>Contato</th><th>Status</th><th>Tipo</th><th style="text-align:right">Valor</th><th style="text-align:center">Prob</th><th>Responsavel</th><th>Follow-up</th><th>Acoes</th></tr></thead>
+            <thead><tr><th style="cursor:pointer" onclick="crmSort('empresa')">Empresa <span id="crm-sort-empresa" style="color:var(--accent)"></span></th><th style="cursor:pointer" onclick="crmSort('contato')">Contato <span id="crm-sort-contato" style="color:var(--accent)"></span></th><th style="cursor:pointer" onclick="crmSort('status')">Status <span id="crm-sort-status" style="color:var(--accent)"></span></th><th style="cursor:pointer" onclick="crmSort('tipo')">Tipo <span id="crm-sort-tipo" style="color:var(--accent)"></span></th><th style="text-align:right;cursor:pointer" onclick="crmSort('valor')">Valor <span id="crm-sort-valor" style="color:var(--accent)"></span></th><th style="text-align:center;cursor:pointer" onclick="crmSort('prob')">Prob <span id="crm-sort-prob" style="color:var(--accent)"></span></th><th style="cursor:pointer" onclick="crmSort('resp')">Responsavel <span id="crm-sort-resp" style="color:var(--accent)"></span></th><th style="cursor:pointer" onclick="crmSort('followup')">Follow-up <span id="crm-sort-followup" style="color:var(--accent)"></span></th><th>Acoes</th></tr></thead>
             <tbody id="crm-tbody"></tbody>
           </table>
         </div>
@@ -13670,14 +13671,86 @@ function crmRecalcKpis(){
   kel('crm-k-winrate',(qtdG+qtdP)>0?Math.round(qtdG/(qtdG+qtdP)*100)+'%':'0%');
 }
 
+// Um contrato de agosto/2026 a julho/2027 tem valor nos dois anos, mas o
+// pipeline somava tudo no ano do registro - entao 2026 aparecia inflado com
+// receita que so acontece em 2027, e 2027 aparecia vazio.
+// O fee e alocado nos meses em que realmente cai; comissao de midia e producao
+// ficam no ano de inicio, porque sao valores de uma vez e nao mensais.
+// Quando nao ha periodo preenchido, o valor inteiro fica no ano do registro -
+// e o comportamento antigo, aplicado so onde nao da pra saber.
+function crmValorNoAno(p, ano){
+  ano = parseInt(ano);
+  var total = parseFloat(p.valor_potencial||0);
+  if(!ano || !total) return total;
+  var fee = parseFloat(p.fee_mensal||0);
+  var mi = parseInt(p.mes_inicio||1), mf = parseInt(p.mes_fim||12);
+  var ai = parseInt(p.ano_inicio||p.ano||ano), af = parseInt(p.ano_fim||p.ano||ano);
+  if(!fee || !ai || !af) return parseInt(p.ano)===ano ? total : 0;
+
+  // Conta quantos meses do contrato caem no ano pedido.
+  var mesesNoAno = 0, mesesTotal = 0;
+  for(var a=ai; a<=af; a++){
+    var de = (a===ai) ? mi : 1;
+    var ate = (a===af) ? mf : 12;
+    var n = Math.max(0, ate-de+1);
+    mesesTotal += n;
+    if(a===ano) mesesNoAno = n;
+  }
+  if(!mesesTotal) return parseInt(p.ano)===ano ? total : 0;
+
+  var valorFee = fee * mesesNoAno;
+  // O que nao e fee (comissoes) fica no ano de inicio.
+  var naoFee = total - (fee*mesesTotal);
+  if(naoFee > 0 && ano === ai) valorFee += naoFee;
+  return valorFee;
+}
+
+var _crmSortCol=null, _crmSortDir=1;
+function crmSort(col){
+  if(_crmSortCol===col){ _crmSortDir*=-1; } else { _crmSortCol=col; _crmSortDir=1; }
+  ['empresa','contato','status','tipo','valor','prob','resp','followup'].forEach(function(c){
+    var el=document.getElementById('crm-sort-'+c);
+    if(el) el.textContent = c===col ? (_crmSortDir===1?'↑':'↓') : '';
+  });
+  crmRenderView();
+}
+
+function crmOrdenar(data){
+  if(!_crmSortCol) return data;
+  var ano=document.getElementById('crm-sel-ano').value;
+  var val=function(p){
+    switch(_crmSortCol){
+      case 'empresa': return String(p.empresa||'').toLowerCase();
+      case 'contato': return String(p.contato||'').toLowerCase();
+      case 'status': return String(_crmStatus[p.status]||p.status||'');
+      case 'tipo': return String(p.tipo||'');
+      case 'valor': return crmValorNoAno(p, ano);
+      case 'prob': return parseFloat(p.probabilidade||0);
+      case 'resp': return String(p.responsavel||'').toLowerCase();
+      case 'followup': return p.proximo_followup ? String(p.proximo_followup) : '9999';
+      default: return 0;
+    }
+  };
+  return data.slice().sort(function(a,b){
+    var x=val(a), y=val(b);
+    if(typeof x==='number' && typeof y==='number') return (x-y)*_crmSortDir;
+    return String(x).localeCompare(String(y))*_crmSortDir;
+  });
+}
+
 function crmFiltrar(){
   var st = document.getElementById('crm-sel-status').value;
   var rp = document.getElementById('crm-sel-resp').value;
   var q = (document.getElementById('crm-search').value||'').toLowerCase();
+  var ano = document.getElementById('crm-sel-ano').value;
+  var soAno = document.getElementById('crm-so-ano');
+  var filtrarAno = soAno ? soAno.checked : false;
   return _crmData.filter(function(p){
     if(st && p.status!==st) return false;
     if(rp && p.responsavel!==rp) return false;
     if(q && !(p.empresa||'').toLowerCase().includes(q)) return false;
+    // Esconde quem nao tem nenhum valor no ano selecionado, quando pedido.
+    if(filtrarAno && ano && crmValorNoAno(p, ano) <= 0) return false;
     return true;
   });
 }
@@ -13732,8 +13805,12 @@ function crmRenderTabela(){
   if(meta) meta.textContent=data.length+' registros';
   var tbody=document.getElementById('crm-tbody');
   if(!tbody) return;
+  data=crmOrdenar(data);
   tbody.innerHTML=data.length?data.map(function(p){
-    var vp=parseFloat(p.valor_potencial||0);
+    var anoSel=document.getElementById('crm-sel-ano').value;
+    var vp=crmValorNoAno(p, anoSel);
+    var vpTotal=parseFloat(p.valor_potencial||0);
+    var parcial = Math.abs(vpTotal-vp) > 1;
     var fu=p.proximo_followup?new Date(p.proximo_followup).toLocaleDateString('pt-BR'):'---';
     var isV=p.proximo_followup&&new Date(p.proximo_followup)<new Date();
     return '<tr><td><strong>'+p.empresa+'</strong></td><td>'+(p.contato||'---')+'</td><td>'+(_crmStatus[p.status]||p.status)+'</td><td>'+(_crmTipos[p.tipo]||p.tipo)+'</td><td style="text-align:right;color:var(--pos)">'+crmFmt(vp)+'</td><td style="text-align:center">'+p.probabilidade+'%</td><td>'+p.responsavel+'</td><td style="color:'+(isV?'var(--neg)':'')+'">'+fu+'</td><td><button class="btn" onclick="crmAbrirModal('+p.id+')" style="font-size:10px;padding:3px 8px">Editar</button> <button class="btn" onclick="crmDeletar('+p.id+')" style="font-size:10px;padding:3px 8px;color:var(--neg)">Del</button></td></tr>';
