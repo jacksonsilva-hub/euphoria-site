@@ -1442,6 +1442,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
               <tbody id="bv-real-terc-tbody"><tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text3)">—</td></tr></tbody>
             </table>
           </div>
+          <div id="bv-real-terc-nota" style="font-size:10px;color:var(--text3);padding:8px 16px 10px"></div>
         </div>
         <div class="table-card">
           <div class="table-header"><span class="table-title">Por mês</span><span class="table-meta" id="bv-real-mes-meta">—</span></div>
@@ -11541,7 +11542,7 @@ function bvRenderRealizado(){
     {l:'Volume que gerou BV', v:bvFmt(volume), s:'base do incentivo'},
     {l:'Volume já pago', v:bvFmt(pago), s:'recebido do veículo'},
     {l:'Sem contrato', v:pctSem.toFixed(0)+'%', s:semContrato+' de '+rows.length+' lançamentos', c:pctSem>50?'neg':''},
-    {l:'Veículos pagantes', v:String(Object.keys(porTerc).length), s:'terceiros com BV'}
+    {l:'Veículos pagantes', v:String(Object.keys(porTerc).filter(function(k){ return porTerc[k].inc>0; }).length), s:'de '+Object.keys(porTerc).length+' no relatório'}
   ].map(function(k){
     return '<div class="kpi-card"><div class="kpi-label">'+k.l+'</div>'+
       '<div class="kpi-value '+(k.c||'')+'" style="font-size:16px">'+k.v+'</div>'+
@@ -11556,8 +11557,15 @@ function bvRenderRealizado(){
       'Cadastrar o contrato de BV no VBS é o que liga as duas coisas.</div>';
   } else { av.style.display='none'; av.innerHTML=''; }
 
-  var tercs=Object.keys(porTerc).sort(function(a,b){ return porTerc[b].inc-porTerc[a].inc; });
-  document.getElementById('bv-real-terc-meta').textContent=tercs.length+' veículo(s)';
+  // A tabela se chama "quem paga o BV", entao so entra quem tem incentivo. Antes
+  // listava os 149 terceiros do relatorio, incluindo pessoa fisica, produtora e
+  // fornecedor que so aparecem ali por terem volume - 129 deles com incentivo
+  // zero, o que enchia a lista de nome que nao paga BV nenhum.
+  var tercs=Object.keys(porTerc).filter(function(k){ return porTerc[k].inc>0; })
+    .sort(function(a,b){ return porTerc[b].inc-porTerc[a].inc; });
+  var semInc=Object.keys(porTerc).filter(function(k){ return porTerc[k].inc<=0; });
+  var volSemInc=semInc.reduce(function(s,k){ return s+(porTerc[k].vol||0); },0);
+  document.getElementById('bv-real-terc-meta').textContent=tercs.length+' veículo(s) com BV';
   document.getElementById('bv-real-terc-tbody').innerHTML = tercs.length ? tercs.map(function(t){
     var a=porTerc[t];
     return '<tr><td>'+t+'</td><td style="text-align:right">'+a.n+'</td>'+
@@ -11565,6 +11573,15 @@ function bvRenderRealizado(){
       '<td style="text-align:right;color:var(--pos)">'+bvFmt(a.inc)+'</td>'+
       '<td style="text-align:right">'+(incentivo>0?(a.inc/incentivo*100).toFixed(1)+'%':'—')+'</td></tr>';
   }).join('') : '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text3)">Nenhum BV faturado no período</td></tr>';
+  // O volume que nao gerou BV e informacao util, nao lixo - so nao pertence a
+  // tabela de quem paga. Fica como rodape.
+  var notaT=document.getElementById('bv-real-terc-nota');
+  if(notaT){
+    notaT.innerHTML = semInc.length
+      ? semInc.length+' outro(s) fornecedor(es) aparecem no relatório com '+bvFmt(volSemInc)+
+        ' de volume mas sem gerar BV — não entram nesta lista.'
+      : '';
+  }
 
   var meses=Object.keys(porMes).map(Number).sort(function(a,b){ return a-b; });
   document.getElementById('bv-real-mes-meta').textContent=meses.length+' mês(es)';
