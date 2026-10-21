@@ -1136,6 +1136,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       </div>
       <div id="crm-resp-list" style="display:flex;flex-wrap:wrap;gap:6px"></div>
     </div>
+    <div id="crm-aviso-migracao" style="display:none"></div>
     <div id="crm-kanban" style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px">
       <div class="chart-card" style="padding:12px;min-height:300px"><div style="font-size:10px;color:#60a5fa;text-transform:uppercase;margin-bottom:10px;font-weight:600">Prospect</div><div id="crm-col-prospect"></div></div>
       <div class="chart-card" style="padding:12px;min-height:300px"><div style="font-size:10px;color:#fbbf24;text-transform:uppercase;margin-bottom:10px;font-weight:600">Proposta Enviada</div><div id="crm-col-proposta"></div></div>
@@ -13620,6 +13621,41 @@ function crmLocalLoad(){
 function crmLocalSave(data){ lsSet('crm_prospects', JSON.stringify(data)); backupAutoSave(); }
 function crmLocalNextId(data){ return data.length ? Math.max.apply(null, data.map(function(x){return x.id||0;}))+1 : 1; }
 
+// Avisa que ha dados so no navegador e oferece subir pro banco. Nao migra
+// sozinho: sao dados do comercial, e uma gravacao em massa sem o usuario saber
+// e pior do que esperar ele confirmar.
+function crmAvisarMigracao(qtd){
+  var el=document.getElementById('crm-aviso-migracao');
+  if(!el) return;
+  if(!qtd){ el.style.display='none'; el.innerHTML=''; return; }
+  el.style.display='';
+  el.innerHTML='<div style="background:rgba(251,191,36,.08);border:1px solid var(--amber);border-radius:8px;padding:12px 14px;margin-bottom:14px">'+
+    '<div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:6px">⚠️ '+qtd+
+      ' registro(s) ainda estão apenas neste navegador</div>'+
+    '<div style="font-size:11px;color:var(--text2);line-height:1.6;margin-bottom:10px">'+
+      'O banco de dados voltou a funcionar, mas está vazio — enquanto o Pipeline rodou sem ele, tudo foi gravado localmente. '+
+      'Subindo agora, os dados passam a ser compartilhados e deixam de depender deste navegador.</div>'+
+    '<button class="btn btn-primary" onclick="crmMigrarParaBanco()" style="font-size:11px;padding:5px 12px">Subir para o banco</button></div>';
+}
+
+async function crmMigrarParaBanco(){
+  var local=crmLocalLoad();
+  if(!local.length){ alert('Nada para migrar.'); return; }
+  if(!confirm('Enviar '+local.length+' registro(s) do navegador para o banco de dados?')) return;
+  var ok=0, erro=0;
+  for(var i=0;i<local.length;i++){
+    var p=Object.assign({}, local[i]);
+    delete p.id;  // o banco gera o proprio id
+    try{
+      var r=await fetch(API+'/api/crm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
+      var j=await r.json();
+      if(j.ok) ok++; else erro++;
+    }catch(e){ erro++; }
+  }
+  alert(ok+' registro(s) migrado(s)'+(erro?', '+erro+' com erro':'')+'.');
+  await crmCarregar();
+}
+
 async function crmCarregar(){
   var ano = document.getElementById('crm-sel-ano').value;
   try {
@@ -13627,9 +13663,22 @@ async function crmCarregar(){
     if(!r1.ok) throw new Error('Server '+r1.status);
     var j1 = await r1.json();
     if(j1.ok){
-      _crmData = j1.data||[];
-      // Sync local to server
-      crmLocalSave(_crmData);
+      var doServidor = j1.data||[];
+      var local = crmLocalLoad();
+      // O banco ficou fora do ar por semanas e o CRM rodou gravando so no
+      // navegador. Quando o banco voltou, vazio, esta linha sobrescrevia o
+      // local com a lista vazia e apagava tudo em silencio - justamente no
+      // momento em que os dados existiam em um lugar so.
+      // Enquanto houver dado local que nao esta no servidor, nao sobrescreve:
+      // mostra o local e oferece a migracao.
+      if(!doServidor.length && local.length){
+        _crmData = local;
+        crmAvisarMigracao(local.length);
+      } else {
+        _crmData = doServidor;
+        crmLocalSave(_crmData);
+        crmAvisarMigracao(0);
+      }
     } else {
       throw new Error('not connected');
     }
