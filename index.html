@@ -206,7 +206,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     <div class="topbar-actions" id="topbar-actions"></div>
     <span id="entity-flag" style="display:none;font-size:11px;color:var(--text3);margin-right:8px"></span>
     <button id="btn-print-generico" onclick="imprimirAbaAtual()" style="display:none;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text3);padding:4px 10px;border-radius:6px;font-size:10px;cursor:pointer;margin-right:6px" title="Imprimir ou salvar em PDF a tela atual">🖨️ Imprimir</button>
-    <button id="btn-backup" onclick="backupExportar()" ondblclick="backupImportar()" style="display:none;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text3);padding:4px 10px;border-radius:6px;font-size:10px;cursor:pointer;margin-right:6px" title="Clique: exportar backup | Duplo clique: importar backup">💾 Backup</button>
+    <button id="btn-backup" onclick="backupExportar()" ondblclick="backupImportar()" oncontextmenu="event.preventDefault();backupRestaurarAuto();return false" style="display:none;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text3);padding:4px 10px;border-radius:6px;font-size:10px;cursor:pointer;margin-right:6px" title="Clique: exportar | Duplo clique: importar arquivo | Botão direito: restaurar backup automático">💾 Backup</button>
     <div class="user-badge" id="user-badge" onclick="doLogout()" style="display:none">
       <div class="user-avatar" id="user-avatar">J</div>
       <span id="user-name-badge">Jackson</span>
@@ -4639,6 +4639,46 @@ function backupExportar(){
   a.download = 'EuphoriaOS_Backup_'+ent+'_'+date+'.json';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+// O backup automatico guarda os 3 ultimos estados em euphoria_backups_<ent>,
+// mas nao havia como restaura-los: so existia importacao de arquivo. Quando o
+// CRM foi sobrescrito pelo banco vazio, esses snapshots eram a unica copia que
+// restava - e estavam inacessiveis pela interface.
+function backupListarAuto(){
+  var ent = currentUser&&currentUser.entidade ? currentUser.entidade : 'BR';
+  try { return JSON.parse(localStorage.getItem('euphoria_backups_'+ent)||'[]'); }
+  catch(e){ return []; }
+}
+
+function backupRestaurarAuto(){
+  var bkps = backupListarAuto();
+  if(!bkps.length){
+    alert('Nenhum backup automático encontrado neste navegador.\n\n'+
+          'Eles são gravados a cada alteração nos módulos, mas só existem no navegador onde você trabalhou.');
+    return;
+  }
+  var conta=function(b,k){ return (b[k]&&b[k].length)||0; };
+  var opcoes = bkps.map(function(b,i){
+    return (i+1)+') '+(b.ts?b.ts.slice(0,16).replace('T',' '):'sem data')+
+      '  —  '+conta(b,'crm_prospects')+' prospects, '+
+      conta(b,'euphoria_people_v2')+' pessoas, '+
+      conta(b,'euphoria_alocacao_v1')+' alocações';
+  }).join('\n');
+  var escolha = prompt('Backups automáticos deste navegador:\n\n'+opcoes+
+    '\n\nDigite o número do que deseja restaurar (1 a '+bkps.length+'), ou cancele.');
+  if(!escolha) return;
+  var idx = parseInt(escolha)-1;
+  if(isNaN(idx) || idx<0 || idx>=bkps.length){ alert('Número inválido.'); return; }
+  var b = bkps[idx];
+  var chaves = Object.keys(b).filter(function(k){ return k!=='ts' && k!=='entidade'; });
+  if(!confirm('Restaurar o backup de '+(b.ts?b.ts.slice(0,16).replace('T',' '):'?')+'?\n\n'+
+      chaves.length+' módulo(s) serão substituídos pelo conteúdo desse backup.\n\n'+
+      'O que estiver no navegador agora será perdido.')) return;
+  var ent = currentUser&&currentUser.entidade ? currentUser.entidade : 'BR';
+  chaves.forEach(function(k){ localStorage.setItem(ent+'_'+k, JSON.stringify(b[k])); });
+  alert('Backup restaurado. Recarregando...');
+  location.reload();
 }
 
 function backupImportar(){
