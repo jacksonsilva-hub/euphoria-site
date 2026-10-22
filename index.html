@@ -1137,6 +1137,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       <div id="crm-resp-list" style="display:flex;flex-wrap:wrap;gap:6px"></div>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap"><button class="btn" onclick="document.getElementById('crm-imp-file').click()" style="font-size:11px;padding:6px 12px">📥 Importar planilha</button><input type="file" id="crm-imp-file" accept=".xlsx,.xls" style="display:none" onchange="crmImportarArquivo(this)"><button class="btn" onclick="crmBaixarModelo()" style="font-size:11px;padding:6px 12px">📄 Modelo</button></div>
+    <div id="crm-aviso-semvalor" style="display:none"></div>
     <div id="crm-aviso-migracao" style="display:none"></div>
     <div id="crm-kanban" style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px">
       <div class="chart-card" style="padding:12px;min-height:300px"><div style="font-size:10px;color:#60a5fa;text-transform:uppercase;margin-bottom:10px;font-weight:600">Prospect</div><div id="crm-col-prospect"></div></div>
@@ -13846,6 +13847,16 @@ function crmValorNoAno(p, ano){
   return valorFee;
 }
 
+// O negocio pertence ao ano se o periodo do contrato cobre esse ano. Sem
+// periodo informado, cai no ano do registro.
+function crmPertenceAoAno(p, ano){
+  ano = parseInt(ano);
+  if(!ano) return true;
+  var ai = parseInt(p.ano_inicio||0), af = parseInt(p.ano_fim||0);
+  if(ai && af) return ano>=ai && ano<=af;
+  return parseInt(p.ano||0) === ano;
+}
+
 var _crmSortCol=null, _crmSortDir=1;
 function crmSort(col){
   if(_crmSortCol===col){ _crmSortDir*=-1; } else { _crmSortCol=col; _crmSortDir=1; }
@@ -13890,14 +13901,24 @@ function crmFiltrar(){
     if(st && p.status!==st) return false;
     if(rp && p.responsavel!==rp) return false;
     if(q && !(p.empresa||'').toLowerCase().includes(q)) return false;
-    // Esconde quem nao tem nenhum valor no ano selecionado, quando pedido.
-    if(filtrarAno && ano && crmValorNoAno(p, ano) <= 0) return false;
+    if(_crmFiltroSemValor && parseFloat(p.valor_potencial||0) > 0) return false;
+    // Filtra por PERIODO, nao por valor. A versao anterior escondia quem tinha
+    // valor zero, que e justamente quem precisa ser editado para ganhar valor -
+    // os registros sumiam da lista e nao havia como completa-los.
+    if(filtrarAno && ano && !crmPertenceAoAno(p, ano)) return false;
     return true;
   });
 }
 
 function crmRenderView(){
   var view = document.getElementById('crm-sel-view').value;
+  var aviso=document.getElementById('crm-aviso-semvalor');
+  if(aviso){
+    aviso.style.display = _crmFiltroSemValor ? '' : 'none';
+    if(_crmFiltroSemValor) aviso.innerHTML='<div style="background:rgba(251,191,36,.08);border:1px solid var(--amber);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--text2)">'+
+      'Mostrando apenas negócios <strong>sem valor preenchido</strong>. '+
+      '<a href="#" onclick="_crmFiltroSemValor=false;crmRenderView();return false" style="color:var(--amber);text-decoration:underline">mostrar todos</a></div>';
+  }
   document.getElementById('crm-kanban').style.display = view==='kanban'?'grid':'none';
   document.getElementById('crm-tabela').style.display = view==='tabela'?'block':'none';
   var histEl = document.getElementById('crm-historico');
@@ -14666,6 +14687,19 @@ async function crmCarregarMeta(){
   }
 }
 
+// Atalho para a lista dos negocios sem valor: sem isso e preciso caçar na
+// tabela quais sao, e a correcao nunca acontece.
+function crmMostrarSemValor(){
+  var sel=document.getElementById('crm-sel-view'); if(sel) sel.value='tabela';
+  var st=document.getElementById('crm-sel-status'); if(st) st.value='';
+  var busca=document.getElementById('crm-search'); if(busca) busca.value='';
+  _crmFiltroSemValor = true;
+  crmRenderView();
+  var el=document.getElementById('crm-tabela');
+  if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+}
+var _crmFiltroSemValor = false;
+
 function crmRenderMetaPainel(){
   var el = document.getElementById('crm-meta-painel');
   if(!el) return;
@@ -14696,7 +14730,8 @@ function crmRenderMetaPainel(){
     +row('Convertido (Ganho CRM)', convertido, 'var(--pos)')
     +row('Pipeline em aberto', pipeline, '')
     +(semValor ? '<div style="font-size:10px;color:var(--amber);padding:6px 0">⚠️ '+semValor+
-        ' negócio(s) em aberto sem valor preenchido — o pipeline está subestimado até completá-los.</div>' : '')
+        ' negócio(s) em aberto sem valor preenchido — o pipeline está subestimado até completá-los. '+
+        '<a href="#" onclick="crmMostrarSemValor();return false" style="color:var(--amber);text-decoration:underline">ver quais</a></div>' : '')
     +row('Falta para meta', falta, falta>0?'var(--amber)':'var(--pos)')
     +'<div style="margin-top:16px">'
       +'<div style="display:flex;justify-content:space-between;margin-bottom:6px">'
