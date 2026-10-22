@@ -13667,7 +13667,23 @@ function crmLocalNextId(data){ return data.length ? Math.max.apply(null, data.ma
 function crmAvisarMigracao(qtd){
   var el=document.getElementById('crm-aviso-migracao');
   if(!el) return;
-  if(!qtd){ el.style.display='none'; el.innerHTML=''; return; }
+  if(!qtd){
+    // Pipeline vazio com historico disponivel: oferece a reconstrucao.
+    var temLog = (typeof crmLogLoad==='function') && crmLogLoad().length>0;
+    var vazio = !(_crmData||[]).length;
+    if(vazio && temLog){
+      el.style.display='';
+      el.innerHTML='<div style="background:rgba(251,191,36,.08);border:1px solid var(--amber);border-radius:8px;padding:12px 14px;margin-bottom:14px">'+
+        '<div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:6px">Pipeline vazio, mas há histórico neste navegador</div>'+
+        '<div style="font-size:11px;color:var(--text2);line-height:1.6;margin-bottom:10px">'+
+          'O log de alterações guarda '+crmLogLoad().length+' evento(s) e sobreviveu. '+
+          'Dá para reconstruir status, valor, probabilidade e responsável de cada empresa — '+
+          'contato, fee e período não entravam no log e terão de ser completados.</div>'+
+        '<button class="btn btn-primary" onclick="crmRecuperarPipeline()" style="font-size:11px;padding:5px 12px">Reconstruir do histórico</button></div>';
+      return;
+    }
+    el.style.display='none'; el.innerHTML=''; return;
+  }
   el.style.display='';
   el.innerHTML='<div style="background:rgba(251,191,36,.08);border:1px solid var(--amber);border-radius:8px;padding:12px 14px;margin-bottom:14px">'+
     '<div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:6px">⚠️ '+qtd+
@@ -14076,6 +14092,97 @@ function crmDiffCampos(oldP, newP){
     }
   });
   return mudancas;
+}
+
+// ── RECUPERAÇÃO DO PIPELINE PELO LOG ────────────────────────────────────────
+// O CRM registra cada criacao e edicao em crm_log (ate 300 eventos) com a
+// empresa e o de/para dos campos. Essa chave e independente de crm_prospects,
+// entao sobreviveu quando o banco vazio sobrescreveu os prospects.
+// Reconstroi o estado de cada empresa aplicando os eventos do mais antigo para
+// o mais novo. Recupera status, tipo, valor, probabilidade, responsavel e
+// follow-up - nao recupera contato, fee mensal, periodo, investimentos nem
+// observacoes, porque esses campos nunca entraram no log.
+// E recuperacao parcial, e a tela diz isso: melhor um pipeline com os valores
+// de volta e os detalhes a completar do que uma tela em branco.
+function crmLogParseValor(txt){
+  if(txt===null||txt===undefined) return 0;
+  var s=String(txt).replace(/R\$/g,'').replace(/\./g,'').replace(/,/g,'.').replace(/[^0-9.\-]/g,'');
+  var n=parseFloat(s);
+  return isNaN(n)?0:n;
+}
+function crmLogChaveDe(rotulo, valorTxt){
+  switch(rotulo){
+    case 'Status':
+      for(var k in _crmStatus){ if(_crmStatus[k]===valorTxt) return {campo:'status', valor:k}; }
+      return {campo:'status', valor:'prospect'};
+    case 'Tipo':
+      for(var t in _crmTipos){ if(_crmTipos[t]===valorTxt) return {campo:'tipo', valor:t}; }
+      return {campo:'tipo', valor:'fee'};
+    case 'Valor': return {campo:'valor_potencial', valor:crmLogParseValor(valorTxt)};
+    case 'Probabilidade': return {campo:'probabilidade', valor:parseInt(String(valorTxt).replace('%',''))||25};
+    case 'Responsavel': return {campo:'responsavel', valor:(valorTxt==='—'?'':valorTxt)};
+    case 'Follow-up': return null; // data formatada em pt-BR; nao vale o risco de reconstruir errado
+    default: return null;
+  }
+}
+
+function crmReconstruirDoLog(){
+  var log=crmLogLoad();
+  if(!log.length){
+    alert('Nenhum histórico encontrado neste navegador.\n\n'+
+          'O log do CRM também está vazio, então não há de onde reconstruir.');
+    return null;
+  }
+  // O log e gravado com unshift (mais novo primeiro); aplica do mais antigo.
+  var eventos=log.slice().reverse();
+  var porEmpresa={};
+  eventos.forEach(function(ev){
+    var nome=String(ev.empresa||'').trim();
+    if(!nome) return;
+    var p=porEmpresa[nome];
+    if(!p){
+      p=porEmpresa[nome]={empresa:nome, status:'prospect', tipo:'fee', valor_potencial:0,
+        probabilidade:25, responsavel:'', ano:new Date().getFullYear(),
+        fee_mensal:0, mes_inicio:1, mes_fim:12,
+        investimento_midia:0, comissao_midia:0, investimento_producao:0, comissao_producao:0,
+        observacoes:'Reconstruído do histórico em '+new Date().toLocaleDateString('pt-BR')+
+                    ' — confira os campos que o log não guardava (contato, fee, período).',
+        _eventos:0, _ultimo:ev.ts};
+    }
+    p._eventos++; p._ultimo=ev.ts;
+    (ev.mudancas||[]).forEach(function(m){
+      var c=crmLogChaveDe(m.campo, m.para);
+      if(c) p[c.campo]=c.valor;
+    });
+  });
+  var lista=Object.keys(porEmpresa).map(function(k){ return porEmpresa[k]; });
+  return lista;
+}
+
+function crmRecuperarPipeline(){
+  var lista=crmReconstruirDoLog();
+  if(!lista) return;
+  if(!lista.length){ alert('O histórico não tem empresas identificáveis.'); return; }
+  var total=lista.reduce(function(s,p){ return s+(p.valor_potencial||0); },0);
+  var resumo=lista.slice(0,15).map(function(p){
+    return '• '+p.empresa+' — '+(_crmStatus[p.status]||p.status)+' — '+crmFmt(p.valor_potencial);
+  }).join('\n');
+  if(!confirm('Reconstruí '+lista.length+' empresa(s) a partir do histórico, somando '+crmFmt(total)+':\n\n'+
+      resumo+(lista.length>15?'\n… e mais '+(lista.length-15):'')+
+      '\n\nRecupera status, tipo, valor, probabilidade e responsável.\n'+
+      'NÃO recupera contato, fee mensal, período e observações — esses campos nunca entraram no log.\n\n'+
+      'Gravar no pipeline?')) return;
+  var limpa=lista.map(function(p){
+    var o={}; Object.keys(p).forEach(function(k){ if(k.indexOf('_')!==0) o[k]=p[k]; });
+    return o;
+  });
+  crmLocalSave(limpa);
+  _crmData=crmLocalLoad();
+  crmRenderView();
+  crmAvisarMigracao(limpa.length);
+  alert(limpa.length+' empresa(s) restaurada(s) no pipeline.\n\n'+
+        'Confira os valores e complete os campos que faltam. Depois use "Subir para o banco" '+
+        'para que deixem de depender deste navegador.');
 }
 
 function crmLogLoad(){ try{ return JSON.parse(lsGet('crm_log')||'[]'); }catch(e){ return []; } }
