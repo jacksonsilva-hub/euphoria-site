@@ -1136,6 +1136,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       </div>
       <div id="crm-resp-list" style="display:flex;flex-wrap:wrap;gap:6px"></div>
     </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap"><button class="btn" onclick="document.getElementById('crm-imp-file').click()" style="font-size:11px;padding:6px 12px">📥 Importar planilha</button><input type="file" id="crm-imp-file" accept=".xlsx,.xls" style="display:none" onchange="crmImportarArquivo(this)"><button class="btn" onclick="crmBaixarModelo()" style="font-size:11px;padding:6px 12px">📄 Modelo</button></div>
     <div id="crm-aviso-migracao" style="display:none"></div>
     <div id="crm-kanban" style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px">
       <div class="chart-card" style="padding:12px;min-height:300px"><div style="font-size:10px;color:#60a5fa;text-transform:uppercase;margin-bottom:10px;font-weight:600">Prospect</div><div id="crm-col-prospect"></div></div>
@@ -2719,6 +2720,22 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
         <button class="btn" onclick="alocImpFechar()">Cancelar</button>
         <button class="btn" onclick="alocImpConfirmar('somar')">Somar às existentes</button>
         <button class="btn btn-primary" onclick="alocImpConfirmar('substituir')">Substituir tudo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL IMPORTACAO PIPELINE -->
+  <div id="crm-imp-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center">
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px;width:100%;max-width:900px;max-height:92vh;overflow-y:auto">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div style="font-family:var(--font-head);font-weight:700;font-size:16px">📥 Importar Pipeline</div>
+        <button onclick="crmImpFechar()" style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer">✕</button>
+      </div>
+      <div id="crm-imp-corpo"></div>
+      <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end;align-items:center;flex-wrap:wrap">
+        <span style="font-size:10px;color:var(--text3);margin-right:auto">Nada é gravado até você confirmar.</span>
+        <button class="btn" onclick="crmImpFechar()">Cancelar</button>
+        <button class="btn btn-primary" onclick="crmImpConfirmar('somar')">Importar</button>
       </div>
     </div>
   </div>
@@ -4587,11 +4604,30 @@ function backupAutoSave(){
     var snapshot = backupColetar();
     snapshot.ts = new Date().toISOString();
     snapshot.entidade = ent;
-    // Salva os últimos 3 backups automáticos
     var bkps = JSON.parse(localStorage.getItem('euphoria_backups_'+ent)||'[]');
     bkps.unshift(snapshot);
-    if(bkps.length > 3) bkps = bkps.slice(0,3);
-    localStorage.setItem('euphoria_backups_'+ent, JSON.stringify(bkps));
+
+    // Guardar so os 3 ultimos custou o pipeline inteiro: quando o modulo foi
+    // zerado, tres gravacoes seguidas empurraram para fora os backups que ainda
+    // tinham os dados, e os tres restantes vieram todos vazios.
+    // Duas protecoes agora:
+    //  1. Sobe para 10 snapshots - o volume e pequeno e da folga de horas.
+    //  2. Preserva, por modulo, o ultimo snapshot em que aquele modulo tinha
+    //     conteudo. Assim esvaziar um modulo nunca apaga a ultima copia boa
+    //     dele, mesmo que as gravacoes seguintes encham a lista.
+    var MODULOS = ['crm_prospects','euphoria_people_v2','euphoria_alocacao_v1',
+                   'euphoria_ferias','euphoria_despesas_fixas','euphoria_projetos',
+                   'euphoria_ts','euphoria_juridico','euphoria_movimentacoes','euphoria_nf_ctrl'];
+    var temConteudo = function(b,k){ return b && b[k] && b[k].length; };
+    var protegidos = [];
+    MODULOS.forEach(function(k){
+      if(temConteudo(snapshot,k)) return;           // modulo cheio agora, nada a proteger
+      var ultimoBom = bkps.find(function(b){ return temConteudo(b,k); });
+      if(ultimoBom && protegidos.indexOf(ultimoBom)<0) protegidos.push(ultimoBom);
+    });
+    var recentes = bkps.slice(0, 10);
+    protegidos.forEach(function(b){ if(recentes.indexOf(b)<0) recentes.push(b); });
+    localStorage.setItem('euphoria_backups_'+ent, JSON.stringify(recentes));
     // Atualiza botão
     var btn = document.getElementById('btn-backup');
     if(btn){
@@ -14183,6 +14219,223 @@ function crmRecuperarPipeline(){
   alert(limpa.length+' empresa(s) restaurada(s) no pipeline.\n\n'+
         'Confira os valores e complete os campos que faltam. Depois use "Subir para o banco" '+
         'para que deixem de depender deste navegador.');
+}
+
+// ── IMPORTAÇÃO DO PIPELINE POR PLANILHA ─────────────────────────────────────
+// Recadastrar o pipeline na tela, um modal por vez, e lento e desanimador.
+// Digitar numa planilha e colar tudo de uma vez e bem mais rapido - e serve
+// tambem para carga inicial e para quem prefere montar o funil no Excel.
+// Aceita o arquivo gerado pelo proprio "Modelo", mas tambem qualquer planilha
+// que tenha uma coluna Empresa: o resto e opcional.
+var CRM_IMP_COLS = [
+  {k:'empresa',    nomes:['EMPRESA','CLIENTE','RAZAOSOCIAL','NOME']},
+  {k:'contato',    nomes:['CONTATO','NOMEDOCONTATO']},
+  {k:'email',      nomes:['EMAIL','EMAILCONTATO']},
+  {k:'status',     nomes:['STATUS','SITUACAO']},
+  {k:'tipo',       nomes:['TIPO']},
+  {k:'fee_mensal', nomes:['FEEMENSAL','FEE','VALORMENSAL']},
+  {k:'mes_inicio', nomes:['MESINICIO','INICIO']},
+  {k:'mes_fim',    nomes:['MESFIM','FIM']},
+  {k:'ano_inicio', nomes:['ANOINICIO']},
+  {k:'ano_fim',    nomes:['ANOFIM']},
+  {k:'investimento_midia',     nomes:['INVESTIMENTOMIDIA','INVMIDIA']},
+  {k:'comissao_midia',         nomes:['COMISSAOMIDIA','COMMIDIA']},
+  {k:'investimento_producao',  nomes:['INVESTIMENTOPRODUCAO','INVPRODUCAO']},
+  {k:'comissao_producao',      nomes:['COMISSAOPRODUCAO','COMPRODUCAO']},
+  {k:'valor_potencial',        nomes:['VALORPOTENCIAL','VALOR','VALORTOTAL']},
+  {k:'probabilidade',nomes:['PROBABILIDADE','PROB']},
+  {k:'responsavel', nomes:['RESPONSAVEL']},
+  {k:'observacoes', nomes:['OBSERVACOES','OBS']}
+];
+
+function crmImpNorm(v){
+  return String(v==null?'':v).trim().toUpperCase().normalize('NFD')
+    .replace(/[̀-ͯ]/g,'').replace(/[^A-Z0-9]/g,'');
+}
+function crmImpNum(v){
+  if(v==null||v==='') return 0;
+  if(typeof v==='number') return v;
+  var s=String(v).replace(/R\$/gi,'').replace(/\./g,'').replace(/,/g,'.').replace(/[^0-9.\-]/g,'');
+  var n=parseFloat(s); return isNaN(n)?0:n;
+}
+// Aceita tanto a chave interna ("ganho") quanto o rotulo ("Ganho").
+function crmImpChave(mapa, txt, padrao){
+  var t=crmImpNorm(txt);
+  if(!t) return padrao;
+  for(var k in mapa){ if(crmImpNorm(k)===t || crmImpNorm(mapa[k])===t) return k; }
+  return padrao;
+}
+
+function crmBaixarModelo(){
+  if(typeof XLSX==='undefined'){ alert('Biblioteca de planilha não carregou. Recarregue a página.'); return; }
+  var cab=['Empresa','Contato','Email','Status','Tipo','Fee Mensal','Mes Inicio','Mes Fim',
+           'Ano Inicio','Ano Fim','Investimento Midia','Comissao Midia','Investimento Producao',
+           'Comissao Producao','Valor Potencial','Probabilidade','Responsavel','Observacoes'];
+  var exemplo=['SANTA HELENA','Maria Silva','maria@exemplo.com','Negociacao','Fee Mensal',
+               50000,1,12,2026,2026,0,0,0,0,'',25,'Andressa','exemplo — apague esta linha'];
+  var ajuda=[
+    [],
+    ['COMO PREENCHER'],
+    ['Empresa','obrigatório — o resto é opcional'],
+    ['Status','Prospect, Proposta Enviada, Negociacao, Ganho, Perdido ou Desistimos'],
+    ['Tipo','Fee Mensal, Projeto, Midia ou Misto'],
+    ['Fee Mensal','valor por mês. O sistema calcula o total pelos meses do período'],
+    ['Mes Inicio / Fim','número do mês (1 a 12)'],
+    ['Ano Inicio / Fim','use anos diferentes para contrato que atravessa o ano'],
+    ['Valor Potencial','deixe vazio para o sistema calcular; preencha só se o valor for fechado'],
+    ['Probabilidade','número de 0 a 100']
+  ];
+  var ws=XLSX.utils.aoa_to_sheet([cab, exemplo].concat(ajuda));
+  ws['!cols']=cab.map(function(c){ return {wch:Math.max(14,c.length+4)}; });
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Pipeline');
+  XLSX.writeFile(wb, 'Modelo_Pipeline_Euphoria.xlsx');
+}
+
+function crmImportarArquivo(input){
+  var f=input.files && input.files[0];
+  if(!f) return;
+  if(typeof XLSX==='undefined'){ alert('Biblioteca de planilha não carregou. Recarregue a página.'); return; }
+  var leitor=new FileReader();
+  leitor.onload=function(ev){
+    try{
+      var wb=XLSX.read(new Uint8Array(ev.target.result),{type:'array'});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+      var hi=-1, col={};
+      for(var r=0;r<Math.min(rows.length,8);r++){
+        var linha=(rows[r]||[]).map(crmImpNorm);
+        if(linha.indexOf('EMPRESA')<0 && linha.indexOf('CLIENTE')<0) continue;
+        hi=r;
+        CRM_IMP_COLS.forEach(function(c){
+          col[c.k]=-1;
+          c.nomes.forEach(function(n){ if(col[c.k]<0){ var i=linha.indexOf(n); if(i>=0) col[c.k]=i; } });
+        });
+        break;
+      }
+      if(hi<0){ alert('Não encontrei a coluna "Empresa" nesta planilha.\n\nBaixe o Modelo para ver o formato esperado.'); input.value=''; return; }
+
+      var itens=[], ignoradas=0;
+      for(var i=hi+1;i<rows.length;i++){
+        var row=rows[i]||[];
+        var pega=function(k){ return col[k]>=0 ? row[col[k]] : null; };
+        var nome=pega('empresa');
+        // O modelo traz instrucoes abaixo de uma linha em branco, e elas eram
+        // lidas como empresas ("Status", "Tipo", "Fee Mensal"...). Para na
+        // primeira linha vazia depois de ja ter lido algo: planilha de dados
+        // raramente tem buraco no meio, e importar texto de ajuda como
+        // prospect e bem pior do que parar cedo.
+        var linhaVazia = row.every(function(c){ return c==null || String(c).trim()===''; });
+        if(linhaVazia){ if(itens.length) break; else continue; }
+        if(nome==null || !String(nome).trim()) continue;
+        nome=String(nome).trim();
+        // Segunda rede: se a linha em branco for apagada, as instrucoes ainda
+        // nao devem entrar. Elas tem texto so nas duas primeiras colunas e o
+        // nome bate com um rotulo de campo - combinacao que um prospect de
+        // verdade nao tem.
+        var soDuasPrimeiras = row.slice(2).every(function(c){ return c==null || String(c).trim()===''; });
+        var ROTULOS = ['COMOPREENCHER','EMPRESA','CONTATO','EMAIL','STATUS','TIPO','FEEMENSAL',
+                       'MESINICIOFIM','ANOINICIOFIM','VALORPOTENCIAL','PROBABILIDADE',
+                       'RESPONSAVEL','OBSERVACOES','MESINICIO','MESFIM','ANOINICIO','ANOFIM'];
+        if(ROTULOS.indexOf(crmImpNorm(nome))>=0 && soDuasPrimeiras){ ignoradas++; continue; }
+        var fee=crmImpNum(pega('fee_mensal'));
+        var mi=parseInt(crmImpNum(pega('mes_inicio')))||1;
+        var mf=parseInt(crmImpNum(pega('mes_fim')))||12;
+        var anoAtual=parseInt((document.getElementById('crm-sel-ano')||{}).value)||new Date().getFullYear();
+        var ai=parseInt(crmImpNum(pega('ano_inicio')))||anoAtual;
+        var af=parseInt(crmImpNum(pega('ano_fim')))||ai;
+        var invM=crmImpNum(pega('investimento_midia')), comM=crmImpNum(pega('comissao_midia'));
+        var invP=crmImpNum(pega('investimento_producao')), comP=crmImpNum(pega('comissao_producao'));
+        var meses=(af-ai)*12+(mf-mi)+1;
+        if(meses<1) meses=1;
+        var valorInformado=crmImpNum(pega('valor_potencial'));
+        // Valor em branco e o caso normal: deixa o sistema calcular pela mesma
+        // formula da tela, pra planilha e intranet nao divergirem.
+        var valor = valorInformado || (fee*meses + invM*comM/100 + invP*comP/100);
+        itens.push({
+          empresa:nome,
+          contato:String(pega('contato')||''),
+          email:String(pega('email')||''),
+          status:crmImpChave(_crmStatus, pega('status'), 'prospect'),
+          tipo:crmImpChave(_crmTipos, pega('tipo'), 'fee'),
+          fee_mensal:fee, mes_inicio:mi, mes_fim:mf, ano_inicio:ai, ano_fim:af,
+          investimento_midia:invM, comissao_midia:comM,
+          investimento_producao:invP, comissao_producao:comP,
+          valor_potencial:Math.round(valor*100)/100,
+          probabilidade:parseInt(crmImpNum(pega('probabilidade')))||25,
+          responsavel:String(pega('responsavel')||''),
+          observacoes:String(pega('observacoes')||''),
+          ano:ai
+        });
+      }
+      if(!itens.length){ alert('Nenhuma empresa encontrada na planilha.'); input.value=''; return; }
+      crmImpPreview(itens, f.name);
+    }catch(e){ alert('Não consegui ler a planilha: '+e.message); }
+    input.value='';
+  };
+  leitor.readAsArrayBuffer(f);
+}
+
+var _crmImpPendente=null;
+function crmImpPreview(itens, nomeArq){
+  _crmImpPendente=itens;
+  var total=itens.reduce(function(s,i){ return s+i.valor_potencial; },0);
+  var semResp=itens.filter(function(i){ return !i.responsavel; }).length;
+  var linhas=itens.slice(0,40).map(function(i){
+    return '<tr><td><strong>'+i.empresa+'</strong></td>'+
+      '<td style="font-size:11px">'+(_crmStatus[i.status]||i.status)+'</td>'+
+      '<td style="font-size:11px;color:var(--text3)">'+(_crmTipos[i.tipo]||i.tipo)+'</td>'+
+      '<td style="text-align:right">'+crmFmt(i.valor_potencial)+'</td>'+
+      '<td style="text-align:right;font-size:11px">'+i.probabilidade+'%</td>'+
+      '<td style="font-size:11px">'+(i.responsavel||'<span style="color:var(--amber)">—</span>')+'</td>'+
+      '<td style="font-size:10px;color:var(--text3)">'+
+        (i.ano_inicio!==i.ano_fim ? i.mes_inicio+'/'+i.ano_inicio+' → '+i.mes_fim+'/'+i.ano_fim
+                                  : i.mes_inicio+' a '+i.mes_fim+'/'+i.ano_inicio)+'</td></tr>';
+  }).join('');
+  document.getElementById('crm-imp-corpo').innerHTML=
+    '<div style="font-size:11px;color:var(--text3);margin-bottom:10px">'+nomeArq+'</div>'+
+    '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">'+
+      [['Empresas',itens.length],['Valor somado',crmFmt(total)],['Sem responsável',semResp]]
+      .map(function(k){ return '<div style="background:var(--bg3);border-radius:6px;padding:8px 10px">'+
+        '<div style="font-size:9px;color:var(--text3);text-transform:uppercase">'+k[0]+'</div>'+
+        '<div style="font-size:15px;font-weight:700">'+k[1]+'</div></div>'; }).join('')+
+    '</div>'+
+    (itens.length>40?'<div style="font-size:10px;color:var(--text3);margin-bottom:6px">mostrando as 40 primeiras de '+itens.length+'</div>':'')+
+    '<div style="max-height:320px;overflow:auto;border:1px solid var(--border);border-radius:6px">'+
+      '<table class="tbl"><thead><tr><th>Empresa</th><th>Status</th><th>Tipo</th>'+
+      '<th style="text-align:right">Valor</th><th style="text-align:right">Prob</th><th>Responsável</th><th>Período</th></tr></thead>'+
+      '<tbody>'+linhas+'</tbody></table></div>';
+  document.getElementById('crm-imp-modal').style.display='flex';
+}
+
+function crmImpFechar(){
+  document.getElementById('crm-imp-modal').style.display='none';
+  _crmImpPendente=null;
+}
+
+async function crmImpConfirmar(modo){
+  if(!_crmImpPendente) return;
+  var itens=_crmImpPendente;
+  var ok=0, erro=0, local=[];
+  var usaServidor=true;
+  for(var i=0;i<itens.length;i++){
+    try{
+      var r=await fetch(API+'/api/crm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(itens[i])});
+      var j=await r.json();
+      if(j.ok) ok++; else { erro++; usaServidor=false; }
+    }catch(e){ erro++; usaServidor=false; }
+  }
+  // Servidor fora: grava local pra importacao nao se perder.
+  if(!usaServidor){
+    local=(modo==='substituir')?[]:crmLocalLoad();
+    var base=crmLocalNextId(local);
+    itens.forEach(function(it,idx){ var o=Object.assign({},it); o.id=base+idx; local.push(o); });
+    crmLocalSave(local);
+  }
+  crmImpFechar();
+  await crmCarregar();
+  alert(usaServidor ? (ok+' empresa(s) importada(s) no banco de dados.')
+                    : (itens.length+' empresa(s) importada(s) neste navegador — o servidor não respondeu.'));
 }
 
 function crmLogLoad(){ try{ return JSON.parse(lsGet('crm_log')||'[]'); }catch(e){ return []; } }
