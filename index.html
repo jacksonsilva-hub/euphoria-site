@@ -14674,7 +14674,11 @@ function crmRenderMetaPainel(){
   var convertido = _crmData.filter(function(p){return p.status==='ganho';}).reduce(function(s,p){return s+parseFloat(p.valor_potencial||0);},0);
   var falta = Math.max(0, metaAjustada - convertido);
   var pct = metaAjustada > 0 ? Math.round(convertido/metaAjustada*100) : 0;
-  var pipeline = _crmData.filter(function(p){return p.status!=='ganho'&&p.status!=='perdido';}).reduce(function(s,p){return s+parseFloat(p.valor_potencial||0);},0);
+  // 'desistimos' foi criado depois deste calculo e caia no filtro como se
+  // fosse negocio vivo - a agencia declinou, nao e pipeline em aberto.
+  var ativo=function(p){ return p.status!=='ganho'&&p.status!=='perdido'&&p.status!=='desistimos'; };
+  var pipeline = _crmData.filter(ativo).reduce(function(s,p){return s+parseFloat(p.valor_potencial||0);},0);
+  var semValor = _crmData.filter(function(p){ return ativo(p) && !parseFloat(p.valor_potencial||0); }).length;
 
   function row(label, value, color){
     return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">'
@@ -14691,6 +14695,8 @@ function crmRenderMetaPainel(){
     +'</div>'
     +row('Convertido (Ganho CRM)', convertido, 'var(--pos)')
     +row('Pipeline em aberto', pipeline, '')
+    +(semValor ? '<div style="font-size:10px;color:var(--amber);padding:6px 0">⚠️ '+semValor+
+        ' negócio(s) em aberto sem valor preenchido — o pipeline está subestimado até completá-los.</div>' : '')
     +row('Falta para meta', falta, falta>0?'var(--amber)':'var(--pos)')
     +'<div style="margin-top:16px">'
       +'<div style="display:flex;justify-content:space-between;margin-bottom:6px">'
