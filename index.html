@@ -3807,7 +3807,29 @@ function renderClientTable(agg, totalRev) {
     '<td style="text-align:right">' + fmtFull(active.reduce(function(s,r){return s+(r.actual2026||0);},0)) + '</td>' +
     '<td style="text-align:right">' + fmtFull(active.reduce(function(s,r){return s+(r.actual2025||0);},0)) + '</td>' +
     '<td colspan="4"></td>' +
-  '</tr>' : '');
+  '</tr>' : '') + rodapeSemBudget();
+}
+
+// O botao "Actual VBS" soma todo o faturamento do VBS; esta tabela soma so os
+// clientes que casam com alguem do Budget. A diferenca - cliente do VBS sem
+// correspondencia, ou que cai em "Novos Negocios" - nao aparecia em lugar
+// nenhum, e os dois totais divergiam sem explicacao na tela.
+function rodapeSemBudget(){
+  var m = (typeof G!=='undefined' && G.actualSemBudget) ? G.actualSemBudget : null;
+  if(!m) return '';
+  var nomes = Object.keys(m).filter(function(k){ return m[k]>0; })
+    .sort(function(a,b){ return m[b]-m[a]; });
+  if(!nomes.length) return '';
+  var total = nomes.reduce(function(s,k){ return s+m[k]; },0);
+  var lista = nomes.slice(0,6).map(function(k){
+    return k+' ('+fmtFull(m[k])+')'; }).join(' · ');
+  return '<tr><td colspan="9" style="padding:10px 12px;border-top:1px solid var(--border)">'+
+    '<div style="font-size:10px;color:var(--amber);line-height:1.6">⚠️ '+
+      fmtFull(total)+' faturados no VBS não entram nesta tabela — são '+nomes.length+
+      ' cliente(s) sem correspondência no Budget (ou classificados como Novos Negócios). '+
+      'É a diferença entre o total acima e o botão "Actual VBS".</div>'+
+    '<div style="font-size:10px;color:var(--text3);margin-top:4px">'+lista+
+      (nomes.length>6?' · e mais '+(nomes.length-6):'')+'</div></td></tr>';
 }
 
 function renderClientDetail(agg) {
@@ -13536,6 +13558,7 @@ async function carregarActualVbs(){
 
     // Constrói mapa Budget → Actual VBS somando todas as empresas do grupo
     var budgetActualMap = {};
+    G.actualSemBudget = {};
     Object.keys(vbsMap).forEach(function(vbsKey){
       var budgetNome = DEPARA[vbsKey] || null;
 
@@ -13555,6 +13578,13 @@ async function carregarActualVbs(){
       if(budgetNome && budgetNome !== 'NOVOS NEGÓCIOS 1'){
         if(!budgetActualMap[budgetNome]) budgetActualMap[budgetNome] = 0;
         budgetActualMap[budgetNome] += vbsMap[vbsKey];
+      } else {
+        // Cliente do VBS sem correspondencia no Budget (ou que cai em "Novos
+        // Negocios") nao aparecia em lugar nenhum: o botao somava o total do
+        // VBS, a tabela somava so o que casou, e a diferenca ficava invisivel.
+        // Guarda para a tela poder mostrar de onde vem.
+        G.actualSemBudget = G.actualSemBudget || {};
+        G.actualSemBudget[vbsKey] = (G.actualSemBudget[vbsKey]||0) + vbsMap[vbsKey];
       }
     });
 
