@@ -13779,12 +13779,9 @@ async function crmCarregar(){
     var j2 = await r2.json();
     var s = j2.ok ? j2.data : {};
     var kel = function(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; };
-    kel('crm-k-pipeline', crmFmt(s.pipeline_total||0));
-    kel('crm-k-ponderado', crmFmt(s.pipeline_ponderado||0));
-    kel('crm-k-ganho', crmFmt(s.convertido||0));
-    kel('crm-k-perdido', crmFmt(s.perdido||0));
-    var qtdG=parseInt(s.qtd_ganhos||0), qtdP=parseInt(s.qtd_perdidos||0);
-    kel('crm-k-winrate', (qtdG+qtdP)>0 ? Math.round(qtdG/(qtdG+qtdP)*100)+'%' : '0%');
+    // O endpoint soma valor_potencial inteiro e filtra por ano=X, entao nao
+    // sabe desmembrar contrato plurianual. Calcula aqui, onde ha a regra.
+    crmRecalcKpis();
   } catch(e) {
     // Fallback to localStorage
     console.log('CRM: usando localStorage (servidor indisponivel)');
@@ -13796,13 +13793,23 @@ async function crmCarregar(){
   crmRenderView();
 }
 
+// Os KPIs usavam o valor total do contrato. Um fee de 12 meses que atravessa o
+// ano entrava inteiro no ano corrente, entao fechar um contrato plurianual
+// estourava a meta do ano - a Sherwin-Williams sozinha levou o convertido a
+// R$ 19,1 mi e o progresso a 339%.
+// Agora usam crmValorNoAno, a mesma funcao da tabela: cada ano recebe so a
+// parcela que cai nele. E "desistimos" sai do pipeline, como ja corrigido no
+// painel da meta.
 function crmRecalcKpis(){
+  var ano=(document.getElementById('crm-sel-ano')||{}).value;
   var pipeline=0, ponderado=0, ganho=0, perdido=0, qtdG=0, qtdP=0;
   _crmData.forEach(function(p){
-    var v=parseFloat(p.valor_potencial||0);
+    if(ano && !crmPertenceAoAno(p, ano)) return;
+    var v=crmValorNoAno(p, ano);
     var prob=parseInt(p.probabilidade||25);
     if(p.status==='ganho'){ganho+=v;qtdG++;}
     else if(p.status==='perdido'){perdido+=v;qtdP++;}
+    else if(p.status==='desistimos'){ /* declinado nao e pipeline */ }
     else {pipeline+=v; ponderado+=v*prob/100;}
   });
   var kel=function(id,v){var el=document.getElementById(id);if(el)el.textContent=v;};
@@ -14705,13 +14712,15 @@ function crmRenderMetaPainel(){
   if(!el) return;
   var totalPerdido = _churnData.reduce(function(s,c){return s+parseFloat(c.valor_anual||0);},0);
   var metaAjustada = _crmMetaBudget - totalPerdido;
-  var convertido = _crmData.filter(function(p){return p.status==='ganho';}).reduce(function(s,p){return s+parseFloat(p.valor_potencial||0);},0);
+  var anoMeta=(document.getElementById('crm-sel-ano')||{}).value;
+  var noAno=function(p){ return (!anoMeta || crmPertenceAoAno(p, anoMeta)) ? crmValorNoAno(p, anoMeta) : 0; };
+  var convertido = _crmData.filter(function(p){return p.status==='ganho';}).reduce(function(s,p){return s+noAno(p);},0);
   var falta = Math.max(0, metaAjustada - convertido);
   var pct = metaAjustada > 0 ? Math.round(convertido/metaAjustada*100) : 0;
   // 'desistimos' foi criado depois deste calculo e caia no filtro como se
   // fosse negocio vivo - a agencia declinou, nao e pipeline em aberto.
   var ativo=function(p){ return p.status!=='ganho'&&p.status!=='perdido'&&p.status!=='desistimos'; };
-  var pipeline = _crmData.filter(ativo).reduce(function(s,p){return s+parseFloat(p.valor_potencial||0);},0);
+  var pipeline = _crmData.filter(ativo).reduce(function(s,p){return s+noAno(p);},0);
   var semValor = _crmData.filter(function(p){ return ativo(p) && !parseFloat(p.valor_potencial||0); }).length;
 
   function row(label, value, color){
