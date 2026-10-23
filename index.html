@@ -916,7 +916,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       <button class="btn btn-primary" onclick="cfProjetarDiario()" style="font-size:11px;padding:6px 14px">↺ Projetar Diário</button>
       <span style="font-size:10px;color:var(--text3)">Folha é uma estimativa (custo mensal total injetado no dia configurado) — CR/CP usam a data real de vencimento.</span>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:0 16px 16px" id="cfd-kpis"></div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:0 16px 16px" id="cfd-kpis"></div>
+    <div id="cfd-aviso" style="display:none;padding:0 16px"></div>
     <div style="overflow-x:auto;padding:0 16px 16px;max-height:420px;overflow-y:auto">
       <table class="tbl">
         <thead><tr>
@@ -11380,11 +11381,52 @@ function cfProjetarDiario(){
 
   var pplAtivos=getPplData().filter(function(p){return p.status==='ativo';});
   var diasSemana=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-  var hoje=new Date();
+  var hoje=new Date(); hoje.setHours(0,0,0,0);
   var custoMesCache={};
+
+  // Dois erros faziam o projetado nao bater com o extrato:
+  //
+  // 1. A data de referencia do saldo era ignorada. Quem informava o saldo de
+  //    01/01 via esse numero tratado como saldo de hoje, e o fluxo projetava
+  //    por cima dele - meses de movimento simplesmente nao existiam.
+  //    Nao da para reconstruir esse intervalo pelo CR/CP: eles trazem o valor
+  //    EM ABERTO, e o que ja foi pago ou recebido nao aparece mais. Por isso a
+  //    tela passa a avisar, em vez de fingir que sabe fazer a ponte.
+  //
+  // 2. Titulos vencidos e ainda em aberto ficavam de fora, porque o loop
+  //    comecava hoje. Eles continuam a receber e a pagar - so estao atrasados.
+  //    Agora entram numa linha propria antes do primeiro dia.
+  var dataRefStr=(document.getElementById('cf-data-ref')||{}).value||'';
+  var avisoRef='';
+  if(dataRefStr){
+    var pr=dataRefStr.split('-');
+    var dataRef=new Date(parseInt(pr[0]),parseInt(pr[1])-1,parseInt(pr[2]));
+    var diffDias=Math.round((hoje-dataRef)/86400000);
+    if(diffDias>0){
+      avisoRef='O saldo informado é de '+pr[2]+'/'+pr[1]+'/'+pr[0]+', há '+diffDias+
+        ' dia(s). A projeção parte de hoje, então o movimento desse intervalo não está considerado — '+
+        'informe o saldo bancário de hoje para o fluxo bater com o extrato.';
+    }
+  } else {
+    avisoRef='Informe a data do saldo bancário. Sem ela não há como saber se o valor é de hoje.';
+  }
+
+  var antesDeHoje=function(k){
+    var pk=k.split('-');
+    return new Date(parseInt(pk[0]),parseInt(pk[1])-1,parseInt(pk[2])) < hoje;
+  };
+  var crVencido=0, cpVencido=0;
+  Object.keys(crPorDia).forEach(function(k){ if(antesDeHoje(k)) crVencido+=crPorDia[k]; });
+  Object.keys(cpPorDia).forEach(function(k){ if(antesDeHoje(k)) cpVencido+=cpPorDia[k]; });
 
   var saldoAcum=saldoInicial;
   var rows=[];
+  if(crVencido||cpVencido){
+    saldoAcum += crVencido - cpVencido;
+    rows.push({data:'vencidos', dataFmt:'Vencidos', diaSemana:'em aberto',
+      rec:crVencido, pag:cpVencido, folha:0,
+      saldoDia:crVencido-cpVencido, saldoAcum:saldoAcum, vencidos:true});
+  }
   for(var i=0;i<nDias;i++){
     var d=new Date(hoje.getFullYear(),hoje.getMonth(),hoje.getDate()+i);
     var y=d.getFullYear(), m=d.getMonth(), dia=d.getDate();
@@ -11416,18 +11458,32 @@ function cfProjetarDiario(){
 
   var kpiEl=document.getElementById('cfd-kpis');
   if(kpiEl) kpiEl.innerHTML=[
-    {label:'Saldo Hoje',value:fmt(saldoInicial),sub:'ponto de partida'},
+    {label:'Saldo informado',value:fmt(saldoInicial),sub:dataRefStr?('em '+dataRefStr.split('-').reverse().join('/')):'sem data de referência'},
+    {label:'Com vencidos em aberto',value:fmt(saldoInicial+crVencido-cpVencido),sub:(crVencido||cpVencido)?('+'+fmt(crVencido)+' a receber, -'+fmt(cpVencido)+' a pagar'):'nada vencido',cls:(saldoInicial+crVencido-cpVencido)>=0?'pos':'neg'},
     {label:'Saldo em '+nDias+' dias',value:fmt(saldoFinal),sub:'projetado',cls:saldoFinal>=0?'pos':'neg'},
     {label:'Menor Saldo do Período',value:fmt(piorDia.saldoAcum),sub:piorDia.dataFmt,cls:piorDia.saldoAcum>=0?'pos':'neg'},
     {label:'Dias no Vermelho',value:String(diasNegativos),sub:'de '+nDias+' dias',cls:diasNegativos>0?'neg':'pos'},
   ].map(function(kk){return '<div class="kpi-card"><div class="kpi-label">'+kk.label+'</div><div class="kpi-value '+(kk.cls||'')+'" style="font-size:15px">'+kk.value+'</div><div class="kpi-sub">'+kk.sub+'</div></div>';}).join('');
 
+  var elAviso=document.getElementById('cfd-aviso');
+  if(elAviso){
+    var partes=[];
+    if(avisoRef) partes.push(avisoRef);
+    if(crVencido||cpVencido) partes.push('A linha "Vencidos" reúne '+fmt(crVencido)+' a receber e '+
+      fmt(cpVencido)+' a pagar já vencidos e ainda em aberto. Antes eles ficavam de fora da projeção.');
+    if(partes.length){
+      elAviso.style.display='';
+      elAviso.innerHTML='<div style="background:rgba(251,191,36,.08);border:1px solid var(--amber);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:11px;color:var(--text2);line-height:1.6">⚠️ '+
+        partes.join('<br>')+'</div>';
+    } else { elAviso.style.display='none'; elAviso.innerHTML=''; }
+  }
+
   var tbody=document.getElementById('cfd-tbody');
   if(tbody) tbody.innerHTML=rows.map(function(r){
     var fimDeSemana=r.diaSemana==='Sáb'||r.diaSemana==='Dom';
     return '<tr'+(r.saldoAcum<0?' style="background:rgba(248,113,113,0.08)"':'')+'>'+
-      '<td>'+r.dataFmt+'</td>'+
-      '<td style="'+(fimDeSemana?'color:var(--text3)':'')+'">'+r.diaSemana+'</td>'+
+      '<td'+(r.vencidos?' style="color:var(--amber);font-weight:700"':'')+'>'+r.dataFmt+'</td>'+
+      '<td style="'+(r.vencidos?'color:var(--amber)':(fimDeSemana?'color:var(--text3)':''))+'">'+r.diaSemana+'</td>'+
       '<td style="text-align:right;color:var(--pos)">'+(r.rec?fmt(r.rec):'—')+'</td>'+
       '<td style="text-align:right;color:var(--neg)">'+(r.pag?'-'+fmt(r.pag):'—')+'</td>'+
       '<td style="text-align:right;color:var(--amber)">'+(r.folha?'-'+fmt(r.folha):'—')+'</td>'+
