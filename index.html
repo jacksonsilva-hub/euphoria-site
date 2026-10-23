@@ -223,6 +223,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       <button class="tab-btn" onclick="switchFinTab('receita',event)">💰 Receita</button>
       <button class="tab-btn" onclick="switchFinTab('cr',event)">Contas a Receber</button>
       <button class="tab-btn" onclick="switchFinTab('cp',event)">Contas a Pagar</button>
+      <button class="tab-btn" onclick="switchFinTab('allclients',event)">🧮 Allclients</button>
       <button class="tab-btn" onclick="switchFinTab('nfs',event)">🧾 Controle de NFs</button>
       <button class="tab-btn" onclick="switchFinTab('cashflow',event)">Fluxo de Caixa</button>
       <button class="tab-btn" onclick="switchFinTab('clientes',event)">Clientes</button>
@@ -274,7 +275,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
           <button class="btn" id="btn-actual-pl" onclick="dashCarregarPLActual()" style="font-size:11px;padding:5px 14px" title="Carrega Receita, Gross Margin e EBITDA reais do ano selecionado (planilha Actuals)">📈 Actual (P&L)</button>
           <button class="btn btn-vbs" onclick="dashCarregarRentabilidadeReal()" style="font-size:11px;padding:5px 14px" title="Carrega Gross Margin real (gerencial VBS) para o ano selecionado no filtro">📊 Rentabilidade Real (VBS)</button>
           <button class="btn" onclick="gerarFinancialHighlights()" style="font-size:11px;padding:5px 14px">🖨️ Financial Highlights</button>
-          <select id="sel-ano" onchange="applyFilters()"><option value="2026" selected>2026</option><option value="2025">2025</option><option value="all">2025+2026</option></select>
+          <select id="sel-ano" onchange="applyFilters()"><option value="2027">2027</option><option value="2026" selected>2026</option><option value="2025">2025</option><option value="all">2025+2026</option></select>
           <span style="font-size:11px;color:var(--text3)">De:</span>
           <select id="sel-month-de" onchange="applyFilters()"><option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option><option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option><option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option></select>
           <span style="font-size:11px;color:var(--text3)">Até:</span>
@@ -551,6 +552,63 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
 </tr></thead>
 <tbody id="cr-tbody-vbs"><tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text3)">Selecione o período e clique em Buscar</td></tr></tbody></table></div></div>
 </div>
+<div class="tab-panel" id="fin-allclients">
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:12px">
+    <div>
+      <div style="font-size:20px;font-weight:700">Allclients</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:4px">Receita por cliente e mês — Budget vs. Actual, com a quebra por tipo</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+      <div>
+        <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Ano</label>
+        <select id="ac-ano" onchange="acCarregar()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer"></select>
+      </div>
+      <div>
+        <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Visão</label>
+        <select id="ac-visao" onchange="acRender()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
+          <option value="net">Net Revenue</option>
+          <option value="gross">Gross Revenue</option>
+          <option value="billings">Gross Billings</option>
+          <option value="fees">Fees</option>
+          <option value="midia">Comissão de Mídia</option>
+          <option value="producao">Comissão de Produção</option>
+          <option value="projetos">Projetos</option>
+          <option value="rebates">Rebates (BV)</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Cliente</label>
+        <select id="ac-cliente" onchange="acRender()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:11px;outline:none;cursor:pointer"><option value="">Todos</option></select>
+      </div>
+      <button class="btn" onclick="document.getElementById('ac-file').click()" style="font-size:11px;padding:6px 12px">📥 Importar</button>
+      <input type="file" id="ac-file" accept=".xlsx,.xls" style="display:none" onchange="acImportar(this)">
+      <button class="btn" onclick="acExportar()" style="font-size:11px;padding:6px 12px">📊 Excel</button>
+      <button class="btn btn-primary" onclick="acCarregar()" style="font-size:11px;padding:6px 12px">↺ Atualizar</button>
+    </div>
+  </div>
+  <div style="font-size:11px;color:var(--text3);margin-bottom:14px" id="ac-status">Carregando...</div>
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px" id="ac-kpis"></div>
+
+  <div class="table-card" style="margin-bottom:16px">
+    <div class="table-header"><span class="table-title" id="ac-tbl-titulo">Por cliente e mês</span><span class="table-meta" id="ac-meta">—</span></div>
+    <div style="font-size:10px;color:var(--text3);padding:0 16px 8px">Clique numa célula para editar. B = Budget, A = Actual.</div>
+    <div style="overflow:auto;max-height:560px">
+      <table class="tbl" id="ac-tabela"><thead id="ac-thead"></thead><tbody id="ac-tbody"></tbody></table>
+    </div>
+  </div>
+
+  <div class="table-card">
+    <div class="table-header"><span class="table-title">Composição da receita</span><span class="table-meta" id="ac-comp-meta">—</span></div>
+    <div style="overflow-x:auto">
+      <table class="tbl">
+        <thead><tr><th>Tipo</th><th style="text-align:right">Budget</th><th style="text-align:right">Actual</th>
+        <th style="text-align:right">Var.</th><th style="text-align:right">% ating.</th><th style="text-align:right">% do total</th></tr></thead>
+        <tbody id="ac-comp-tbody"><tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text3)">—</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <div class="tab-panel" id="fin-nfs">
   <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:12px">
     <div>
@@ -4243,6 +4301,318 @@ function dfxExportar(){
   XLSX.writeFile(wb, 'Despesas_Fixas_'+MES[mesIdx]+'.xlsx');
 }
 
+// ── ALLCLIENTS ──────────────────────────────────────────────────────────────
+// Receita por cliente e mes, Budget x Actual. Substitui a planilha
+// "Euphoria_Creative_Allclients" como lugar de alimentar o dado.
+// So as entradas sao guardadas; gross, impostos, net e billings sao calculados
+// aqui com as mesmas relacoes da planilha de origem - guardar os derivados
+// permitiria que divergissem das entradas.
+var AC_MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+var _acDados = [];
+
+function acNum(v){ var n=parseFloat(v); return isNaN(n)?0:n; }
+function acFmt(v){
+  var n=Math.round(acNum(v));
+  return (n<0?'-':'')+'R$ '+Math.abs(n).toLocaleString('pt-BR');
+}
+function acFmtK(v){
+  var n=acNum(v);
+  if(!n) return '—';
+  if(Math.abs(n)>=1000) return (n<0?'-':'')+Math.round(Math.abs(n)/1000)+'k';
+  return String(Math.round(n));
+}
+
+// As cinco linhas que compoem o gross revenue. Midia e producao (investimento)
+// entram so no gross billings, porque sao repasse, nao receita da agencia.
+var AC_COMPONENTES = [
+  {k:'com_midia',    label:'Comissão de Mídia'},
+  {k:'com_producao', label:'Comissão de Produção'},
+  {k:'projetos',     label:'Projetos'},
+  {k:'fees',         label:'Fees'},
+  {k:'rebates',      label:'Rebates (BV)'}
+];
+
+function acGross(r, pre){
+  return AC_COMPONENTES.reduce(function(s,c){ return s+acNum(r[pre+'_'+c.k]); },0);
+}
+function acImposto(r, pre){ return acGross(r,pre) * acNum(r.imposto_pct)/100; }
+function acNet(r, pre){ return acGross(r,pre) - acImposto(r,pre) - acNum(r[pre+'_oop']); }
+function acBillings(r, pre){ return acNum(r[pre+'_midia']) + acNum(r[pre+'_producao']) + acGross(r,pre); }
+
+// O valor que a visao escolhida mostra, para Budget (b) ou Actual (a).
+function acValor(r, pre, visao){
+  switch(visao){
+    case 'gross':    return acGross(r,pre);
+    case 'billings': return acBillings(r,pre);
+    case 'net':      return acNet(r,pre);
+    default:         return acNum(r[pre+'_'+visao]);
+  }
+}
+
+function acPopularAnos(){
+  var sel=document.getElementById('ac-ano'); if(!sel||sel.options.length) return;
+  var atual=new Date().getFullYear(), o=[];
+  for(var y=atual-1; y<=atual+2; y++) o.push('<option value="'+y+'">'+y+'</option>');
+  sel.innerHTML=o.join(''); sel.value=atual;
+}
+
+async function acCarregar(){
+  acPopularAnos();
+  var ano=document.getElementById('ac-ano').value;
+  var st=document.getElementById('ac-status');
+  st.textContent='Carregando...';
+  try{
+    var r=await fetch(API+'/api/allclients?ano='+ano,{cache:'no-store'});
+    var j=await r.json();
+    if(!j.ok) throw new Error(j.error||'erro');
+    _acDados=j.data||[];
+    var clientes={};
+    _acDados.forEach(function(x){ if(x.cliente) clientes[x.cliente]=1; });
+    var sel=document.getElementById('ac-cliente'), atual=sel.value;
+    sel.innerHTML='<option value="">Todos</option>'+Object.keys(clientes).sort().map(function(c){
+      return '<option value="'+c+'">'+c+'</option>'; }).join('');
+    sel.value=atual;
+    st.textContent = _acDados.length
+      ? _acDados.length+' linha(s) · '+Object.keys(clientes).length+' cliente(s) em '+ano
+      : 'Nenhum dado em '+ano+'. Use "Importar" para subir a planilha, ou cadastre clicando nas células.';
+    acRender();
+  }catch(e){
+    st.textContent='Erro ao carregar: '+e.message;
+    _acDados=[]; acRender();
+  }
+}
+
+function acRender(){
+  if(!document.getElementById('ac-tbody')) return;
+  var visao=document.getElementById('ac-visao').value;
+  var fCli=document.getElementById('ac-cliente').value;
+  var dados=_acDados.filter(function(r){ return !fCli || r.cliente===fCli; });
+
+  // Agrupa por cliente, somando os meses.
+  var porCli={};
+  dados.forEach(function(r){
+    var k=r.cliente||'—';
+    var a=porCli[k]=porCli[k]||{b:new Array(12).fill(0), a:new Array(12).fill(0), linhas:[]};
+    var mi=(parseInt(r.mes)||1)-1;
+    if(mi>=0&&mi<12){ a.b[mi]+=acValor(r,'b',visao); a.a[mi]+=acValor(r,'a',visao); }
+    a.linhas.push(r);
+  });
+  var clientes=Object.keys(porCli).sort(function(x,y){
+    return porCli[y].b.reduce(function(s,v){return s+v;},0) - porCli[x].b.reduce(function(s,v){return s+v;},0);
+  });
+
+  var rotulos={net:'Net Revenue',gross:'Gross Revenue',billings:'Gross Billings',fees:'Fees',
+               com_midia:'Comissão de Mídia',com_producao:'Comissão de Produção',
+               projetos:'Projetos',rebates:'Rebates (BV)'};
+  var vis = visao==='midia' ? 'com_midia' : visao==='producao' ? 'com_producao' : visao;
+  document.getElementById('ac-tbl-titulo').textContent = (rotulos[vis]||vis)+' por cliente e mês';
+  document.getElementById('ac-meta').textContent = clientes.length+' cliente(s)';
+
+  document.getElementById('ac-thead').innerHTML =
+    '<tr><th style="position:sticky;left:0;background:var(--bg2)">Cliente</th><th></th>'+
+    AC_MESES.map(function(m){ return '<th style="text-align:right">'+m+'</th>'; }).join('')+
+    '<th style="text-align:right">Total</th></tr>';
+
+  var totB=new Array(12).fill(0), totA=new Array(12).fill(0);
+  var linhas=clientes.map(function(c){
+    var d=porCli[c];
+    var sb=d.b.reduce(function(s,v){return s+v;},0), sa=d.a.reduce(function(s,v){return s+v;},0);
+    d.b.forEach(function(v,i){ totB[i]+=v; });
+    d.a.forEach(function(v,i){ totA[i]+=v; });
+    var cel=function(v,i,pre){
+      return '<td style="text-align:right;font-size:10px;'+(pre==='a'?'color:var(--pos)':'color:var(--text3)')+'" '+
+        'title="'+c+' · '+AC_MESES[i]+' · '+(pre==='a'?'Actual':'Budget')+'">'+acFmtK(v)+'</td>';
+    };
+    return '<tr><td rowspan="2" style="position:sticky;left:0;background:var(--bg2);font-weight:600">'+c+'</td>'+
+        '<td style="font-size:9px;color:var(--text3)">B</td>'+
+        d.b.map(function(v,i){ return cel(v,i,'b'); }).join('')+
+        '<td style="text-align:right;font-weight:600">'+acFmtK(sb)+'</td></tr>'+
+      '<tr><td style="font-size:9px;color:var(--pos)">A</td>'+
+        d.a.map(function(v,i){ return cel(v,i,'a'); }).join('')+
+        '<td style="text-align:right;font-weight:600;color:var(--pos)">'+acFmtK(sa)+'</td></tr>';
+  }).join('');
+
+  var totalB=totB.reduce(function(s,v){return s+v;},0), totalA=totA.reduce(function(s,v){return s+v;},0);
+  var rodape = clientes.length ? '<tr style="border-top:2px solid var(--border)">'+
+      '<td rowspan="2" style="position:sticky;left:0;background:var(--bg2);font-weight:700">TOTAL</td>'+
+      '<td style="font-size:9px;color:var(--text3)">B</td>'+
+      totB.map(function(v){ return '<td style="text-align:right;font-weight:600;font-size:10px">'+acFmtK(v)+'</td>'; }).join('')+
+      '<td style="text-align:right;font-weight:700">'+acFmtK(totalB)+'</td></tr>'+
+    '<tr><td style="font-size:9px;color:var(--pos)">A</td>'+
+      totA.map(function(v){ return '<td style="text-align:right;font-weight:600;font-size:10px;color:var(--pos)">'+acFmtK(v)+'</td>'; }).join('')+
+      '<td style="text-align:right;font-weight:700;color:var(--pos)">'+acFmtK(totalA)+'</td></tr>' : '';
+
+  document.getElementById('ac-tbody').innerHTML = linhas
+    ? linhas+rodape
+    : '<tr><td colspan="15" style="text-align:center;padding:24px;color:var(--text3)">Sem dados no filtro</td></tr>';
+
+  acRenderKpis(dados);
+  acRenderComposicao(dados);
+}
+
+function acRenderKpis(dados){
+  var somar=function(pre,fn){ return dados.reduce(function(s,r){ return s+fn(r,pre); },0); };
+  var gb=somar('b',acBillings), ga=somar('a',acBillings);
+  var nb=somar('b',acNet),      na=somar('a',acNet);
+  var grb=somar('b',acGross),   gra=somar('a',acGross);
+  var pct = nb>0 ? (na/nb*100) : 0;
+  document.getElementById('ac-kpis').innerHTML=[
+    {l:'Net Revenue — Budget', v:acFmt(nb), s:'meta do ano'},
+    {l:'Net Revenue — Actual', v:acFmt(na), s:'realizado', c:'pos'},
+    {l:'% atingido', v:(nb>0?pct.toFixed(0)+'%':'—'), s:'actual ÷ budget', c:pct>=95?'pos':(pct>=80?'':'neg')},
+    {l:'Gross Revenue', v:acFmt(gra), s:'de '+acFmt(grb)+' previsto'},
+    {l:'Gross Billings', v:acFmt(ga), s:'de '+acFmt(gb)+' previsto'}
+  ].map(function(k){ return '<div class="kpi-card"><div class="kpi-label">'+k.l+'</div>'+
+    '<div class="kpi-value '+(k.c||'')+'" style="font-size:16px">'+k.v+'</div>'+
+    '<div class="kpi-sub">'+k.s+'</div></div>'; }).join('');
+}
+
+function acRenderComposicao(dados){
+  var tot=0;
+  var linhas=AC_COMPONENTES.map(function(c){
+    var b=dados.reduce(function(s,r){ return s+acNum(r['b_'+c.k]); },0);
+    var a=dados.reduce(function(s,r){ return s+acNum(r['a_'+c.k]); },0);
+    tot+=a;
+    return {label:c.label, b:b, a:a};
+  });
+  document.getElementById('ac-comp-meta').textContent=acFmt(tot)+' realizados';
+  document.getElementById('ac-comp-tbody').innerHTML = linhas.filter(function(l){ return l.b||l.a; }).map(function(l){
+    var varia=l.a-l.b, pct=l.b>0?(l.a/l.b*100):null;
+    return '<tr><td>'+l.label+'</td>'+
+      '<td style="text-align:right;color:var(--text3)">'+acFmt(l.b)+'</td>'+
+      '<td style="text-align:right;color:var(--pos)">'+acFmt(l.a)+'</td>'+
+      '<td style="text-align:right;color:'+(varia<0?'var(--neg)':'var(--pos)')+'">'+(varia>=0?'+':'')+acFmt(varia)+'</td>'+
+      '<td style="text-align:right">'+(pct===null?'—':pct.toFixed(0)+'%')+'</td>'+
+      '<td style="text-align:right;color:var(--text3)">'+(tot>0?(l.a/tot*100).toFixed(1)+'%':'—')+'</td></tr>';
+  }).join('') || '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text3)">Sem dados</td></tr>';
+}
+
+// Le a "Base de Dados" da planilha Allclients. As colunas vem no formato
+// "Budget - Media Investment" / "Actual - Fees", entao o de-para e por nome
+// normalizado - posicao fixa quebraria se alguem inserisse uma coluna.
+var AC_IMP_MAPA = [
+  ['MEDIAINVESTMENT','midia'], ['MEDIACOMISSION','com_midia'], ['MEDIACOMMISSION','com_midia'],
+  ['PRODUCTIONCOMMISSION','com_producao'], ['PRODUCTION','producao'],
+  ['PROJECTS','projetos'], ['FEES','fees'], ['REBATESBV','rebates'], ['REBATES','rebates'],
+  ['OOP','oop']
+];
+
+function acImpNorm(v){
+  return String(v==null?'':v).trim().toUpperCase().normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'').replace(/[^A-Z0-9]/g,'');
+}
+
+async function acImportar(input){
+  var f=input.files && input.files[0];
+  if(!f) return;
+  if(typeof XLSX==='undefined'){ alert('Biblioteca de planilha não carregou.'); return; }
+  var leitor=new FileReader();
+  leitor.onload=async function(ev){
+    try{
+      var wb=XLSX.read(new Uint8Array(ev.target.result),{type:'array'});
+      // A aba de dados pode ter nome truncado pelo Excel; procura pela que tem
+      // as colunas certas em vez de exigir nome exato.
+      var ws=null, nomeAba='';
+      for(var i=0;i<wb.SheetNames.length;i++){
+        var cand=wb.Sheets[wb.SheetNames[i]];
+        var head=XLSX.utils.sheet_to_json(cand,{header:1,range:0})[0]||[];
+        var norm=head.map(acImpNorm);
+        if(norm.indexOf('CLIENTE')>=0 && norm.indexOf('MES')>=0 && norm.indexOf('ANO')>=0){
+          ws=cand; nomeAba=wb.SheetNames[i]; break;
+        }
+      }
+      if(!ws){ alert('Não encontrei uma aba com as colunas CLIENTE, MES e ANO.\n\nNa planilha Allclients isso fica na aba "Base de Dados".'); input.value=''; return; }
+
+      var rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+      var head=(rows[0]||[]).map(acImpNorm);
+      var ix=function(n){ return head.indexOf(n); };
+      var iCli=ix('CLIENTE'), iProd=ix('PRODUTO'), iMes=ix('MES'), iAno=ix('ANO');
+
+      // Casa cada coluna "Budget - X" / "Actual - X" com o campo interno.
+      var cols=[];
+      head.forEach(function(h,idx){
+        var pre = h.indexOf('BUDGET')===0 ? 'b' : (h.indexOf('ACTUAL')===0 ? 'a' : null);
+        if(!pre) return;
+        var resto=h.replace(/^(BUDGET|ACTUAL)/,'');
+        for(var k=0;k<AC_IMP_MAPA.length;k++){
+          if(resto===AC_IMP_MAPA[k][0]){ cols.push({idx:idx, campo:pre+'_'+AC_IMP_MAPA[k][1]}); return; }
+        }
+      });
+      if(!cols.length){ alert('Não encontrei as colunas de Budget/Actual nesta planilha.'); input.value=''; return; }
+
+      var anoAlvo=parseInt(document.getElementById('ac-ano').value);
+      var itens=[], outrosAnos=0;
+      for(var r=1;r<rows.length;r++){
+        var row=rows[r]||[];
+        var cli=row[iCli];
+        if(cli==null || !String(cli).trim()) continue;
+        var ano=parseInt(row[iAno])||0;
+        if(ano && ano!==anoAlvo){ outrosAnos++; continue; }
+        var mes=parseInt(row[iMes])||0;
+        if(mes<1||mes>12) continue;
+        var it={cliente:String(cli).trim(), produto:String(row[iProd]||'').trim(), mes:mes};
+        cols.forEach(function(c){
+          var v=parseFloat(row[c.idx]); if(isNaN(v)) v=0;
+          // OOP e imposto chegam negativos na planilha; guardamos positivos e a
+          // formula subtrai, pra nao depender do sinal da origem.
+          it[c.campo]=(c.campo.indexOf('_oop')>0) ? Math.abs(v) : v;
+        });
+        // Aliquota deduzida do proprio arquivo quando houver imposto e gross.
+        var gross=['com_midia','com_producao','projetos','fees','rebates']
+          .reduce(function(s,k){ return s+(it['b_'+k]||0); },0);
+        var iTax=head.indexOf('BUDGETTAXES');
+        var tax=iTax>=0?Math.abs(parseFloat(row[iTax])||0):0;
+        it.imposto_pct = (gross>0 && tax>0) ? Math.round(tax/gross*10000)/100 : 8.65;
+        itens.push(it);
+      }
+      if(!itens.length){
+        alert('Nenhuma linha de '+anoAlvo+' encontrada'+(outrosAnos?' ('+outrosAnos+' linha(s) são de outro ano — troque o seletor de ano)':'')+'.');
+        input.value=''; return;
+      }
+      var clientes={}; itens.forEach(function(i){ clientes[i.cliente]=1; });
+      if(!confirm(itens.length+' linha(s) de '+Object.keys(clientes).length+' cliente(s) para '+anoAlvo+'.\n\n'+
+          'Isso substitui os dados de '+anoAlvo+' já gravados. Continuar?')){ input.value=''; return; }
+
+      var st=document.getElementById('ac-status');
+      st.textContent='Gravando '+itens.length+' linha(s)...';
+      var r2=await fetch(API+'/api/allclients/lote',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ano:anoAlvo, substituir:true, itens:itens})});
+      var j2=await r2.json();
+      if(!j2.ok) throw new Error(j2.error||'erro ao gravar');
+      await acCarregar();
+      alert(itens.length+' linha(s) importada(s) de "'+nomeAba+'".');
+    }catch(e){ alert('Não consegui importar: '+e.message); }
+    input.value='';
+  };
+  leitor.readAsArrayBuffer(f);
+}
+
+function acExportar(){
+  if(!_acDados.length){ alert('Nada para exportar.'); return; }
+  if(typeof XLSX==='undefined'){ alert('Biblioteca de planilha não carregou.'); return; }
+  var ano=document.getElementById('ac-ano').value;
+  var cab=['Cliente','Produto','Mes','Imposto %',
+    'B Midia','B Com Midia','B Producao','B Com Producao','B Projetos','B Fees','B Rebates','B OOP',
+    'B Gross Revenue','B Impostos','B Net Revenue','B Gross Billings',
+    'A Midia','A Com Midia','A Producao','A Com Producao','A Projetos','A Fees','A Rebates','A OOP',
+    'A Gross Revenue','A Impostos','A Net Revenue','A Gross Billings'];
+  var aoa=[['ALLCLIENTS '+ano],['Gerado pelo Euphoria OS em '+new Date().toLocaleString('pt-BR')],[],cab];
+  _acDados.forEach(function(r){
+    aoa.push([r.cliente, r.produto, parseInt(r.mes)||0, acNum(r.imposto_pct),
+      acNum(r.b_midia),acNum(r.b_com_midia),acNum(r.b_producao),acNum(r.b_com_producao),
+      acNum(r.b_projetos),acNum(r.b_fees),acNum(r.b_rebates),acNum(r.b_oop),
+      acGross(r,'b'),acImposto(r,'b'),acNet(r,'b'),acBillings(r,'b'),
+      acNum(r.a_midia),acNum(r.a_com_midia),acNum(r.a_producao),acNum(r.a_com_producao),
+      acNum(r.a_projetos),acNum(r.a_fees),acNum(r.a_rebates),acNum(r.a_oop),
+      acGross(r,'a'),acImposto(r,'a'),acNet(r,'a'),acBillings(r,'a')]);
+  });
+  var ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=cab.map(function(c,i){ return {wch:i<2?26:14}; });
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Allclients '+ano);
+  XLSX.writeFile(wb, 'Allclients_'+ano+'.xlsx');
+}
+
 // ── CONTROLE DE NOTAS FISCAIS DE FORNECEDOR ─────────────────────────────────
 // O VBS guarda a NF do fornecedor no proprio titulo (Numero_Doc_NF_Terceiro_CP),
 // entao da pra listar sozinho o que foi lancado sem nota. Em 2026 sao 127
@@ -4426,6 +4796,7 @@ function switchFinTab(tab, e) {
   if (tab==='dashboard' && G.pl) { setTimeout(function(){ renderAll(); }, 100); }
   if (tab==='clientes' && G.clientes) { setTimeout(function(){ populateClientesFilter(); renderClientesTab(); }, 80); }
   if (tab==='pl') setTimeout(function(){ renderPLFull(); }, 50);
+  if (tab==='allclients'){ acPopularAnos(); if(!_acDados.length) setTimeout(acCarregar,60); else acRender(); }
   if (tab==='nfs'){ nfPopularAnos();
     var mEl=document.getElementById('dfx-mes'); if(mEl && !mEl.dataset.init){ mEl.value=String(new Date().getMonth()); mEl.dataset.init='1'; } if(!window._nfRaw) setTimeout(nfCarregar,60); else nfRender(); }
   if (tab==='cashflow') setTimeout(function(){ renderCashflow(); }, 50);
