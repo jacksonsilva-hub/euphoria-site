@@ -206,7 +206,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     <div class="topbar-actions" id="topbar-actions"></div>
     <span id="entity-flag" style="display:none;font-size:11px;color:var(--text3);margin-right:8px"></span>
     <button id="btn-print-generico" onclick="imprimirAbaAtual()" style="display:none;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text3);padding:4px 10px;border-radius:6px;font-size:10px;cursor:pointer;margin-right:6px" title="Imprimir ou salvar em PDF a tela atual">🖨️ Imprimir</button>
-    <button id="btn-backup" onclick="backupExportar()" ondblclick="backupImportar()" oncontextmenu="event.preventDefault();backupRestaurarAuto();return false" style="display:none;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text3);padding:4px 10px;border-radius:6px;font-size:10px;cursor:pointer;margin-right:6px" title="Clique: exportar | Duplo clique: importar arquivo | Botão direito: restaurar backup automático">💾 Backup</button>
+    <span id="sync-indicador" style="font-size:10px;color:var(--text3);margin-right:10px" title="Estado da sincronização com o banco"></span><button id="btn-backup" onclick="backupExportar()" ondblclick="backupImportar()" oncontextmenu="event.preventDefault();backupRestaurarAuto();return false" style="display:none;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text3);padding:4px 10px;border-radius:6px;font-size:10px;cursor:pointer;margin-right:6px" title="Clique: exportar | Duplo clique: importar arquivo | Botão direito: restaurar backup automático">💾 Backup</button>
     <div class="user-badge" id="user-badge" onclick="doLogout()" style="display:none">
       <div class="user-avatar" id="user-avatar">J</div>
       <span id="user-name-badge">Jackson</span>
@@ -215,6 +215,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
   </div>
 
   <!-- FINANCEIRO -->
+  <div id="sync-aviso" style="display:none;padding:0 0 4px"></div>
   <div class="page active" id="page-financeiro">
     <div class="tab-nav">
       <button class="tab-btn" onclick="switchFinTab('painel',event)">🌅 Painel Diário</button>
@@ -4863,8 +4864,161 @@ var ENTIDADE_CONFIG = {
 // Prefixo do localStorage por entidade — garante isolamento total
 function lsKey(key){ return (currentUser&&currentUser.entidade?currentUser.entidade:'BR')+'_'+key; }
 function lsGet(key){ return localStorage.getItem(lsKey(key)); }
-function lsSet(key,val){ localStorage.setItem(lsKey(key),val); }
+// Grava local e, se o modulo for sincronizado, tambem empurra para o banco.
+// lsSetLocal existe para o proprio sync escrever sem disparar nova gravacao.
+function lsSet(key,val){
+  localStorage.setItem(lsKey(key),val);
+  if(typeof syncEmpurrar==='function') syncEmpurrar(key);
+}
+function lsSetLocal(key,val){ localStorage.setItem(lsKey(key),val); }
 function lsRemove(key){ localStorage.removeItem(lsKey(key)); }
+
+// ── SINCRONIZAÇÃO DOS MÓDULOS COM O BANCO ───────────────────────────────────
+// Os modulos usam lsGet/lsSet de forma sincrona em centenas de lugares.
+// Trocar tudo por chamadas assincronas seria reescrever o sistema inteiro e
+// arriscar quebrar o que funciona. Em vez disso o localStorage vira cache: ao
+// entrar, puxa do banco e preenche; a cada gravacao, empurra para o banco com
+// debounce. O codigo existente continua sincrono e nao precisa saber de nada.
+// Limite conhecido: duas pessoas editando o mesmo modulo ao mesmo tempo - a
+// ultima gravacao vence. Para o tamanho da equipe isso e aceitavel; resolver
+// de verdade exigiria edicao por registro, nao por modulo.
+var SYNC_MODULOS = [
+  'euphoria_people_v2','euphoria_people_hist','euphoria_movimentacoes',
+  'euphoria_ferias','euphoria_ausencias','euphoria_alocacao_v1',
+  'euphoria_juridico','euphoria_projetos','euphoria_ts','euphoria_ti_ativos',
+  'euphoria_nf_ctrl','euphoria_despesas_fixas','euphoria_lancamentos',
+  'crm_meta_2025','crm_meta_2026','crm_meta_2027','crm_meta_2028'
+];
+var _syncTimers = {};
+var _syncEstado = { ligado:false, ultimoErro:null, pendentes:0 };
+
+function syncEntidade(){
+  return (typeof currentUser!=='undefined' && currentUser && currentUser.entidade) ? currentUser.entidade : 'BR';
+}
+
+// Puxa tudo do banco e preenche o localStorage. Chamado no login.
+// So sobrescreve o local quando o banco tem conteudo: se o banco estiver vazio
+// (primeiro acesso) e houver dado local, o local e que deve subir - foi
+// exatamente o caminho inverso que apagou o pipeline uma vez.
+async function syncPuxar(){
+  try{
+    var r = await fetch(API+'/api/dados?entidade='+syncEntidade(), {cache:'no-store'});
+    var j = await r.json();
+    if(!j.ok) throw new Error(j.error||'erro');
+    var dados = j.data || {};
+    var baixados = 0, locaisNaoEnviados = [];
+    SYNC_MODULOS.forEach(function(k){
+      var doBanco = dados[k] ? dados[k].conteudo : undefined;
+      var temBanco = doBanco !== undefined && doBanco !== null &&
+                     (Array.isArray(doBanco) ? doBanco.length : Object.keys(doBanco||{}).length || typeof doBanco === 'number');
+      var local = lsGet(k);
+      var temLocal = !!local && local !== '[]' && local !== '{}';
+      if(temBanco){
+        lsSetLocal(k, typeof doBanco === 'string' ? doBanco : JSON.stringify(doBanco));
+        baixados++;
+      } else if(temLocal){
+        locaisNaoEnviados.push(k);
+      }
+    });
+    _syncEstado.ligado = true;
+    _syncEstado.ultimoErro = null;
+    if(locaisNaoEnviados.length) syncAvisarPendentes(locaisNaoEnviados);
+    else syncAvisarPendentes([]);
+    syncAtualizarIndicador(baixados+' módulo(s) carregados do banco');
+    return true;
+  }catch(e){
+    _syncEstado.ligado = false;
+    _syncEstado.ultimoErro = e.message;
+    syncAtualizarIndicador('offline — usando só este navegador');
+    return false;
+  }
+}
+
+// Empurra um modulo para o banco. Debounce de 1,5s porque varias telas gravam
+// em sequencia (salvar pessoa dispara tambem o backup, por exemplo).
+function syncEmpurrar(chave){
+  if(SYNC_MODULOS.indexOf(chave) < 0) return;
+  if(_syncTimers[chave]) clearTimeout(_syncTimers[chave]);
+  _syncEstado.pendentes++;
+  _syncTimers[chave] = setTimeout(async function(){
+    try{
+      var bruto = lsGet(chave);
+      var conteudo;
+      try { conteudo = JSON.parse(bruto); } catch(e){ conteudo = bruto; }
+      var r = await fetch(API+'/api/dados/'+encodeURIComponent(chave), {
+        method:'PUT', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ entidade: syncEntidade(), conteudo: conteudo,
+          usuario: (typeof currentUser!=='undefined'&&currentUser)?currentUser.name:null })
+      });
+      var j = await r.json();
+      if(!j.ok) throw new Error(j.error||'erro');
+      _syncEstado.ligado = true; _syncEstado.ultimoErro = null;
+      syncAtualizarIndicador('salvo no banco · '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}));
+    }catch(e){
+      _syncEstado.ligado = false; _syncEstado.ultimoErro = e.message;
+      syncAtualizarIndicador('não salvou no banco — só neste navegador');
+    }finally{
+      _syncEstado.pendentes = Math.max(0, _syncEstado.pendentes-1);
+    }
+  }, 1500);
+}
+
+// Sobe de uma vez o que existe no navegador e ainda nao esta no banco.
+async function syncSubirTudo(){
+  var ok=0, erro=0;
+  for(var i=0;i<SYNC_MODULOS.length;i++){
+    var k = SYNC_MODULOS[i];
+    var bruto = lsGet(k);
+    if(!bruto || bruto==='[]' || bruto==='{}') continue;
+    try{
+      var conteudo; try{ conteudo=JSON.parse(bruto); }catch(e){ conteudo=bruto; }
+      var r = await fetch(API+'/api/dados/'+encodeURIComponent(k), {
+        method:'PUT', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ entidade: syncEntidade(), conteudo: conteudo,
+          usuario:(typeof currentUser!=='undefined'&&currentUser)?currentUser.name:null })
+      });
+      var j = await r.json();
+      if(j.ok) ok++; else erro++;
+    }catch(e){ erro++; }
+  }
+  alert(ok+' módulo(s) enviados ao banco'+(erro?', '+erro+' com erro':'')+'.');
+  syncAvisarPendentes([]);
+  return ok;
+}
+
+function syncAvisarPendentes(chaves){
+  var el = document.getElementById('sync-aviso');
+  if(!el) return;
+  if(!chaves.length){ el.style.display='none'; el.innerHTML=''; return; }
+  var nomes = {
+    'euphoria_people_v2':'Colaboradores','euphoria_people_hist':'Histórico salarial',
+    'euphoria_movimentacoes':'Movimentações','euphoria_ferias':'Férias',
+    'euphoria_ausencias':'Ausências','euphoria_alocacao_v1':'Alocação',
+    'euphoria_juridico':'Jurídico','euphoria_projetos':'Projetos',
+    'euphoria_ts':'Timesheet','euphoria_ti_ativos':'TI & Ativos',
+    'euphoria_nf_ctrl':'Controle de NFs','euphoria_despesas_fixas':'Despesas Fixas'
+  };
+  el.style.display='';
+  el.innerHTML='<div style="background:rgba(251,191,36,.08);border:1px solid var(--amber);border-radius:8px;padding:12px 14px;margin-bottom:14px">'+
+    '<div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:6px">⚠️ '+chaves.length+
+      ' módulo(s) ainda só neste navegador</div>'+
+    '<div style="font-size:11px;color:var(--text2);line-height:1.6;margin-bottom:8px">'+
+      chaves.map(function(k){ return nomes[k]||k; }).join(' · ')+'</div>'+
+    '<div style="font-size:11px;color:var(--text3);line-height:1.6;margin-bottom:10px">'+
+      'Subindo para o banco, eles passam a ser compartilhados e deixam de depender deste computador.</div>'+
+    '<button class="btn btn-primary" onclick="syncSubirTudo()" style="font-size:11px;padding:5px 12px">Subir para o banco</button></div>';
+}
+
+function syncAtualizarIndicador(texto){
+  var el = document.getElementById('sync-indicador');
+  if(!el) return;
+  el.textContent = (_syncEstado.ligado ? '🟢 ' : '🟠 ') + texto;
+  el.style.color = _syncEstado.ligado ? 'var(--text3)' : 'var(--amber)';
+  el.title = _syncEstado.ligado
+    ? 'Os módulos estão sendo salvos no banco de dados.'
+    : 'Sem conexão com o banco: as alterações ficam só neste navegador. '+(_syncEstado.ultimoErro||'');
+}
+
 
 // Migração única: copia dados sem prefixo para o formato novo BR_
 function migrarLocalStorage(){
@@ -4945,6 +5099,9 @@ function doLogin() {
   document.querySelectorAll('.nav-item[data-page]').forEach(function(el) {
     el.style.display = allowed.includes(el.getAttribute('data-page')) ? 'flex' : 'none';
   });
+  // Puxa os modulos do banco antes de abrir a primeira tela, pra ninguem ver
+  // dado velho do navegador e editar por cima.
+  if(typeof syncPuxar==='function') syncPuxar();
   goPage(allowed[0] || 'financeiro');
   if (allowed.includes('financeiro')) setTimeout(function(){if(typeof loadData==='function') loadData();},100);
   // Setup entity-specific UI
