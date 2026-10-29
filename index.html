@@ -185,7 +185,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
     <div class="nav-item active" onclick="goPage('financeiro')" data-page="financeiro"><span class="nav-icon">💰</span><span class="nav-label">Financeiro</span></div>
     <div class="nav-item" onclick="goPage('growth')" data-page="growth"><span class="nav-icon">📈</span><span class="nav-label">Growth</span></div>
     <div class="nav-item" onclick="goPage('crm')" data-page="crm"><span class="nav-icon">🎯</span><span class="nav-label">Pipeline CRM</span></div>
-    <div class="nav-item" onclick="goPage('midia')" data-page="midia"><span class="nav-icon">📡</span><span class="nav-label">Mídia</span></div>
+    <div data-vbs="1" class="nav-item" onclick="goPage('midia')" data-page="midia"><span class="nav-icon">📡</span><span class="nav-label">Mídia</span></div>
     <div class="sidebar-section-label">Operações</div>
     <div class="nav-item" onclick="goPage('timesheet')" data-page="timesheet"><span class="nav-icon">⏱️</span><span class="nav-label">Timesheet</span></div>
     <div class="nav-item" onclick="goPage('projetos')" data-page="projetos"><span class="nav-icon">📋</span><span class="nav-label">Projetos</span></div>
@@ -225,16 +225,16 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
   <div id="sync-aviso" style="display:none;padding:0 0 4px"></div>
   <div class="page active" id="page-financeiro">
     <div class="tab-nav">
-      <button class="tab-btn" onclick="switchFinTab('painel',event)">🌅 Painel Diário</button>
+      <button data-vbs="1" class="tab-btn" onclick="switchFinTab('painel',event)">🌅 Painel Diário</button>
       <button class="tab-btn active" onclick="switchFinTab('dashboard',event)">Dashboard P&L</button>
-      <button class="tab-btn" onclick="switchFinTab('dre',event)">📊 DRE Comparativo</button>
-      <button class="tab-btn" onclick="switchFinTab('receita',event)">💰 Receita</button>
-      <button class="tab-btn" onclick="switchFinTab('cr',event)">Contas a Receber</button>
-      <button class="tab-btn" onclick="switchFinTab('cp',event)">Contas a Pagar</button>
+      <button data-vbs="1" class="tab-btn" onclick="switchFinTab('dre',event)">📊 DRE Comparativo</button>
+      <button data-vbs="1" class="tab-btn" onclick="switchFinTab('receita',event)">💰 Receita</button>
+      <button data-vbs="1" class="tab-btn" onclick="switchFinTab('cr',event)">Contas a Receber</button>
+      <button data-vbs="1" class="tab-btn" onclick="switchFinTab('cp',event)">Contas a Pagar</button>
       <button class="tab-btn" onclick="switchFinTab('allclients',event)">🧮 Allclients</button>
       <button class="tab-btn" onclick="switchFinTab('nfs',event)">🧾 Controle de NFs</button>
-      <button class="tab-btn" onclick="switchFinTab('cashflow',event)">Fluxo de Caixa</button>
-      <button class="tab-btn" onclick="switchFinTab('clientes',event)">Clientes</button>
+      <button data-vbs="1" class="tab-btn" onclick="switchFinTab('cashflow',event)">Fluxo de Caixa</button>
+      <button data-vbs="1" class="tab-btn" onclick="switchFinTab('clientes',event)">Clientes</button>
       <button class="tab-btn" onclick="switchFinTab('pl',event)">P&L Completo</button>
       <button class="tab-btn" onclick="switchFinTab('comparativo',event)">⚖️ Comparativo P&L</button>
     </div>
@@ -5057,6 +5057,46 @@ async function mxImportar(input){
   leitor.readAsArrayBuffer(f);
 }
 
+// ── BLOQUEIO DE VBS POR ENTIDADE ────────────────────────────────────────────
+// O VBS e o ERP brasileiro. O Mexico nao tem, mas "temVBS: false" so escondia
+// botoes com a classe .btn-vbs - as telas continuavam existindo e varias
+// carregam sozinhas ao abrir, trazendo dado do Brasil para quem entrou no
+// Mexico. Numero de outra empresa aparecendo como se fosse seu e pior do que
+// tela vazia.
+// Bloqueia no unico ponto por onde tudo passa: a propria chamada de rede.
+// Cacar cada loader deixaria passar os que eu nao conheco e os que vierem
+// depois.
+var VBS_ENDPOINTS = [
+  '/api/contas-receber','/api/contas-pagar','/api/investimento-clientes',
+  '/api/rentabilidade','/api/clientes','/api/timesheet','/api/bv/',
+  '/api/pedidos-faturamento','/api/notas-fiscais','/api/faturamento',
+  '/api/campanhas','/api/produtos','/api/lancamentos-gerenciais','/api/notas-bv'
+];
+
+function entidadeTemVBS(){
+  var ent = (typeof currentUser!=='undefined' && currentUser && currentUser.entidade) ? currentUser.entidade : 'BR';
+  var cfg = (typeof ENTIDADE_CONFIG!=='undefined') ? ENTIDADE_CONFIG[ent] : null;
+  return cfg ? !!cfg.temVBS : true;
+}
+
+(function(){
+  var fetchOriginal = window.fetch;
+  window.fetch = function(recurso, opcoes){
+    var url = (typeof recurso==='string') ? recurso : (recurso && recurso.url) || '';
+    var ehVBS = VBS_ENDPOINTS.some(function(ep){ return url.indexOf(ep)>=0; });
+    if(ehVBS && !entidadeTemVBS()){
+      var ent=(currentUser&&currentUser.entidade)||'?';
+      // Responde como erro tratado em vez de deixar a chamada ir: as telas ja
+      // sabem exibir j.error, entao a mensagem chega onde o usuario esta.
+      return Promise.resolve(new Response(JSON.stringify({
+        ok:false,
+        error:'Esta consulta usa o VBS, que é o ERP do Brasil. A unidade '+ent+' não tem VBS — use o P&L e os módulos alimentados manualmente.'
+      }), {status:200, headers:{'Content-Type':'application/json'}}));
+    }
+    return fetchOriginal.apply(this, arguments);
+  };
+})();
+
 // ── CONFIGURAÇÃO POR ENTIDADE ────────────────────────
 var ENTIDADE_CONFIG = {
   BR: {
@@ -5359,10 +5399,21 @@ function doLogin() {
   var btnPrint = document.getElementById('btn-print-generico');
   if(btnPrint) btnPrint.style.display='inline-block';
 
-  // Hide VBS button for MX
-  document.querySelectorAll('.btn-vbs').forEach(function(el){
+  // Esconde o que depende do VBS. Alem dos botoes (.btn-vbs), as proprias abas
+  // e o modulo de Midia (data-vbs): deixa-los visiveis so levaria a telas que
+  // nunca vao carregar nada nessa unidade.
+  document.querySelectorAll('.btn-vbs, [data-vbs="1"]').forEach(function(el){
     el.style.display = cfg.temVBS ? '' : 'none';
   });
+  // Se a aba ativa for uma das escondidas, vai para a primeira disponivel.
+  if(!cfg.temVBS){
+    var ativa=document.querySelector('#page-financeiro .tab-btn.active');
+    if(ativa && ativa.getAttribute('data-vbs')==='1'){
+      var primeira=Array.from(document.querySelectorAll('#page-financeiro .tab-btn'))
+        .find(function(b){ return b.getAttribute('data-vbs')!=='1'; });
+      if(primeira) primeira.click();
+    }
+  }
 
   // Update page title sub
   var subEl = document.querySelector('.page-sub');
@@ -5401,8 +5452,7 @@ function setupEntidade(ent){
   var pageTitle=document.querySelector('#page-title-sub');
   if(pageTitle) pageTitle.textContent=cfg.nome;
 
-  // Show/hide VBS elements
-  document.querySelectorAll('.btn-vbs').forEach(function(el){
+  document.querySelectorAll('.btn-vbs, [data-vbs="1"]').forEach(function(el){
     el.style.display = cfg.temVBS?'':'none';
   });
 
