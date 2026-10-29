@@ -147,6 +147,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       <div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:.2em;text-transform:uppercase">OS Platform</div>
     </div>
     <div class="login-field">
+      <label>Unidade</label>
+      <select id="login-entidade" style="width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:#fff;padding:11px 14px;border-radius:8px;font-size:13px;outline:none;cursor:pointer">
+        <option value="BR">🇧🇷 Euphoria Brasil</option>
+        <option value="MX">🇲🇽 Euphoria México</option>
+      </select>
+    </div>
+    <div class="login-field">
       <label>Email</label>
       <input type="text" id="login-user" placeholder="email@euphoriacreative.com" autocomplete="username"
         onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()">
@@ -5267,6 +5274,18 @@ function fmtMoeda(v){
   return cfg.simbolo+' '+Math.round(v).toLocaleString(cfg.locale);
 }
 
+// Lembra a ultima unidade usada neste navegador. Quem trabalha so numa empresa
+// nao precisa escolher toda vez, e quem alterna ja encontra onde parou.
+function loginRestaurarUnidade(){
+  var sel=document.getElementById('login-entidade');
+  if(!sel) return;
+  try{
+    var ult=localStorage.getItem('euphoria_ultima_unidade');
+    if(ult && ENTIDADE_CONFIG[ult]) sel.value=ult;
+  }catch(e){}
+}
+if(typeof window!=='undefined') window.addEventListener('DOMContentLoaded', loginRestaurarUnidade);
+
 function doLogin() {
   var raw  = (document.getElementById('login-user').value || '').trim().toLowerCase();
   var pass = (document.getElementById('login-pass').value || '').trim();
@@ -5281,6 +5300,24 @@ function doLogin() {
     errEl.textContent = 'Usuário ou senha incorretos.';
     document.getElementById('login-pass').value = '';
     setTimeout(function(){errEl.textContent='';} ,3000);
+    return;
+  }
+
+  // A unidade escolhida precisa bater com a do cadastro. Sem essa conferencia,
+  // alguem do Brasil escolheria Mexico e entraria achando que esta vendo uma
+  // empresa quando esta vendo a outra - e os dados sao isolados por entidade,
+  // entao a tela viria vazia sem explicar por que.
+  // Superadmin opera as duas, entao para ele a escolha define onde entrar.
+  var entEscolhida = (document.getElementById('login-entidade')||{}).value || 'BR';
+  try { localStorage.setItem('euphoria_ultima_unidade', entEscolhida); } catch(e) {}
+  if (found.role === 'superadmin') {
+    found = Object.assign({}, found, { entidade: entEscolhida });
+    try { localStorage.setItem('euphoria_entidade_ativa', entEscolhida); } catch(e) {}
+  } else if ((found.entidade||'BR') !== entEscolhida) {
+    var cfgCerta = ENTIDADE_CONFIG[found.entidade||'BR'];
+    errEl.textContent = 'Este usuário é da '+(cfgCerta?cfgCerta.nome:found.entidade)+'. Selecione a unidade correta.';
+    document.getElementById('login-pass').value = '';
+    setTimeout(function(){errEl.textContent='';}, 5000);
     return;
   }
   currentUser = found;
