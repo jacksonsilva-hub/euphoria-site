@@ -5310,7 +5310,10 @@ function syncAtualizarIndicador(texto){
 // Migração única: copia dados sem prefixo para o formato novo BR_
 function migrarLocalStorage(){
   var ent = currentUser&&currentUser.entidade ? currentUser.entidade : 'BR';
-  var migKey = 'euphoria_migrated_'+ent;
+  // _v2: a versao anterior ja marcou como migrado quem recebeu a copia errada
+  // no Mexico. Sem trocar a marca, o conserto abaixo nunca rodaria nesses
+  // navegadores. Reexecutar no Brasil e inofensivo - so copia o que falta.
+  var migKey = 'euphoria_migrated_'+ent+'_v2';
   if(localStorage.getItem(migKey)) return; // já migrou
   var keys = [
     'euphoria_people_v2','euphoria_people_hist','euphoria_movimentacoes','euphoria_nf_ctrl','euphoria_despesas_fixas','euphoria_ferias','euphoria_ausencias',
@@ -5321,18 +5324,37 @@ function migrarLocalStorage(){
     'euphoria_aloc_clientes','euphoria_aloc_projetos'
   ];
   var migrou = 0;
-  keys.forEach(function(key){
-    var prefixed = ent+'_'+key;
-    var old = localStorage.getItem(key);
-    var novo = localStorage.getItem(prefixed);
-    // Só migra se há dado antigo e não há dado novo ainda
-    if(old && !novo){
-      localStorage.setItem(prefixed, old);
-      migrou++;
-    }
-  });
+  // As chaves sem prefixo sao anteriores a existencia do Mexico: sao do Brasil,
+  // sempre. Copia-las para o prefixo da unidade ativa fazia o Mexico herdar a
+  // folha, as ferias e a alocacao brasileiras - nomes de colaboradores do
+  // Brasil apareciam nas telas do Mexico como se fossem de la.
+  if(ent === 'BR'){
+    keys.forEach(function(key){
+      var prefixed = ent+'_'+key;
+      var old = localStorage.getItem(key);
+      var novo = localStorage.getItem(prefixed);
+      // Só migra se há dado antigo e não há dado novo ainda
+      if(old && !novo){
+        localStorage.setItem(prefixed, old);
+        migrou++;
+      }
+    });
+  } else {
+    // Conserta quem ja entrou antes desta correcao: so apaga a copia que ainda
+    // e identica a origem brasileira. Se o dado foi editado ou importado nessa
+    // unidade, ele e de verdade e fica.
+    keys.forEach(function(key){
+      var prefixed = ent+'_'+key;
+      var old = localStorage.getItem(key);
+      if(old && localStorage.getItem(prefixed) === old){
+        localStorage.removeItem(prefixed);
+        migrou++;
+      }
+    });
+    if(migrou > 0) console.log('Removidas '+migrou+' chaves do Brasil copiadas por engano para '+ent+'_');
+  }
   localStorage.setItem(migKey, '1');
-  if(migrou > 0) console.log('Migração localStorage: '+migrou+' chaves copiadas para prefixo '+ent+'_');
+  if(migrou > 0 && ent === 'BR') console.log('Migração localStorage: '+migrou+' chaves copiadas para prefixo '+ent+'_');
 }
 
 // Formatação de moeda por entidade.
@@ -5566,7 +5588,70 @@ var I18N_ES = {
   'Honorarios (R$)':'Honorarios (MX$)','VAR R$':'VAR MX$','Variação R$':'Variación MX$',
   'Desvio R$':'Desvío MX$','Total R$':'Total MX$','Aumento R$':'Aumento MX$',
   'Rate R$/h':'Rate MX$/h','R$/h':'MX$/h','R$/mês':'MX$/mes','Maior R$':'Mayor MX$',
-  'SALÁRIO/HONORÁRIOS (R$) *':'SUELDO/HONORARIOS (MX$) *'
+  'SALÁRIO/HONORÁRIOS (R$) *':'SUELDO/HONORARIOS (MX$) *',
+
+  // ── Opções de seletor e cargos ──
+  '100% - Ganho':'100% - Ganado','Mídia e Produção':'Medios y Producción',
+  'Só Produção':'Sólo Producción','Só Mídia':'Sólo Medios','Só Fee':'Sólo Fee',
+  'Diretor de Criação':'Director de Diseño','Diretora de Criação':'Directora de Diseño',
+  'Diretor de Estratégia':'Director de Estrategia','Diretora de Estratégia':'Directora de Estrategia',
+  'Diretor de Produção':'Director de Producción','Diretora de Produção':'Directora de Producción',
+  'Diretor de Atendimento':'Director de Atención al Cliente',
+  'Gerente de Estratégia':'Gerente de Estrategia',
+  'Gerente de Estratégia Senior':'Gerente de Estrategia Senior',
+  'Gerente de Operações':'Gerente de Operaciones','Gerente de Mídia':'Gerente de Medios',
+  'Gerente de Produção':'Gerente de Producción','Gerente de Criação':'Gerente de Diseño',
+  'Supervisor de Estratégia':'Supervisor de Estrategia','Supervisor de Mídia':'Supervisor de Medios',
+  'Assistente de Estratégia':'Asistente de Estrategia','Assistente de Mídia':'Asistente de Medios',
+  'Analista de Mídia':'Analista de Medios','Analista de Produção':'Analista de Producción',
+  'Coordenador de Mídia':'Coordinador de Medios','Coordenador de Produção':'Coordinador de Producción',
+  'Estagiário':'Becario','Estagiária':'Becaria','Trainee':'Trainee',
+  'Júnior':'Junior','Pleno':'Semi Senior','Sênior':'Senior','Senior':'Senior',
+  'Ativo':'Activo','Inativo':'Inactivo','Desligado':'Baja','Férias':'Vacaciones',
+  'Afastado':'Incapacidad','Licença':'Licencia',
+  'Só quem está há 12+ meses sem reajuste':'Sólo quien lleva 12+ meses sin ajuste',
+  'Só quem está abaixo da mediana do cargo':'Sólo quien está debajo de la mediana del puesto',
+  'Mudança de cargo':'Cambio de puesto','Reestruturação':'Reestructuración',
+  'Licença maternidade':'Licencia de maternidad','Licença paternidade':'Licencia de paternidad',
+  'Doação de sangue':'Donación de sangre','Não-binário':'No binario',
+  'Masculino':'Masculino','Feminino':'Femenino',
+  'Demissão sem justa causa':'Baja sin causa justificada',
+  'Demissão com justa causa':'Baja con causa justificada',
+  'Pedido de demissão':'Renuncia','Fim de contrato':'Fin de contrato',
+  'Em negociação':'En negociación','🔄 Em negociação':'🔄 En negociación',
+  'Sem equipamento':'Sin equipo','Manutenção':'Mantenimiento',
+  'Em uso':'En uso','Em estoque':'En inventario','Danificado':'Dañado',
+  'Atestado médico':'Incapacidad médica','Falta':'Falta','Folga':'Día libre',
+  'Home office':'Home office','Dissídio / CCT':'Ajuste colectivo','Mérito':'Mérito',
+  'Equiparação salarial':'Equiparación salarial','Contratação':'Contratación',
+
+  // ── Timesheet / Projetos / Alocação / Jurídico / TI ──
+  'Lançamento de Horas':'Registro de Horas','Lançar Horas':'Registrar Horas',
+  '+ Lançar Horas':'+ Registrar Horas','Novo Lançamento':'Nuevo Registro',
+  'Lançamentos':'Registros','Lançamento':'Registro','Nenhum lançamento':'Ningún registro',
+  'Descrição':'Descripción','Kanban & Acompanhamento':'Kanban y Seguimiento',
+  'Alocação de Horas':'Asignación de Horas','📌 Lançar Alocação':'📌 Registrar Asignación',
+  '+ Nova Alocação':'+ Nueva Asignación','Alocações':'Asignaciones',
+  '📥 Importar Planilha':'📥 Importar Hoja de Cálculo',
+  '⬇️ Carregar Clientes/Projetos VBS':'⬇️ Cargar Clientes/Proyectos',
+  '🔄 Movimentações':'🔄 Movimientos','Movimentações':'Movimientos',
+  '🇲🇽 Importar planilha MX':'🇲🇽 Importar hoja MX',
+  '📄 Folha / NFs':'📄 Nómina / Facturas','Folha':'Nómina',
+  'Custo Folha/mês':'Costo Nómina/mes','Custo/mês':'Costo/mes','Custo':'Costo',
+  '📅 Vigência e renovação':'📅 Vigencia y renovación',
+  '📋 Obrigações das partes':'📋 Obligaciones de las partes',
+  '🚨 Pontos de atenção':'🚨 Puntos de atención',
+  'Nenhum ativo':'Ningún activo','Ativo':'Activo','Ativos':'Activos',
+  'Equipamento':'Equipo','Patrimônio':'Patrimonio','Aquisição':'Adquisición',
+  'Reajuste':'Ajuste','Reajustes':'Ajustes','Turnover':'Rotación',
+  'Admissões':'Altas','Desligamentos':'Bajas','Ausências':'Ausencias',
+  'Aniversariantes':'Cumpleaños','Organograma':'Organigrama',
+  // Minusculas: contagens montadas em JS ("69 alocações", "3 registros").
+  'alocações':'asignaciones','alocação':'asignación','registros':'registros','registro':'registro',
+  'lançamentos':'registros','lançamento':'registro','pessoas':'personas','pessoa':'persona',
+  'colaboradores':'colaboradores','projetos':'proyectos','projeto':'proyecto',
+  'clientes':'clientes','cliente':'cliente','prospects':'prospectos','contratos':'contratos',
+  'ativos':'activos','meses':'meses','dias':'días','horas':'horas'
 };
 
 function i18nAtivo(){
@@ -5576,7 +5661,14 @@ function i18nTraduzir(txt){
   var t = String(txt).replace(/\s+/g,' ').trim();
   if(!t) return null;
   var tr = I18N_ES[t];
-  return (tr === undefined || tr === t) ? null : tr;
+  if(tr !== undefined) return tr === t ? null : tr;
+  // "Março 2026", "Jan 2026": o ano varia, entao nao cabe no dicionario.
+  var m = t.match(/^(.+?)\s(\d{4})$/);
+  if(m && I18N_ES[m[1]] !== undefined && I18N_ES[m[1]] !== m[1]) return I18N_ES[m[1]]+' '+m[2];
+  // "69 alocações", "0 registros": o numero varia, o substantivo nao.
+  var c = t.match(/^(\d[\d.,]*)\s(.+)$/);
+  if(c && I18N_ES[c[2]] !== undefined && I18N_ES[c[2]] !== c[2]) return c[1]+' '+I18N_ES[c[2]];
+  return null;
 }
 // Troca o texto preservando os espacos em volta: em muitos lugares o espaco
 // faz parte do layout (" · ", quebras de linha dentro de celulas).
@@ -5626,17 +5718,20 @@ function i18nIniciar(){
   if(!i18nAtivo() || _i18nObs) return;
   i18nAplicar(document.body);
   // As telas sao remontadas o tempo todo (cada render troca innerHTML inteiro),
-  // entao a traducao precisa rodar de novo no que aparece depois. O observer e
-  // desligado durante a propria passagem para nao se auto-disparar.
+  // entao a traducao precisa rodar de novo no que aparece depois.
+  // O observer NAO e desligado durante a passagem: desligar perdia as telas que
+  // se redesenhavam justamente nesse intervalo (foi o que deixou um select em
+  // portugues). Nao ha laco porque a passagem so escreve quando ha traducao a
+  // aplicar - texto ja traduzido nao gera mutacao nova.
   _i18nObs = new MutationObserver(function(){
     if(_i18nAgendado) return;
     _i18nAgendado = true;
-    requestAnimationFrame(function(){
+    // setTimeout e nao requestAnimationFrame: rAF nao dispara com a aba em
+    // segundo plano, e a traducao ficava pendente ate a aba voltar ao foco.
+    setTimeout(function(){
       _i18nAgendado = false;
-      _i18nObs.disconnect();
       try{ i18nAplicar(document.body); }catch(e){ console.warn('i18n:', e); }
-      _i18nObs.observe(document.body, {childList:true, subtree:true, characterData:true});
-    });
+    }, 0);
   });
   _i18nObs.observe(document.body, {childList:true, subtree:true, characterData:true});
 }
@@ -5753,11 +5848,31 @@ function doLogin() {
   });
   // Puxa os modulos do banco antes de abrir a primeira tela, pra ninguem ver
   // dado velho do navegador e editar por cima.
-  if(typeof syncPuxar==='function') syncPuxar();
+  // Renderiza os modulos agora que a unidade existe; e de novo quando o banco
+  // responder, porque o que estava no navegador pode estar velho.
+  renderizarModulos();
+  if(typeof syncPuxar==='function'){
+    var pronto = syncPuxar();
+    if(pronto && pronto.then) pronto.then(function(){ renderizarModulos(); });
+  }
   goPage(allowed[0] || 'financeiro');
   if (allowed.includes('financeiro')) setTimeout(function(){if(typeof loadData==='function') loadData();},100);
   // Setup entity-specific UI
   setTimeout(function(){ setupEntidade(found.entidade||'BR'); }, 200);
+}
+
+// Redesenha os modulos que leem do localStorage. Cada um e protegido: uma tela
+// que falhe nao pode impedir as outras de aparecer.
+function renderizarModulos(){
+  [['timesheet',function(){ tsRenderKPIs(); tsRenderTable(); tsPopulateFilters(); }],
+   ['projetos',function(){ projRenderKanban(); }],
+   ['people',function(){ pplRenderTable(); }],
+   ['ti',function(){ tiRenderAtivos(); estRender(); licRender(); }],
+   ['juridico',function(){ jurRenderPainel(); }],
+   ['growth',function(){ gRenderHistorico(); }]
+  ].forEach(function(m){
+    try{ m[1](); }catch(e){ console.warn('render '+m[0]+':', e); }
+  });
 }
 
 function setupEntidade(ent){
@@ -10128,12 +10243,11 @@ function setupDragDrop(zoneId, handler) {
 document.addEventListener('DOMContentLoaded', function() {
   // Show login, hide main content
   document.getElementById('login-screen').style.display = 'flex';
-  // Init module data (no loadData — called after login)
   document.getElementById('ts-data').value = new Date().toISOString().slice(0,10);
-  tsRenderKPIs(); tsRenderTable(); tsPopulateFilters();
-  projRenderKanban(); pplRenderTable();
-  tiRenderAtivos(); estRender(); licRender();
-  jurRenderPainel(); gRenderHistorico();
+  // Os modulos NAO sao renderizados aqui. Antes do login nao existe unidade, e
+  // lsKey cai no prefixo 'BR_': o Mexico abria com timesheet, projetos, people,
+  // TI e juridico ja pintados com dado do Brasil, que so sumia se a tela fosse
+  // redesenhada depois. Agora quem renderiza e o login, com a unidade definida.
   setupDragDrop('cr-upload-zone', parseCR);
   setupDragDrop('cp-upload-zone', parseCP);
   setTimeout(function(){ var u=document.getElementById('login-user'); if(u)u.focus(); },100);
