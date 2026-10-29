@@ -3337,16 +3337,17 @@ function parseNum(str) {
 }
 
 function fmt(n) {
-  if (Math.abs(n) >= 1000000) return 'R$ ' + (n/1000000).toFixed(2).replace('.',',') + 'M';
-  if (Math.abs(n) >= 1000) return 'R$ ' + (n/1000).toFixed(0).replace('.',',') + 'k';
-  return 'R$ ' + Math.round(n).toLocaleString('pt-BR');
+  var sim = moedaSimbolo();
+  if (Math.abs(n) >= 1000000) return sim + ' ' + (n/1000000).toFixed(2).replace('.',',') + 'M';
+  if (Math.abs(n) >= 1000) return sim + ' ' + (n/1000).toFixed(0).replace('.',',') + 'k';
+  return moedaFmt(n);
 }
-function fmtFull(n) { return 'R$ ' + Math.round(n).toLocaleString('pt-BR'); }
+function fmtFull(n) { return moedaFmt(n); }
 function fmtPL(n) {
   // n is already in R$ (after multiplying P&L raw value × 1000)
   if (n === 0) return '—';
   const abs = Math.abs(n);
-  const s = 'R$ ' + Math.round(abs).toLocaleString('pt-BR');
+  const s = moedaFmt(abs);
   return n < 0 ? '(' + s + ')' : s;
 }
 function pct(n) { return (n * 100).toFixed(1) + '%'; }
@@ -3801,7 +3802,7 @@ function renderMonthlyChart(revM, gmM, labels) {
       scales: {
         x: { grid: { display: false }, ticks: { font: { size: 11 } } },
         y: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: {
-          callback: v => v >= 1000000 ? 'R$' + (v/1000000).toFixed(1) + 'M' : 'R$' + (v/1000).toFixed(0) + 'k',
+          callback: v => v >= 1000000 ? moedaSimbolo() + (v/1000000).toFixed(1) + 'M' : moedaSimbolo() + (v/1000).toFixed(0) + 'k',
           font: { size: 11 }
         }}
       }
@@ -3829,7 +3830,7 @@ function renderClientChart(agg) {
       plugins: { legend: { display: false } },
       scales: {
         x: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: {
-          callback: v => v >= 1000000 ? 'R$' + (v/1000000).toFixed(1) + 'M' : 'R$' + (v/1000).toFixed(0) + 'k',
+          callback: v => v >= 1000000 ? moedaSimbolo() + (v/1000000).toFixed(1) + 'M' : moedaSimbolo() + (v/1000).toFixed(0) + 'k',
           font: { size: 11 }
         }},
         y: { grid: { display: false }, ticks: { font: { size: 11 } } }
@@ -4289,7 +4290,7 @@ function dfxExportar(){
   var MES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   var vbs=(window._nfCpTodos&&window._nfCpTodos.length)?dfxVbsDoMes(mesIdx):{};
   var aoa=[['CONFERÊNCIA DE DESPESAS FIXAS — '+MES[mesIdx]],
-           ['Cadastro x Contas a Pagar do VBS · gerado em '+new Date().toLocaleString('pt-BR')],[],
+           ['Cadastro x Contas a Pagar do VBS · gerado em '+new Date().toLocaleString(localeEnt())],[],
            ['Fornecedor','Receber até','Lançar até','Vence','Esperado','Lançado','Diferença','Situação','Contato','Telefone','E-mail','Conta contábil']];
   fixas.forEach(function(f){
     var esperado=f.meses[mesIdx]||0;
@@ -4324,7 +4325,7 @@ var _acDados = [];
 function acNum(v){ var n=parseFloat(v); return isNaN(n)?0:n; }
 function acFmt(v){
   var n=Math.round(acNum(v));
-  return (n<0?'-':'')+'R$ '+Math.abs(n).toLocaleString('pt-BR');
+  return (n<0?'-':'')+moedaFmt(Math.abs(n));
 }
 function acFmtK(v){
   var n=acNum(v);
@@ -4607,7 +4608,7 @@ function acExportar(){
     'B Gross Revenue','B Impostos','B Net Revenue','B Gross Billings',
     'A Midia','A Com Midia','A Producao','A Com Producao','A Projetos','A Fees','A Rebates','A OOP',
     'A Gross Revenue','A Impostos','A Net Revenue','A Gross Billings'];
-  var aoa=[['ALLCLIENTS '+ano],['Gerado pelo Euphoria OS em '+new Date().toLocaleString('pt-BR')],[],cab];
+  var aoa=[['ALLCLIENTS '+ano],['Gerado pelo Euphoria OS em '+new Date().toLocaleString(localeEnt())],[],cab];
   _acDados.forEach(function(r){
     aoa.push([r.cliente, r.produto, parseInt(r.mes)||0, acNum(r.imposto_pct),
       acNum(r.b_midia),acNum(r.b_com_midia),acNum(r.b_producao),acNum(r.b_com_producao),
@@ -4645,7 +4646,7 @@ function nfChave(x){
 }
 
 function nfNum(v){ var n=parseFloat(v); return isNaN(n)?0:n; }
-function nfFmt(v){ return 'R$ '+Math.round(nfNum(v)).toLocaleString('pt-BR'); }
+function nfFmt(v){ return moedaFmt(nfNum(v)); }
 function nfVazio(v){ return v===null||v===undefined||v===''||v==='0'||v===0; }
 
 function nfPopularAnos(){
@@ -4781,7 +4782,7 @@ function nfExportar(){
   var dt=function(v){ return v?ferFmtData(ferData(String(v).substring(0,10))):''; };
   var ano=document.getElementById('nf-ano').value;
   var aoa=[['CONTROLE DE NOTAS FISCAIS DE FORNECEDOR - '+ano],
-           ['Titulos lancados sem NF do fornecedor no VBS · gerado em '+new Date().toLocaleString('pt-BR')],[],
+           ['Titulos lancados sem NF do fornecedor no VBS · gerado em '+new Date().toLocaleString(localeEnt())],[],
            ['Fornecedor','Tipo','Emissao','Vencimento','Valor','Situacao','Observacao','Lancado por']];
   rows.forEach(function(x){
     var c=ctrl[nfChave(x)]||{};
@@ -5079,6 +5080,28 @@ function entidadeTemVBS(){
   return cfg ? !!cfg.temVBS : true;
 }
 
+// Endpoints que servem as duas unidades e precisam saber de qual se trata.
+// Em vez de acrescentar o parametro em cada chamada (e esquecer numa delas, que
+// foi o que deixou o Mexico com pipeline e P&L do Brasil), ele e injetado aqui.
+var ENDPOINTS_POR_ENTIDADE = ['/api/crm','/api/pl','/api/receita','/api/pl-actual','/api/pl-budget'];
+
+function entidadeAtual(){
+  return (typeof currentUser!=='undefined' && currentUser && currentUser.entidade) ? currentUser.entidade : 'BR';
+}
+
+function urlComEntidade(url){
+  if(url.indexOf('entidade=')>=0) return url;
+  var caminho = url.split('?')[0];
+  var casa = ENDPOINTS_POR_ENTIDADE.some(function(ep){
+    var i = caminho.indexOf(ep);
+    if(i < 0) return false;
+    var resto = caminho.slice(i + ep.length);
+    return resto === '' || resto.charAt(0) === '/';
+  });
+  if(!casa) return url;
+  return url + (url.indexOf('?')>=0 ? '&' : '?') + 'entidade=' + entidadeAtual();
+}
+
 (function(){
   var fetchOriginal = window.fetch;
   window.fetch = function(recurso, opcoes){
@@ -5092,6 +5115,10 @@ function entidadeTemVBS(){
         ok:false,
         error:'Esta consulta usa o VBS, que é o ERP do Brasil. A unidade '+ent+' não tem VBS — use o P&L e os módulos alimentados manualmente.'
       }), {status:200, headers:{'Content-Type':'application/json'}}));
+    }
+    if(typeof recurso==='string'){
+      var comEnt = urlComEntidade(recurso);
+      if(comEnt !== recurso) return fetchOriginal.call(this, comEnt, opcoes);
     }
     return fetchOriginal.apply(this, arguments);
   };
@@ -5308,11 +5335,312 @@ function migrarLocalStorage(){
   if(migrou > 0) console.log('Migração localStorage: '+migrou+' chaves copiadas para prefixo '+ent+'_');
 }
 
-// Formatação de moeda por entidade
-function fmtMoeda(v){
-  var cfg=ENTIDADE_CONFIG[currentUser&&currentUser.entidade?currentUser.entidade:'BR'];
-  return cfg.simbolo+' '+Math.round(v).toLocaleString(cfg.locale);
+// Formatação de moeda por entidade.
+// Cada modulo tinha seu proprio formatador com 'R$' e 'pt-BR' escritos na mao,
+// entao o Mexico exibia peso com simbolo de real. Todos passaram a chamar
+// moedaSimbolo()/moedaLocale(), que leem a unidade ativa.
+function moedaCfg(){
+  var ent=(typeof currentUser!=='undefined'&&currentUser&&currentUser.entidade)?currentUser.entidade:'BR';
+  return ENTIDADE_CONFIG[ent]||ENTIDADE_CONFIG.BR;
 }
+function moedaSimbolo(){ return moedaCfg().simbolo; }
+function localeEnt(){ return moedaCfg().locale; }
+function moedaLocale(){ return localeEnt(); }
+function moedaFmt(v){ return moedaSimbolo()+' '+Math.round(v||0).toLocaleString(moedaLocale()); }
+function fmtMoeda(v){ return moedaFmt(v); }
+
+// ── IDIOMA POR ENTIDADE (PT-BR → ES-MX) ─────────────────────────────────────
+// A intranet nasceu so em portugues, com os rotulos escritos direto no HTML e
+// montados na mao em dezenas de telas. Traduzir arquivo por arquivo exigiria
+// mexer em praticamente toda a interface e quebraria a cada tela nova.
+// Em vez disso o idioma e aplicado onde tudo se encontra: o texto que chega na
+// tela. Um dicionario de frase inteira (nunca pedaco de palavra) traduz os
+// rotulos conhecidos; o que nao estiver no dicionario fica como esta, que e
+// melhor do que uma traducao errada em cima de nome de cliente ou de pessoa.
+// Um MutationObserver repete a passagem no que for renderizado depois.
+var I18N_ES = {
+  // ── Navegação e cabeçalho ──
+  'Principal':'Principal','Financeiro':'Finanzas','Growth':'Growth','Pipeline CRM':'Pipeline CRM',
+  'Operações':'Operaciones','Operacoes':'Operaciones','Timesheet':'Timesheet','Projetos':'Proyectos',
+  'People Analytics':'People Analytics','Alocação':'Asignación','Alocacao':'Asignación',
+  'Suporte':'Soporte','Agentes IA':'Agentes IA','Jurídico':'Legal','Juridico':'Legal',
+  'TI & Ativos':'TI y Activos','Recolher':'Contraer','sair':'salir','Sair':'Salir',
+  'Unidade':'Unidad','Senha':'Contraseña','Entrar':'Ingresar','Email':'Correo','E-mail':'Correo',
+  'Euphoria Creative — acesso restrito':'Euphoria Creative — acceso restringido',
+  'Dashboard & Gestão Financeira':'Dashboard y Gestión Financiera',
+  'Carregando...':'Cargando...','Carregando dados…':'Cargando datos…','Carregando…':'Cargando…',
+
+  // ── Abas financeiras ──
+  '🌅 Painel Diário':'🌅 Panel Diario','Painel':'Panel','Dashboard P&L':'Dashboard P&L',
+  '📊 DRE Comparativo':'📊 Estado de Resultados Comparativo','💰 Receita':'💰 Ingresos',
+  'Contas a Receber':'Cuentas por Cobrar','Contas a Pagar':'Cuentas por Pagar',
+  '🧮 Allclients':'🧮 Allclients','🧾 Controle de NFs':'🧾 Control de Facturas',
+  'Fluxo de Caixa':'Flujo de Caja','Clientes':'Clientes','P&L Completo':'P&L Completo',
+  '⚖️ Comparativo P&L':'⚖️ Comparativo P&L','Allclients':'Allclients',
+
+  // ── Botões e ações ──
+  'Salvar':'Guardar','💾 Salvar':'💾 Guardar','Cancelar':'Cancelar','Limpar':'Limpiar',
+  '✕ Limpar':'✕ Limpiar','🗑️ Limpar conversa':'🗑️ Limpiar conversación',
+  '+ Adicionar':'+ Agregar','Buscar':'Buscar','↺ Atualizar':'↺ Actualizar','Atualizar':'Actualizar',
+  '📥 Excel':'📥 Excel','📊 Excel':'📊 Excel','📊 Exportar':'📊 Exportar',
+  '📊 Exportar Excel':'📊 Exportar Excel','📄 Relatório':'📄 Reporte','📄 PDF':'📄 PDF',
+  '🖨️ Imprimir / PDF':'🖨️ Imprimir / PDF','🖨️ Imprimir':'🖨️ Imprimir','💾 Backup':'💾 Respaldo',
+  '📥 Importar':'📥 Importar','📥 Importar planilha':'📥 Importar hoja de cálculo',
+  '📤 Upload Budget Excel':'📤 Subir Budget Excel','📄 Modelo':'📄 Plantilla',
+  '✦ Gerar com IA':'✦ Generar con IA','✏️ Montar Manualmente':'✏️ Armar Manualmente',
+  '↺ Restaurar padrão':'↺ Restaurar predeterminado','+ Novo Perfil':'+ Nuevo Perfil',
+  '+ Novo Prospect':'+ Nuevo Prospecto','↺ Projetar':'↺ Proyectar',
+  '↺ Projetar Diário':'↺ Proyectar Diario','Gerar Fluxo':'Generar Flujo',
+  '↺ Atualizar da Planilha':'↺ Actualizar desde la Hoja','Excluir':'Eliminar','Editar':'Editar',
+  'Confirmar':'Confirmar','Fechar':'Cerrar','Voltar':'Volver','Aplicar':'Aplicar',
+  '📋 Copiar':'📋 Copiar','✉️ Gerar Template':'✉️ Generar Plantilla','Template pronto':'Plantilla lista',
+  '↺ Novo':'↺ Nuevo','Novo':'Nuevo','Enviar':'Enviar','Adicionar':'Agregar','Remover':'Quitar',
+
+  // ── Filtros e campos comuns ──
+  'Todos':'Todos','Todas':'Todas','Todos os clientes':'Todos los clientes',
+  'Todos os meses':'Todos los meses','Todos os tipos':'Todos los tipos',
+  'Todos os status':'Todos los estatus','Todos departamentos':'Todos los departamentos',
+  'Todos os departamentos':'Todos los departamentos','Todas as pessoas':'Todas las personas',
+  'Todas posições':'Todas las posiciones','Todos responsaveis':'Todos los responsables',
+  'Todos responsáveis':'Todos los responsables','Todos os fornecedores':'Todos los proveedores',
+  'Selecione...':'Seleccionar...','Selecione':'Seleccionar',
+  'Selecione ou preencha manualmente...':'Seleccione o complete manualmente...',
+  'Cliente':'Cliente','CLIENTE':'CLIENTE','Status':'Estatus','STATUS':'ESTATUS',
+  'Tipo':'Tipo','TIPO':'TIPO','Valor':'Valor','Data':'Fecha','DATA':'FECHA',
+  'Mês':'Mes','Mes':'Mes','Ano':'Año','Período':'Periodo','Periodo':'Periodo',
+  'De:':'De:','Até:':'Hasta:','De':'De','Até':'Hasta','DE':'DE','ATÉ':'HASTA',
+  'Nome':'Nombre','Nome Completo':'Nombre Completo','Nome / Razao Social':'Nombre / Razón Social',
+  'Telefone':'Teléfono','Contato':'Contacto','Empresa':'Empresa','Endereco':'Dirección',
+  'Endereço':'Dirección','Observacoes':'Observaciones','Observações':'Observaciones',
+  'OBSERVAÇÕES':'OBSERVACIONES','Motivo':'Motivo','Situação':'Situación','Sim':'Sí','Não':'No',
+  'Qtd':'Cant.','Total':'Total','Outros':'Otros','Outro':'Otro','Categoria':'Categoría',
+  'Dias':'Días','Dia':'Día','Horas':'Horas','Inicio':'Inicio','Início':'Inicio','Fim':'Fin',
+  'INÍCIO *':'INICIO *','FIM *':'FIN *','TIPO *':'TIPO *','COLABORADOR *':'COLABORADOR *',
+  '(opcional)':'(opcional)','Não informado':'No informado','Prefiro não dizer':'Prefiero no decir',
+  'Visão':'Vista','Visualização':'Visualización','Leitura':'Lectura','Para':'Para',
+
+  // ── Meses ──
+  'Janeiro':'Enero','Fevereiro':'Febrero','Março':'Marzo','Marco':'Marzo','Abril':'Abril',
+  'Maio':'Mayo','Junho':'Junio','Julho':'Julio','Agosto':'Agosto','Setembro':'Septiembre',
+  'Outubro':'Octubre','Novembro':'Noviembre','Dezembro':'Diciembre',
+  'Jan':'Ene','Fev':'Feb','Mar':'Mar','Abr':'Abr','Mai':'May','Jun':'Jun','Jul':'Jul',
+  'Ago':'Ago','Set':'Sep','Out':'Oct','Nov':'Nov','Dez':'Dic',
+  'Início do ano':'Inicio del año','Fim do ano':'Fin del año','Acumulado YTD':'Acumulado YTD',
+  '3 meses':'3 meses','6 meses':'6 meses','12 meses':'12 meses',
+  '30 dias':'30 días','60 dias':'60 días','90 dias':'90 días','Meses à frente:':'Meses adelante:',
+  'Dias à frente':'Días adelante','Mensal':'Mensual','Por Quarter':'Por Trimestre',
+
+  // ── Departamentos e cargos ──
+  'Atendimento':'Atención al Cliente','Criação':'Diseño','Criacao':'Diseño',
+  'Estratégia':'Estrategia','Estrategia':'Estrategia','Mídia':'Medios','Midia':'Medios',
+  'Conteúdo':'Contenido','Social':'Social','Produção':'Producción','Producao':'Producción',
+  'Data Insights':'Data Insights','People & RH':'People y RH','People e RH':'People y RH',
+  'Diretoria':'Dirección','TI':'TI','Departamento':'Departamento','DEPARTAMENTO':'DEPARTAMENTO',
+  'Depto':'Depto','Cargo':'Puesto','Seniority':'Seniority','Colaborador':'Colaborador',
+  'Profissional':'Profesional','Gestor(a)':'Gerente','Vínculo':'Vínculo','Admissão':'Ingreso',
+  'Headcount':'Headcount','Composição da Equipe':'Composición del Equipo',
+  'Sem colaboradores cadastrados':'Sin colaboradores registrados','Ativos':'Activos',
+  'Disponível':'Disponible','Aprovado':'Aprobado','Pendente':'Pendiente',
+
+  // ── Financeiro ──
+  'Receita':'Ingresos','Receita Líquida':'Ingreso Neto','Net Revenue':'Ingreso Neto',
+  'Gross Revenue':'Ingreso Bruto','Gross Billings':'Facturación Bruta','Rebates (BV)':'Rebates (BV)',
+  'Rebates / BV':'Rebates / BV','Fee':'Fee','Fees':'Fees','Fee Mensal':'Fee Mensual',
+  'Fee Anual':'Fee Anual','Fee / Projeto':'Fee / Proyecto','Margem':'Margen',
+  'Custo Interno':'Costo Interno','Budget':'Budget','Actual':'Actual','Planejado':'Planeado',
+  'Faturado':'Facturado','Lançado':'Registrado','Lancado':'Registrado','Esperado':'Esperado',
+  'Vencimento':'Vencimiento','Vence':'Vence','Emissão':'Emisión','Saldo':'Saldo',
+  'Saldo Bancário':'Saldo Bancario','Saldo Acumulado':'Saldo Acumulado',
+  'Saldo Projetado':'Saldo Proyectado','Saldo do Mês':'Saldo del Mes','Saldo do Dia':'Saldo del Día',
+  'Total a Receber':'Total por Cobrar','Total a Pagar':'Total por Pagar',
+  'Total Aberto':'Total Abierto','Em Aberto':'Abierto','em aberto':'abierto',
+  'CR em aberto':'CxC abierto','CP em aberto':'CxP abierto','Recebidos':'Cobrados','Pagos':'Pagados',
+  'A Vencer 30d':'Por Vencer 30d','Vencidos +60d':'Vencidos +60d',
+  'Aging por Faixa':'Antigüedad por Rango','Tipo de Pagamento':'Tipo de Pago',
+  'Títulos a Receber':'Documentos por Cobrar','Títulos a Pagar':'Documentos por Pagar',
+  'Top Clientes em Aberto':'Top Clientes Abiertos','Maiores Fornecedores':'Mayores Proveedores',
+  'Fornecedor':'Proveedor','Por Tipo de Despesa':'Por Tipo de Gasto','Tipo Despesa':'Tipo de Gasto',
+  'Repasse':'Traspaso','Repasse Produção':'Traspaso Producción','Repasse Mídia':'Traspaso Medios',
+  'Com. Produção':'Com. Producción','Com. Mídia':'Com. Medios','Fat. Bruto':'Fact. Bruta',
+  'Comissão de Mídia':'Comisión de Medios','Comissão de Produção':'Comisión de Producción',
+  'Investimento por Cliente':'Inversión por Cliente','Inv. Cliente':'Inv. Cliente',
+  'Rentabilidade por Cliente':'Rentabilidad por Cliente','Runway':'Runway','Runway: —':'Runway: —',
+  'meses de caixa':'meses de caja','Entradas vs Saídas por Mês':'Entradas vs Salidas por Mes',
+  'Entradas (CR a Receber)':'Entradas (CxC por Cobrar)','Saídas (CP a Pagar)':'Salidas (CxP por Pagar)',
+  '+ Entradas (CR)':'+ Entradas (CxC)','- Saídas (CP)':'- Salidas (CxP)',
+  '- Folha':'- Nómina','- Custo Equipe':'- Costo Equipo','+ Pipeline Ponderado':'+ Pipeline Ponderado',
+  'Projeção de Fluxo de Caixa':'Proyección de Flujo de Caja',
+  'Fluxo de Caixa Diário':'Flujo de Caja Diario','Data Referência':'Fecha de Referencia',
+  'informe a data':'indique la fecha','Dia do mês do pagamento da folha':'Día del mes de pago de nómina',
+  'Incluir Pipeline CRM (ponderado por probabilidade)':'Incluir Pipeline CRM (ponderado por probabilidad)',
+  'Clique em Gerar Fluxo':'Haga clic en Generar Flujo',
+  'Clique em Gerar Fluxo e depois em Projetar':'Haga clic en Generar Flujo y luego en Proyectar',
+  'Clique em Gerar Fluxo e depois em Projetar Diário':'Haga clic en Generar Flujo y luego en Proyectar Diario',
+  'Receita Líquida por Tipo':'Ingreso Neto por Tipo','Receita por Cliente (Top 10)':'Ingresos por Cliente (Top 10)',
+  'Evolução Mensal por Tipo de Receita':'Evolución Mensual por Tipo de Ingreso',
+  'Relatório de Faturamento Mensal':'Reporte de Facturación Mensual',
+  'Detalhamento de Receita':'Detalle de Ingresos','Detalhamento por cliente':'Detalle por cliente',
+  'Competência':'Periodo contable','Var. MoM':'Var. MoM','Var YoY':'Var. YoY','Var %':'Var. %',
+  'VAR %':'VAR. %','Var.':'Var.','% Ating.':'% Cumpl.','% ating.':'% cumpl.','% do total':'% del total',
+  'Var vs Budget':'Var. vs Budget','Var vs Bud':'Var. vs Bud','Budget Gross':'Budget Bruto',
+  'Budget Net Rev':'Budget Ingreso Neto','LINHA':'LÍNEA','Linha':'Línea','BUDGET':'BUDGET','ACTUAL':'ACTUAL',
+  'Receita vs Gross Margin':'Ingresos vs Margen Bruto','P&L mensal':'P&L mensual',
+  'Top clientes':'Top clientes','budget net revenue':'budget ingreso neto',
+  'DRE — Budget vs Actual':'Estado de Resultados — Budget vs Actual',
+  'Selecione o ano e clique em Carregar':'Seleccione el año y haga clic en Cargar',
+  'Selecione o período e clique em Buscar':'Seleccione el periodo y haga clic en Buscar',
+  'Última atualização:':'Última actualización:','⚠️ Dados desatualizados':'⚠️ Datos desactualizados',
+  'Comparativo P&L':'Comparativo P&L','Base A':'Base A','Base B':'Base B',
+  'Compara duas bases linha a linha, com variação em R$ e %':'Compara dos bases línea por línea, con variación en MX$ y %',
+  'Comparativo mensal — Receita e EBITDA':'Comparativo mensual — Ingresos y EBITDA',
+  'P&L linha a linha':'P&L línea por línea','Variação %':'Variación %',
+  'Sem dados — clique em Atualizar da Planilha':'Sin datos — haga clic en Actualizar desde la Hoja',
+  'Sem dados — clique em Carregar Dados':'Sin datos — haga clic en Cargar Datos',
+  'Receita por cliente e mês — Budget vs. Actual, com a quebra por tipo':'Ingresos por cliente y mes — Budget vs. Actual, con desglose por tipo',
+  'Por cliente e mês':'Por cliente y mes',
+  'Clique numa célula para editar. B = Budget, A = Actual.':'Haga clic en una celda para editar. B = Budget, A = Actual.',
+  'Composição da receita':'Composición del ingreso',
+  'Controle de Notas Fiscais':'Control de Facturas',
+  'Despesas lançadas sem a NF do fornecedor registrada no VBS':'Gastos registrados sin la factura del proveedor',
+  '📅 Despesas Fixas':'📅 Gastos Fijos','🧾 Lançado sem NF':'🧾 Registrado sin Factura',
+  'Lançado sem NF':'Registrado sin factura','Não lançado':'No registrado',
+  'Valor divergente':'Valor divergente','NF recebida':'Factura recibida','Cobrado':'Cobrado',
+  'Não se aplica':'No aplica','Conferência do mês':'Revisión del mes',
+  'Receber até':'Cobrar hasta','Lançar até':'Registrar hasta','Dif.':'Dif.','Obs':'Obs',
+  'Lançado por':'Registrado por','Títulos sem NF do fornecedor':'Documentos sin factura del proveedor',
+  'Importe a planilha de despesas fixas para começar':'Importe la hoja de gastos fijos para comenzar',
+  'N Doc.':'N° Doc.','Vlr. Doc.':'Valor Doc.',
+  '🧮 Simulador Tributário — Presumido vs Lucro Real':'🧮 Simulador Fiscal',
+  '💰 Distribuição de Resultados — Sócios':'💰 Distribución de Resultados — Socios',
+  'Split: 50% distribuição • 20% reserva caixa • 30% reinvestimento':'Split: 50% distribución • 20% reserva de caja • 30% reinversión',
+
+  // ── Growth / Propostas ──
+  'Nova Proposta':'Nueva Propuesta','Proposta':'Propuesta','Propostas Salvas':'Propuestas Guardadas',
+  'Nenhuma proposta salva':'Ninguna propuesta guardada','Briefing da Proposta':'Briefing de la Propuesta',
+  'Histórico':'Historial','Historico':'Historial','⚙️ Rate Card':'⚙️ Rate Card','Rate Card':'Rate Card',
+  'Rate Card por Posição':'Rate Card por Posición','Custo/Hora Médio':'Costo/Hora Promedio',
+  'Taxas horárias por perfil — usadas automaticamente nas propostas':'Tarifas por hora por perfil — usadas automáticamente en las propuestas',
+  'DURAÇÃO (meses)':'DURACIÓN (meses)','MARGEM':'MARGEN','IMPOSTOS':'IMPUESTOS',
+  'BRIEFING / ESCOPO':'BRIEFING / ALCANCE','OU CARREGUE UM PDF:':'O CARGUE UN PDF:',
+  'Horas/mês':'Horas/mes','H/mês':'H/mes','Subtotal/mês':'Subtotal/mes','Valor Mensal':'Valor Mensual',
+  'Horas por Cliente':'Horas por Cliente',
+
+  // ── Pipeline CRM ──
+  'Gestao de prospects e oportunidades':'Gestión de prospectos y oportunidades',
+  'Gestão de prospects e oportunidades':'Gestión de prospectos y oportunidades',
+  'Prospects':'Prospectos','Prospect':'Prospecto','Proposta Enviada':'Propuesta Enviada',
+  'Negociacao':'Negociación','Negociação':'Negociación','Ganho':'Ganado','Perdido':'Perdido',
+  'Desistimos':'Desistimos','Pipeline Total':'Pipeline Total','Ponderado':'Ponderado',
+  'Convertido':'Convertido','Win Rate':'Win Rate','taxa de conversao':'tasa de conversión',
+  'taxa de conversão':'tasa de conversión','receita confirmada':'ingreso confirmado',
+  'por probabilidade':'por probabilidad','oportunidades perdidas':'oportunidades perdidas',
+  'Kanban':'Kanban','Tabela':'Tabla','Prob':'Prob','Follow-up':'Follow-up','Acoes':'Acciones',
+  'Ações':'Acciones','Responsavel':'Responsable','Responsável':'Responsable',
+  'Responsaveis cadastrados':'Responsables registrados','Comparativo Semanal':'Comparativo Semanal',
+  'Log de Alteracoes':'Registro de Cambios','Log de Alterações':'Registro de Cambios',
+  'Painel de Meta — Novos Negócios':'Panel de Meta — Nuevos Negocios',
+  'Painel de Meta — Novos Negocios':'Panel de Meta — Nuevos Negocios',
+  'Budget do Sheets vs Conversoes CRM':'Budget de la Hoja vs Conversiones CRM',
+  'Clientes Perdidos':'Clientes Perdidos','Data de Saida':'Fecha de Salida',
+  'Nenhum cliente perdido registrado':'Ningún cliente perdido registrado',
+  'só com receita no ano':'sólo con ingreso en el año',
+  'Pipeline CRM — Últimas Alterações':'Pipeline CRM — Últimos Cambios',
+
+  // ── People / Alocação / Jurídico / TI ──
+  'Promoção':'Promoción','Contratos':'Contratos','Contrato Cliente':'Contrato Cliente',
+  'Contrato PJ':'Contrato PJ','Representante':'Representante','Estoque':'Inventario',
+  'Licenças':'Licencias','Computador':'Computadora','E-mail Pessoal':'Correo Personal',
+  'Nada é gravado até você confirmar.':'Nada se guarda hasta que confirme.',
+  'Vencendo essa semana — A Receber':'Venciendo esta semana — Por Cobrar',
+  'Vencendo essa semana — A Pagar':'Venciendo esta semana — Por Pagar',
+  'Carregue Contas a Receber primeiro':'Cargue Cuentas por Cobrar primero',
+  'Carregue Contas a Pagar primeiro':'Cargue Cuentas por Pagar primero',
+  'Carregue o Dashboard P&L primeiro':'Cargue el Dashboard P&L primero',
+  'Maiores Variações Budget vs Actual':'Mayores Variaciones Budget vs Actual',
+  '0 registros':'0 registros','Nenhum registro':'Ningún registro','Sem dados':'Sin datos',
+
+  // ── Rótulos com símbolo de moeda ──
+  'Saldo Bancário (R$)':'Saldo Bancario (MX$)','Meta Budget (R$)':'Meta Budget (MX$)',
+  'Valor Anual Perdido (R$)':'Valor Anual Perdido (MX$)','Fee Mensal (R$)':'Fee Mensual (MX$)',
+  'Invest. Midia (R$, total)':'Inv. Medios (MX$, total)','Invest. Producao (R$, total)':'Inv. Producción (MX$, total)',
+  'Honorarios (R$)':'Honorarios (MX$)','VAR R$':'VAR MX$','Variação R$':'Variación MX$',
+  'Desvio R$':'Desvío MX$','Total R$':'Total MX$','Aumento R$':'Aumento MX$',
+  'Rate R$/h':'Rate MX$/h','R$/h':'MX$/h','R$/mês':'MX$/mes','Maior R$':'Mayor MX$',
+  'SALÁRIO/HONORÁRIOS (R$) *':'SUELDO/HONORARIOS (MX$) *'
+};
+
+function i18nAtivo(){
+  return String(moedaCfg().locale||'').indexOf('es') === 0;
+}
+function i18nTraduzir(txt){
+  var t = String(txt).replace(/\s+/g,' ').trim();
+  if(!t) return null;
+  var tr = I18N_ES[t];
+  return (tr === undefined || tr === t) ? null : tr;
+}
+// Troca o texto preservando os espacos em volta: em muitos lugares o espaco
+// faz parte do layout (" · ", quebras de linha dentro de celulas).
+function i18nNo(no){
+  var bruto = no.nodeValue;
+  if(!bruto) return;
+  var tr = i18nTraduzir(bruto);
+  if(tr !== null){
+    no.nodeValue = bruto.match(/^\s*/)[0] + tr + bruto.match(/\s*$/)[0];
+    return;
+  }
+  // O que nao esta no dicionario ainda pode carregar o simbolo de moeda errado
+  // (rotulo montado em JS, valor vindo de modulo que nao usa moedaFmt).
+  if(bruto.indexOf('R$') >= 0) no.nodeValue = bruto.replace(/R\$/g, moedaSimbolo());
+}
+function i18nAtributos(raiz){
+  raiz.querySelectorAll('[placeholder],[title]').forEach(function(el){
+    ['placeholder','title'].forEach(function(a){
+      var v = el.getAttribute(a);
+      if(!v) return;
+      var tr = i18nTraduzir(v);
+      if(tr !== null) el.setAttribute(a, tr);
+      else if(v.indexOf('R$') >= 0) el.setAttribute(a, v.replace(/R\$/g, moedaSimbolo()));
+    });
+  });
+}
+function i18nAplicar(raiz){
+  if(!i18nAtivo()) return;
+  raiz = raiz || document.body;
+  if(!raiz || !raiz.querySelectorAll) return;
+  var w = document.createTreeWalker(raiz, NodeFilter.SHOW_TEXT, {
+    acceptNode: function(n){
+      var p = n.parentNode;
+      if(!p) return NodeFilter.FILTER_REJECT;
+      var tag = p.nodeName;
+      if(tag==='SCRIPT'||tag==='STYLE'||tag==='TEXTAREA') return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_ACCEPT;
+    }
+  });
+  var nos = [], n;
+  while((n = w.nextNode())) nos.push(n);
+  nos.forEach(i18nNo);
+  i18nAtributos(raiz);
+}
+var _i18nObs = null, _i18nAgendado = false;
+function i18nIniciar(){
+  if(!i18nAtivo() || _i18nObs) return;
+  i18nAplicar(document.body);
+  // As telas sao remontadas o tempo todo (cada render troca innerHTML inteiro),
+  // entao a traducao precisa rodar de novo no que aparece depois. O observer e
+  // desligado durante a propria passagem para nao se auto-disparar.
+  _i18nObs = new MutationObserver(function(){
+    if(_i18nAgendado) return;
+    _i18nAgendado = true;
+    requestAnimationFrame(function(){
+      _i18nAgendado = false;
+      _i18nObs.disconnect();
+      try{ i18nAplicar(document.body); }catch(e){ console.warn('i18n:', e); }
+      _i18nObs.observe(document.body, {childList:true, subtree:true, characterData:true});
+    });
+  });
+  _i18nObs.observe(document.body, {childList:true, subtree:true, characterData:true});
+}
+
 
 // Lembra a ultima unidade usada neste navegador. Quem trabalha so numa empresa
 // nao precisa escolher toda vez, e quem alterna ja encontra onde parou.
@@ -5434,6 +5762,8 @@ function doLogin() {
 
 function setupEntidade(ent){
   var cfg = ENTIDADE_CONFIG[ent]||ENTIDADE_CONFIG['BR'];
+  // Idioma por ultimo: os selects e rotulos montados aqui tambem precisam passar.
+  setTimeout(function(){ if(typeof i18nIniciar==='function') i18nIniciar(); }, 0);
   var deptos = cfg.departamentos;
   var deptoOpts = '<option value="">'+( ent==='MX'?'Todos los departamentos':'Todos departamentos')+'</option>'+
     deptos.map(function(d){return '<option>'+d+'</option>';}).join('');
@@ -5688,7 +6018,7 @@ function gRenderProposta(p) {
   document.getElementById('g-result-title').textContent = (p.cliente||'Proposta')+' — '+(p.tipo||'').replace('_',' ').toUpperCase();
   document.getElementById('g-result-sub').textContent = p.duracao+' meses • OHV '+(p.ohv||1.7)+' • Margem '+((p.margem||.2)*100).toFixed(0)+'%';
   document.getElementById('g-kpis').innerHTML=[{label:'Subtotal Equipe',value:fmt(subtotal),sub:'por mês'},{label:'Total com Impostos',value:fmt(totalMes),sub:'mensal'},{label:'Total do Contrato',value:fmt(totalContrato),sub:p.duracao+' meses'},{label:'Ref. USD',value:'USD '+Math.round(totalMes/4.9).toLocaleString('en-US'),sub:'por mes'},].map(function(k){return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-value" style="font-size:18px">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
-  document.getElementById('g-team-body').innerHTML=rows.map(function(m){return '<tr><td><span class="badge badge-blue">'+m.departamento+'</span></td><td>'+m.cargo+'</td><td>'+m.seniority+'</td><td style="text-align:right">'+m.horas+'h</td><td style="text-align:right">'+((m.dedicacao||0)*100).toFixed(0)+'%</td><td style="text-align:right">R$ '+m.rate.toLocaleString('pt-BR')+'</td><td style="text-align:right">R$ '+Math.round(m.subtotal).toLocaleString('pt-BR')+'</td></tr>';}).join('')+'<tr class="summary-row"><td colspan="6">Total Mensal</td><td style="text-align:right"><strong>R$ '+Math.round(totalMes).toLocaleString('pt-BR')+'</strong></td></tr>';
+  document.getElementById('g-team-body').innerHTML=rows.map(function(m){return '<tr><td><span class="badge badge-blue">'+m.departamento+'</span></td><td>'+m.cargo+'</td><td>'+m.seniority+'</td><td style="text-align:right">'+m.horas+'h</td><td style="text-align:right">'+((m.dedicacao||0)*100).toFixed(0)+'%</td><td style="text-align:right">'+moedaSimbolo()+' '+m.rate.toLocaleString(localeEnt())+'</td><td style="text-align:right">'+moedaSimbolo()+' '+Math.round(m.subtotal).toLocaleString(localeEnt())+'</td></tr>';}).join('')+'<tr class="summary-row"><td colspan="6">Total Mensal</td><td style="text-align:right"><strong>'+moedaSimbolo()+' '+Math.round(totalMes).toLocaleString(localeEnt())+'</strong></td></tr>';
   document.getElementById('g-summary').innerHTML='<div class="chart-title">Observações</div><p style="font-size:12px;color:var(--text2);line-height:1.7">'+(p.observacoes||'')+'</p>';
   document.getElementById('growth-result').style.display='block';
 }
@@ -6106,7 +6436,7 @@ function rjEventos(){
 
 function rjRenderEventos(){
   var evs=rjEventos();
-  var fmt=function(v){ return 'R$ '+Math.round(v).toLocaleString('pt-BR'); };
+  var fmt=function(v){ return ''+moedaSimbolo()+' '+Math.round(v).toLocaleString(localeEnt()); };
   var ord=evs.slice().sort(function(a,b){
     if(_rjOrdem==='valor') return b.delta-a.delta;
     if(_rjOrdem==='data') return b.data-a.data;
@@ -6198,7 +6528,7 @@ function rjRenderChart(evs){
       scales:{
         x:{grid:{display:false},ticks:{color:'#888',font:{size:10}}},
         y:{position:'left',grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#555',font:{size:10},
-           callback:function(v){ return 'R$ '+(v/1000).toFixed(0)+'k'; }}},
+           callback:function(v){ return ''+moedaSimbolo()+' '+(v/1000).toFixed(0)+'k'; }}},
         y1:{position:'right',grid:{display:false},ticks:{color:'#888',font:{size:10},
             callback:function(v){ return v.toFixed(0)+'%'; }}}
       }}
@@ -6292,8 +6622,8 @@ function rjRender(){
         'O cadastro não bate com o último reajuste registrado. Enquanto não corrigir, a folha e o custo/hora dessas pessoas saem errados.</div>'+
       '<div style="font-size:11px;font-family:var(--font-mono);color:var(--text3);line-height:1.7;margin-bottom:10px">'+
         divs.slice(0,8).map(function(d){
-          return d.nome+': cadastro R$ '+Math.round(d.cadastro).toLocaleString('pt-BR')+
-                 ' · histórico R$ '+Math.round(d.historico).toLocaleString('pt-BR')+
+          return d.nome+': cadastro '+moedaSimbolo()+' '+Math.round(d.cadastro).toLocaleString(localeEnt())+
+                 ' · histórico '+moedaSimbolo()+' '+Math.round(d.historico).toLocaleString(localeEnt())+
                  ' <span style="opacity:.6">('+d.data+(d.motivo?', '+d.motivo:'')+')</span>';
         }).join('<br>')+(divs.length>8?'<br>… e mais '+(divs.length-8):'')+'</div>'+
       '<button class="btn btn-primary" onclick="pplCorrigirDivergencias()" style="font-size:11px;padding:5px 12px">Corrigir todos</button>'+
@@ -6307,7 +6637,7 @@ function rjRender(){
   var evs = rjRenderEventos();
   var dados = rjColetar();
   var itens = dados.itens;
-  var fmt = function(v){ return 'R$ '+(Math.round(v)).toLocaleString('pt-BR'); };
+  var fmt = function(v){ return ''+moedaSimbolo()+' '+(Math.round(v)).toLocaleString(localeEnt()); };
 
   var defasados = itens.filter(function(i){ return i.meses!==null && i.meses>=12; });
   var criticos = itens.filter(function(i){ return i.meses!==null && i.meses>=18; });
@@ -6401,7 +6731,7 @@ function rjRender(){
 function rjImprimir(){
   var dados = rjColetar();
   if(!dados.itens.length){ alert('Sem colaboradores ativos no filtro.'); return; }
-  var fmt = function(v){ return 'R$ '+(Math.round(v)).toLocaleString('pt-BR'); };
+  var fmt = function(v){ return ''+moedaSimbolo()+' '+(Math.round(v)).toLocaleString(localeEnt()); };
   var itens = dados.itens.slice().sort(function(a,b){ return (b.meses===null?-1:b.meses)-(a.meses===null?-1:a.meses); });
   var linhas = itens.map(function(i){
     var sit = i.meses===null?'—':(i.meses>=18?'Crítico':(i.meses>=12?'Revisar':'Em dia'));
@@ -6430,7 +6760,7 @@ function rjImprimir(){
     '@media print{.np{display:none}@page{size:landscape}}';
   var body='<img src="'+LOGO+'" class="logo">'+
     '<h1>Análise de Reajuste Salarial</h1>'+
-    '<div class="sub">'+itens.length+' colaborador(es) ativo(s) · Gerado em '+new Date().toLocaleString('pt-BR')+'</div>'+
+    '<div class="sub">'+itens.length+' colaborador(es) ativo(s) · Gerado em '+new Date().toLocaleString(localeEnt())+'</div>'+
     '<h2>Situação individual</h2>'+
     '<table><thead><tr><th>Colaborador</th><th>Cargo</th><th>Depto</th><th>Salário</th><th>Último reajuste</th>'+
     '<th>%</th><th>Meses desde</th><th>vs. mediana</th><th>Situação</th></tr></thead><tbody>'+linhas+'</tbody></table>'+
@@ -6586,15 +6916,15 @@ function pplCalcCusto(){
   var provFerias=recebeFerias==='sim'?(sal*(1/3))/12:0;
   var ctTotal=ct+prov13+provFerias;
   var ch=hrs>0?ctTotal/hrs:0;
-  document.getElementById('pm-custo-preview').textContent='R$ '+Math.round(ctTotal).toLocaleString('pt-BR');
-  document.getElementById('pm-ch-preview').textContent='R$ '+ch.toFixed(2)+'/h';
+  document.getElementById('pm-custo-preview').textContent=''+moedaSimbolo()+' '+Math.round(ctTotal).toLocaleString(localeEnt());
+  document.getElementById('pm-ch-preview').textContent=''+moedaSimbolo()+' '+ch.toFixed(2)+'/h';
 
   var recebe13=document.getElementById('pm-recebe13').value;
   var recebeFerias=document.getElementById('pm-recebeferias').value;
   var valor13Mensal=recebe13==='sim'?(sal/12):0;
   var valorFeriasMensal=recebeFerias==='sim'?((sal*(1/3))/12):0;
-  document.getElementById('pm-13-preview').textContent=recebe13==='sim'?('R$ '+valor13Mensal.toFixed(2)+'/mês'):'não recebe';
-  document.getElementById('pm-ferias-preview').textContent=recebeFerias==='sim'?('R$ '+valorFeriasMensal.toFixed(2)+'/mês'):'não recebe';
+  document.getElementById('pm-13-preview').textContent=recebe13==='sim'?(''+moedaSimbolo()+' '+valor13Mensal.toFixed(2)+'/mês'):'não recebe';
+  document.getElementById('pm-ferias-preview').textContent=recebeFerias==='sim'?(''+moedaSimbolo()+' '+valorFeriasMensal.toFixed(2)+'/mês'):'não recebe';
 }
 function pplSalvarModal(){
   var nome=document.getElementById('pm-nome').value.trim();
@@ -6676,7 +7006,7 @@ function pplRenderTable(){
     {label:'Headcount',value:headcount,sub:'ativos'},
     {label:'CLT',value:clt,sub:'colaboradores'},
     {label:'PJ',value:pj,sub:'prestadores'},
-    {label:'Custo Folha/mês',value:'R$ '+Math.round(totalCusto).toLocaleString('pt-BR'),sub:'custo total'},
+    {label:'Custo Folha/mês',value:''+moedaSimbolo()+' '+Math.round(totalCusto).toLocaleString(localeEnt()),sub:'custo total'},
   ];
   var kg=document.getElementById('ppl-kpis-row');
   if(kg)kg.innerHTML=kpis.map(function(k){return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-value" style="font-size:18px">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
@@ -6696,10 +7026,10 @@ function pplRenderTable(){
       '<td style="font-size:11px;color:var(--text3)">'+(p.gestor||'—')+'</td>'+
       '<td style="font-size:11px;color:var(--text3)">'+(p.empresa||'euphoria')+'</td>'+
       '<td><span class="badge '+(p.tipo==='clt'?'badge-green':'badge-gray')+'">'+p.tipo.toUpperCase()+'</span></td>'+
-      '<td style="text-align:right">R$ '+Math.round(p.salario).toLocaleString('pt-BR')+'</td>'+
-      '<td style="text-align:right;color:var(--amber)">R$ '+Math.round(ct).toLocaleString('pt-BR')+'</td>'+
+      '<td style="text-align:right">'+moedaSimbolo()+' '+Math.round(p.salario).toLocaleString(localeEnt())+'</td>'+
+      '<td style="text-align:right;color:var(--amber)">'+moedaSimbolo()+' '+Math.round(ct).toLocaleString(localeEnt())+'</td>'+
       '<td style="text-align:right">'+Math.round(p.horas||160)+'h</td>'+
-      '<td style="text-align:right;font-size:11px">R$ '+ch.toFixed(0)+'/h</td>'+
+      '<td style="text-align:right;font-size:11px">'+moedaSimbolo()+' '+ch.toFixed(0)+'/h</td>'+
       '<td style="font-size:11px;color:var(--text3)">'+(p.admissao||'—')+'</td>'+
       '<td><span class="badge '+stBadge+'">'+p.status+'</span></td>'+
       '<td style="display:flex;gap:4px">'+
@@ -6766,7 +7096,7 @@ function pplRenderDEI(){
   }).filter(function(r){return r.am&&r.ah;});
   var gc=document.getElementById('dei-gap-content');
   gc.innerHTML=gapRows.length?'<table class="tbl"><thead><tr><th>Depto</th><th style="text-align:right">Média Mulher</th><th style="text-align:right">Média Homem</th><th style="text-align:right">Gap</th></tr></thead><tbody>'+
-    gapRows.map(function(r){return '<tr><td>'+r.dep+'</td><td style="text-align:right">R$ '+Math.round(r.am).toLocaleString('pt-BR')+'</td><td style="text-align:right">R$ '+Math.round(r.ah).toLocaleString('pt-BR')+'</td><td style="text-align:right;color:'+(r.g>20?'var(--neg)':r.g>10?'var(--amber)':'var(--pos)')+'">'+r.g.toFixed(1)+'%</td></tr>';}).join('')+
+    gapRows.map(function(r){return '<tr><td>'+r.dep+'</td><td style="text-align:right">'+moedaSimbolo()+' '+Math.round(r.am).toLocaleString(localeEnt())+'</td><td style="text-align:right">'+moedaSimbolo()+' '+Math.round(r.ah).toLocaleString(localeEnt())+'</td><td style="text-align:right;color:'+(r.g>20?'var(--neg)':r.g>10?'var(--amber)':'var(--pos)')+'">'+r.g.toFixed(1)+'%</td></tr>';}).join('')+
   '</tbody></table>':'<div style="color:var(--text3);font-size:12px;padding:16px">Dados insuficientes (precisa de homens e mulheres no mesmo depto)</div>';
 
   // Liderança
@@ -7053,7 +7383,7 @@ function pplExportFolha(){
 
   var aoa=[];
   aoa.push(['FOLHA '+MESES[mes].toUpperCase()+'/'+ano+' — SOLICITAÇÃO DE NOTAS FISCAIS']);
-  aoa.push(['Gerado pelo Euphoria OS em '+new Date().toLocaleString('pt-BR')+
+  aoa.push(['Gerado pelo Euphoria OS em '+new Date().toLocaleString(localeEnt())+
             ' · Desconto em branco para preenchimento manual; Pagamento é fórmula · Mês de entrada e de saída vem proporcional (dias/30)']);
   aoa.push([]);
   aoa.push(['#','NOME COMPLETO','CARGO','DEPARTAMENTO','DATA DE ADMISSÃO','DIAS','HONORÁRIOS',
@@ -7073,7 +7403,7 @@ function pplExportFolha(){
       if(p.desligamento){ var d=ferData(p.desligamento);
         if(d.getFullYear()===ano && d.getMonth()===mes) motivo.push('desligamento '+ferFmtData(d)); }
       obs='Proporcional '+dias+'/30 ('+motivo.join(' e ')+') · integral '+
-          (Math.round(sal*100)/100).toLocaleString('pt-BR',{minimumFractionDigits:2});
+          (Math.round(sal*100)/100).toLocaleString(localeEnt(),{minimumFractionDigits:2});
     }
     aoa.push([
       i+1, p.nome, p.cargo||'', p.depto||'',
@@ -7222,7 +7552,7 @@ function pplRenderCustoPosicao(d,ano){
   _cmCharts.pos=new Chart(c,{type:'bar',data:{
     labels:top15.map(function(r){return r.cargo;}),
     datasets:[{label:'Custo Médio Mensal',data:top15.map(function(r){return Math.round(r.custos.reduce(function(s,c){return s+c.mediaMensal;},0)/r.custos.length);}),backgroundColor:'rgba(167,139,250,0.5)',borderRadius:3}]
-  },options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',callback:function(v){return 'R$ '+Math.round(v/1000)+'k';}}},y:{grid:{display:false},ticks:{color:'#888',font:{size:9}}}}}});
+  },options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',callback:function(v){return ''+moedaSimbolo()+' '+Math.round(v/1000)+'k';}}},y:{grid:{display:false},ticks:{color:'#888',font:{size:9}}}}}});
 
   document.getElementById('cm-posicao-table').innerHTML=rows.map(function(r){
     var custos=r.custos.map(function(c){return c.mediaMensal;});
@@ -7233,11 +7563,11 @@ function pplRenderCustoPosicao(d,ano){
       '<td><strong>'+r.cargo+'</strong></td>'+
       '<td><span class="badge badge-blue">'+r.depto+'</span></td>'+
       '<td style="text-align:right">'+r.pessoas.length+'</td>'+
-      '<td style="text-align:right">R$ '+Math.round(mn).toLocaleString('pt-BR')+'</td>'+
-      '<td style="text-align:right;font-weight:700">R$ '+Math.round(avg).toLocaleString('pt-BR')+'</td>'+
-      '<td style="text-align:right">R$ '+Math.round(mx).toLocaleString('pt-BR')+'</td>'+
-      '<td style="text-align:right;color:var(--amber)">R$ '+chAvg.toFixed(0)+'/h</td>'+
-      '<td style="text-align:right">R$ '+Math.round(total).toLocaleString('pt-BR')+'</td>'+
+      '<td style="text-align:right">'+moedaSimbolo()+' '+Math.round(mn).toLocaleString(localeEnt())+'</td>'+
+      '<td style="text-align:right;font-weight:700">'+moedaSimbolo()+' '+Math.round(avg).toLocaleString(localeEnt())+'</td>'+
+      '<td style="text-align:right">'+moedaSimbolo()+' '+Math.round(mx).toLocaleString(localeEnt())+'</td>'+
+      '<td style="text-align:right;color:var(--amber)">'+moedaSimbolo()+' '+chAvg.toFixed(0)+'/h</td>'+
+      '<td style="text-align:right">'+moedaSimbolo()+' '+Math.round(total).toLocaleString(localeEnt())+'</td>'+
     '</tr>';
   }).join('');
 }
@@ -7387,8 +7717,8 @@ function pplCorrigirDivergencias(){
   var divs=pplDivergenciasSalario();
   if(!divs.length){ alert('Nenhuma divergência encontrada.'); return; }
   var txt=divs.map(function(d){
-    return '• '+d.nome+': R$ '+Math.round(d.cadastro).toLocaleString('pt-BR')+
-           ' → R$ '+Math.round(d.historico).toLocaleString('pt-BR');
+    return '• '+d.nome+': '+moedaSimbolo()+' '+Math.round(d.cadastro).toLocaleString(localeEnt())+
+           ' → '+moedaSimbolo()+' '+Math.round(d.historico).toLocaleString(localeEnt());
   }).join('\n');
   if(!confirm('Corrigir '+divs.length+' salário(s) para o valor do último reajuste registrado?\n\n'+txt)) return;
   divs.forEach(function(d){ pplSincronizarSalario(d.id); });
@@ -7408,8 +7738,8 @@ function pplRenderHistList(){
       var pct=r.anterior>0?(delta/r.anterior*100).toFixed(1):0;
       return '<tr>'+
         '<td>'+(r.data||'—')+'</td>'+
-        '<td style="text-align:right">R$ '+Math.round(r.anterior).toLocaleString('pt-BR')+'</td>'+
-        '<td style="text-align:right">R$ '+Math.round(r.novo).toLocaleString('pt-BR')+'</td>'+
+        '<td style="text-align:right">'+moedaSimbolo()+' '+Math.round(r.anterior).toLocaleString(localeEnt())+'</td>'+
+        '<td style="text-align:right">'+moedaSimbolo()+' '+Math.round(r.novo).toLocaleString(localeEnt())+'</td>'+
         '<td style="text-align:right;color:'+(delta>=0?'var(--pos)':'var(--neg)')+'">'+pct+'%</td>'+
         '<td style="font-size:11px;color:var(--text3)">'+r.motivo+'</td>'+
         '<td style="display:flex;gap:4px">'+
@@ -7677,7 +8007,7 @@ function ferRender(){
     return i && fi && i<=hoje && fi>=hoje;
   }).length;
 
-  var fmtR = function(v){ return 'R$ '+Math.round(v).toLocaleString('pt-BR'); };
+  var fmtR = function(v){ return ''+moedaSimbolo()+' '+Math.round(v).toLocaleString(localeEnt()); };
   document.getElementById('fer-kpis').innerHTML = [
     {l:'Em dobra', v:String(kpiDobra), s:kpiDobra?'risco: pagamento em dobro':'nenhum vencido', c:kpiDobra?'neg':''},
     {l:'A vencer (90d)', v:String(kpiAvencer), s:'programar férias', c:kpiAvencer?'':''},
@@ -7975,7 +8305,7 @@ function ferRecibo(id){
   if(!p){ alert('Colaborador não encontrado.'); return; }
   var sal=parseFloat(p.salario)||0;
   var dias=parseInt(f.dias,10)||0;
-  var m=function(v){ return 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); };
+  var m=function(v){ return ''+moedaSimbolo()+' '+v.toLocaleString(localeEnt(),{minimumFractionDigits:2,maximumFractionDigits:2}); };
   var linha=function(rot,val,neg){ return '<tr><td>'+rot+'</td><td align="right"'+(neg?' style="color:#b00"':'')+'>'+m(val)+'</td></tr>'; };
   // PJ presta servico e recebe contra nota fiscal: nao ha retencao na fonte nem
   // folha de pagamento, e o 1/3 e contratual (nao o constitucional da CLT).
@@ -8093,9 +8423,9 @@ function pplRenderCustoMensal(){
     }
   });
   var kpis=[
-    {label:'Custo Total '+ano,value:'R$ '+Math.round(custoAnoTotal).toLocaleString('pt-BR'),sub:'folha consolidada'},
-    {label:'Média Mensal',value:'R$ '+Math.round(custoAnoTotal/12).toLocaleString('pt-BR'),sub:'base anual / 12'},
-    {label:'Custo Mês Atual',value:'R$ '+Math.round(custoMesAtual).toLocaleString('pt-BR'),sub:meses[mesAtual]+'/'+anoAtual},
+    {label:'Custo Total '+ano,value:''+moedaSimbolo()+' '+Math.round(custoAnoTotal).toLocaleString(localeEnt()),sub:'folha consolidada'},
+    {label:'Média Mensal',value:''+moedaSimbolo()+' '+Math.round(custoAnoTotal/12).toLocaleString(localeEnt()),sub:'base anual / 12'},
+    {label:'Custo Mês Atual',value:''+moedaSimbolo()+' '+Math.round(custoMesAtual).toLocaleString(localeEnt()),sub:meses[mesAtual]+'/'+anoAtual},
     {label:'Headcount',value:d.filter(function(p){return p.status==='ativo';}).length,sub:'colaboradores ativos'},
   ];
   document.getElementById('cm-kpis').innerHTML=kpis.map(function(k){return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-value" style="font-size:16px">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
@@ -8136,15 +8466,15 @@ function pplRenderCustoMensalTabela(d,ano,meses,mesFiltro){
       var badge='';
       if(d13>0)badge+='<span style="font-size:8px;color:var(--amber);display:block">+13º</span>';
       if(dFerias>0)badge+='<span style="font-size:8px;color:#60a5fa;display:block">+Férias</span>';
-      return '<td style="text-align:right">R$ '+Math.round(c).toLocaleString('pt-BR')+badge+'</td>';
+      return '<td style="text-align:right">'+moedaSimbolo()+' '+Math.round(c).toLocaleString(localeEnt())+badge+'</td>';
     }).join('');
-    return '<tr><td><strong>'+p.nome+'</strong><div style="font-size:9px;color:var(--text3)">'+(p.cargo||'')+'</div></td>'+cells+'<td style="text-align:right;font-weight:700;color:var(--amber)">R$ '+Math.round(totalAno).toLocaleString('pt-BR')+'</td></tr>';
+    return '<tr><td><strong>'+p.nome+'</strong><div style="font-size:9px;color:var(--text3)">'+(p.cargo||'')+'</div></td>'+cells+'<td style="text-align:right;font-weight:700;color:var(--amber)">'+moedaSimbolo()+' '+Math.round(totalAno).toLocaleString(localeEnt())+'</td></tr>';
   }).join('');
 
   var totalGeral=idxVisiveis.reduce(function(s,m){return s+(totalPorIdx[m]||0);},0);
   var footerRow='<tr style="border-top:2px solid var(--border)"><td><strong>TOTAL</strong></td>'+
-    idxVisiveis.map(function(m){return '<td style="text-align:right;font-weight:700">R$ '+Math.round(totalPorIdx[m]||0).toLocaleString('pt-BR')+'</td>';}).join('')+
-    '<td style="text-align:right;font-weight:700;color:var(--amber)">R$ '+Math.round(totalGeral).toLocaleString('pt-BR')+'</td></tr>';
+    idxVisiveis.map(function(m){return '<td style="text-align:right;font-weight:700">'+moedaSimbolo()+' '+Math.round(totalPorIdx[m]||0).toLocaleString(localeEnt())+'</td>';}).join('')+
+    '<td style="text-align:right;font-weight:700;color:var(--amber)">'+moedaSimbolo()+' '+Math.round(totalGeral).toLocaleString(localeEnt())+'</td></tr>';
 
   tbody.innerHTML=rows+footerRow;
 }
@@ -8175,9 +8505,9 @@ function pplRenderCustoAnual(d,ano,meses){
       '<td style="color:var(--text2)">'+(r.p.cargo||'—')+'</td>'+
       '<td><span class="badge badge-blue">'+r.p.depto+'</span></td>'+
       '<td><span class="badge '+(r.p.tipo==='clt'?'badge-green':'badge-gray')+'">'+r.p.tipo.toUpperCase()+'</span></td>'+
-      '<td style="text-align:right;color:var(--amber)">R$ '+Math.round(r.totalAno).toLocaleString('pt-BR')+'</td>'+
-      '<td style="text-align:right;font-weight:700">R$ '+Math.round(r.mediaMensal).toLocaleString('pt-BR')+'</td>'+
-      '<td style="text-align:right">R$ '+r.custoHoraMedio.toFixed(0)+'/h</td>'+
+      '<td style="text-align:right;color:var(--amber)">'+moedaSimbolo()+' '+Math.round(r.totalAno).toLocaleString(localeEnt())+'</td>'+
+      '<td style="text-align:right;font-weight:700">'+moedaSimbolo()+' '+Math.round(r.mediaMensal).toLocaleString(localeEnt())+'</td>'+
+      '<td style="text-align:right">'+moedaSimbolo()+' '+r.custoHoraMedio.toFixed(0)+'/h</td>'+
       '<td style="text-align:right">'+r.mesesAtivos+'</td>'+
     '</tr>';
   }).join('');
@@ -8188,7 +8518,7 @@ function pplRenderCustoAnual(d,ano,meses){
   _cmCharts.anual=new Chart(c,{type:'bar',data:{
     labels:top15.map(function(r){return r.p.nome.split(' ')[0];}),
     datasets:[{label:'Média Mensal',data:top15.map(function(r){return Math.round(r.mediaMensal);}),backgroundColor:'rgba(251,191,36,0.5)',borderRadius:3}]
-  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#666',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',font:{size:10},callback:function(v){return 'R$ '+Math.round(v/1000)+'k';}}}}}});
+  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#666',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',font:{size:10},callback:function(v){return ''+moedaSimbolo()+' '+Math.round(v/1000)+'k';}}}}}});
 }
 
 // ── UTILIZATION ──────────────────────────────────────
@@ -8303,7 +8633,7 @@ async function pplCarregarUtilization(){
         '<td style="text-align:right">'+Math.round(cap)+'h</td>'+
         '<td style="text-align:right">'+Math.round(hVBS)+'h</td>'+
         '<td style="text-align:right;color:'+(pct>90?'var(--neg)':pct>70?'var(--amber)':'var(--pos)')+'">'+pct.toFixed(1)+'%</td>'+
-        '<td style="text-align:right;font-size:11px">R$ '+ch.toFixed(0)+'/h</td>'+
+        '<td style="text-align:right;font-size:11px">'+moedaSimbolo()+' '+ch.toFixed(0)+'/h</td>'+
         '<td style="text-align:right;font-size:11px">—</td>'+
         '<td><span class="badge '+stCl+'">'+stLbl+'</span></td>'+
       '</tr>';
@@ -8442,9 +8772,9 @@ async function pplCarregarProfitability(){
   var totalLuc=rows.reduce(function(s,r){return s+r.lucro;},0);
   var margemGeral=totalRec>0?(totalLuc/totalRec*100):0;
   var kpis=[
-    {label:'Receita Total',value:'R$ '+Math.round(totalRec).toLocaleString('pt-BR'),sub:mmDe+'/'+yyyyDe+' a '+mmAte+'/'+yyyyAte},
-    {label:'Custo de Equipe',value:'R$ '+Math.round(totalCus).toLocaleString('pt-BR'),sub:'custo/hora × horas'},
-    {label:'Lucro Bruto',value:'R$ '+Math.round(totalLuc).toLocaleString('pt-BR'),sub:'após equipe + OVH'},
+    {label:'Receita Total',value:''+moedaSimbolo()+' '+Math.round(totalRec).toLocaleString(localeEnt()),sub:mmDe+'/'+yyyyDe+' a '+mmAte+'/'+yyyyAte},
+    {label:'Custo de Equipe',value:''+moedaSimbolo()+' '+Math.round(totalCus).toLocaleString(localeEnt()),sub:'custo/hora × horas'},
+    {label:'Lucro Bruto',value:''+moedaSimbolo()+' '+Math.round(totalLuc).toLocaleString(localeEnt()),sub:'após equipe + OVH'},
     {label:'Margem Bruta',value:margemGeral.toFixed(1)+'%',sub:'geral consolidado'},
   ];
   document.getElementById('prof-kpis').innerHTML=kpis.map(function(k){return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-value" style="font-size:16px">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
@@ -8458,7 +8788,7 @@ async function pplCarregarProfitability(){
       {label:'Receita',data:top10.map(function(r){return Math.round(r.receita);}),backgroundColor:'rgba(255,255,255,0.15)',borderRadius:3},
       {label:'Custo Equipe',data:top10.map(function(r){return Math.round(r.custoEq);}),backgroundColor:'rgba(248,113,113,0.5)',borderRadius:3},
     ]
-  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#888',font:{size:10}}}},scales:{x:{grid:{display:false},ticks:{color:'#666',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',font:{size:9},callback:function(v){return 'R$ '+Math.round(v/1000)+'k';}}}}}});
+  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#888',font:{size:10}}}},scales:{x:{grid:{display:false},ticks:{color:'#666',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',font:{size:9},callback:function(v){return ''+moedaSimbolo()+' '+Math.round(v/1000)+'k';}}}}}});
 
   var c2=document.getElementById('chartProfMargem');
   if(_profCharts.m)_profCharts.m.destroy();
@@ -8468,7 +8798,7 @@ async function pplCarregarProfitability(){
   },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#666',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',font:{size:10},callback:function(v){return v+'%';}}}}}});
 
   var tbody=document.getElementById('prof-table');
-  var fmtR=function(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR');};
+  var fmtR=function(v){return ''+moedaSimbolo()+' '+Math.round(v).toLocaleString(localeEnt());};
   tbody.innerHTML=rows.map(function(r){
     var mc=r.margem>40?'var(--pos)':r.margem>20?'var(--amber)':'var(--neg)';
     return '<tr>'+
@@ -8494,9 +8824,9 @@ var AGENT_SYSTEMS = {
     if(window._budgetActualMap){
       var entries = Object.entries(window._budgetActualMap).slice(0,10);
       ctx += '\n\nDADOS REAIS VBS 2026 (Receita Líquida por cliente):\n';
-      entries.forEach(function(e){ ctx += '- '+e[0]+': R$ '+Math.round(e[1]).toLocaleString('pt-BR')+'\n'; });
+      entries.forEach(function(e){ ctx += '- '+e[0]+': '+moedaSimbolo()+' '+Math.round(e[1]).toLocaleString(localeEnt())+'\n'; });
       var total = Object.values(window._budgetActualMap).reduce(function(s,v){return s+v;},0);
-      ctx += 'TOTAL ACTUAL 2026: R$ '+Math.round(total).toLocaleString('pt-BR')+'\n';
+      ctx += 'TOTAL ACTUAL 2026: '+moedaSimbolo()+' '+Math.round(total).toLocaleString(localeEnt())+'\n';
     }
     if(window.G && window.G.clientes){
       var totalBudget = 0;
@@ -8504,16 +8834,16 @@ var AGENT_SYSTEMS = {
         var rows = window.G.clientes.slice(1).filter(function(r){return r[0]&&r[0]!=='CLIENTE';});
         rows.forEach(function(r){ totalBudget += parseFloat(String(r[20]||'0').replace(/\./g,'').replace(',','.'))||0; });
       } catch(e){}
-      if(totalBudget > 0) ctx += 'BUDGET NET REVENUE 2026: R$ '+Math.round(totalBudget*1000).toLocaleString('pt-BR')+'\n';
+      if(totalBudget > 0) ctx += 'BUDGET NET REVENUE 2026: '+moedaSimbolo()+' '+Math.round(totalBudget*1000).toLocaleString(localeEnt())+'\n';
     }
     if(window._budgetActualMap2025){
       var total25 = Object.values(window._budgetActualMap2025).reduce(function(s,v){return s+v;},0);
-      ctx += 'TOTAL ACTUAL 2025: R$ '+Math.round(total25).toLocaleString('pt-BR')+'\n';
+      ctx += 'TOTAL ACTUAL 2025: '+moedaSimbolo()+' '+Math.round(total25).toLocaleString(localeEnt())+'\n';
     }
     var ppl = getPplData ? getPplData() : [];
     if(ppl.length){
       var custoTotal = ppl.reduce(function(s,p){return s+(typeof pplCustoTotal==='function'?pplCustoTotal(p):0);},0);
-      ctx += 'CUSTO MENSAL EQUIPE: R$ '+Math.round(custoTotal).toLocaleString('pt-BR')+'\n';
+      ctx += 'CUSTO MENSAL EQUIPE: '+moedaSimbolo()+' '+Math.round(custoTotal).toLocaleString(localeEnt())+'\n';
       ctx += 'HEADCOUNT ATIVO: '+ppl.filter(function(p){return p.status==='ativo';}).length+' colaboradores\n';
     }
     return 'Você é o Agente Financeiro da Euphoria Creative Agency, uma agência de publicidade brasileira. '+
@@ -8796,7 +9126,7 @@ function alocImpProcessar(wb, nomeArq){
 }
 
 function alocImpPreview(itens, ignoradas, abasLidas, nomeArq){
-  var fmt=function(v){ return 'R$ '+Math.round(v).toLocaleString('pt-BR'); };
+  var fmt=function(v){ return ''+moedaSimbolo()+' '+Math.round(v).toLocaleString(localeEnt()); };
   var semHC=itens.filter(function(i){ return i._semHC; }).length;
   var naoAchou=itens.filter(function(i){ return !i._achou && !i._semHC; });
   var semPeriodo=itens.filter(function(i){ return !i.mesInicio; }).length;
@@ -8974,11 +9304,11 @@ function alocCalcMargem(){
   var mPrev=document.getElementById('aloc-margem-preview');
   var mkPrev=document.getElementById('aloc-markup-preview');
 
-  if(prev)prev.textContent='R$ '+Math.round(custo).toLocaleString('pt-BR');
+  if(prev)prev.textContent=''+moedaSimbolo()+' '+Math.round(custo).toLocaleString(localeEnt());
   if(mPrev){
     var margem=vendido-custo;
     var margemPct=custo>0?(margem/custo*100):0;
-    mPrev.textContent='R$ '+Math.round(margem).toLocaleString('pt-BR')+' ('+margemPct.toFixed(1)+'%)';
+    mPrev.textContent=''+moedaSimbolo()+' '+Math.round(margem).toLocaleString(localeEnt())+' ('+margemPct.toFixed(1)+'%)';
     mPrev.style.color=margem>=0?'var(--pos)':'var(--neg)';
   }
   if(mkPrev){
@@ -9132,10 +9462,10 @@ function alocRenderTabela(){
   var totalCusto=d.reduce(function(s,a){return s+getCustoAloc(a);},0);
   var totalMargem=totalVendido-totalCusto;
   document.getElementById('aloc-kpis').innerHTML=[
-    {label:'Aprovadas',value:Math.round(hAprov)+'h',sub:'R$ '+Math.round(aprovadas.reduce(function(s,a){return s+(a.valorVendido||0);},0)).toLocaleString('pt-BR')+' vendido'},
+    {label:'Aprovadas',value:Math.round(hAprov)+'h',sub:''+moedaSimbolo()+' '+Math.round(aprovadas.reduce(function(s,a){return s+(a.valorVendido||0);},0)).toLocaleString(localeEnt())+' vendido'},
     {label:'Em Proposta',value:Math.round(hProp)+'h',sub:propostas.length+' alocações'},
-    {label:'Receita Alocada',value:'R$ '+Math.round(totalVendido).toLocaleString('pt-BR'),sub:'aprovado + proposta'},
-    {label:'Margem',value:'R$ '+Math.round(totalMargem).toLocaleString('pt-BR'),sub:totalCusto>0?(totalMargem/totalCusto*100).toFixed(1)+'% sobre custo':'—'},
+    {label:'Receita Alocada',value:''+moedaSimbolo()+' '+Math.round(totalVendido).toLocaleString(localeEnt()),sub:'aprovado + proposta'},
+    {label:'Margem',value:''+moedaSimbolo()+' '+Math.round(totalMargem).toLocaleString(localeEnt()),sub:totalCusto>0?(totalMargem/totalCusto*100).toFixed(1)+'% sobre custo':'—'},
   ].map(function(k){return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-value" style="font-size:18px">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
 
   var statusBadge={aprovado:'badge-green',proposta:'badge-blue',negociacao:'badge-amber',perdido:'badge-red'};
@@ -9179,7 +9509,7 @@ function alocRenderTabela(){
     var vendido=a.valorVendido||0;
     var margem=vendido-custo;
     var margemColor=vendido===0?(a.absorcao?'var(--text3)':'var(--neg)'):margem>=0?'var(--pos)':'var(--neg)';
-    var vendidoDisplay=vendido===0?(a.absorcao?('<span style="font-size:10px;color:var(--text3)">'+(absorcaoLabel[a.absorcao]||'absorção')+'</span>'):'R$ 0'):('R$ '+Math.round(vendido).toLocaleString('pt-BR'));
+    var vendidoDisplay=vendido===0?(a.absorcao?('<span style="font-size:10px;color:var(--text3)">'+(absorcaoLabel[a.absorcao]||'absorção')+'</span>'):'R$ 0'):(''+moedaSimbolo()+' '+Math.round(vendido).toLocaleString(localeEnt()));
     return '<tr>'+
       '<td><strong>'+a.colaborador+'</strong></td>'+
       '<td style="font-size:11px;color:var(--text2)">'+(pplInfo.cargo||'—')+'</td>'+
@@ -9188,10 +9518,10 @@ function alocRenderTabela(){
       '<td style="font-size:11px;color:var(--text2)">'+(a.projeto||'—')+'</td>'+
       '<td style="text-align:right;font-weight:700">'+Math.round(a.horas)+'h</td>'+
       '<td style="font-size:11px;color:var(--text3)">'+per+'</td>'+
-      '<td style="text-align:right;color:var(--neg);font-size:11px">R$ '+Math.round(custo).toLocaleString('pt-BR')+'</td>'+
+      '<td style="text-align:right;color:var(--neg);font-size:11px">'+moedaSimbolo()+' '+Math.round(custo).toLocaleString(localeEnt())+'</td>'+
       '<td style="text-align:right;font-size:11px">'+vendidoDisplay+'</td>'+
       '<td style="text-align:right;font-weight:700;color:'+margemColor+'">'+
-        (vendido===0&&a.absorcao?'—':('R$ '+Math.round(margem).toLocaleString('pt-BR')))+
+        (vendido===0&&a.absorcao?'—':(''+moedaSimbolo()+' '+Math.round(margem).toLocaleString(localeEnt())))+
       '</td>'+
       '<td><span class="badge '+(statusBadge[a.status]||'badge-gray')+'">'+(statusLabel[a.status]||a.status)+'</span></td>'+
       '<td style="display:flex;gap:4px">'+
@@ -9398,9 +9728,9 @@ function alocRenderCliente(){
       '<td style="text-align:right;color:var(--amber)">'+Math.round(r[1].proposta||0)+'h</td>'+
       '<td style="text-align:right;color:#60a5fa">'+Math.round(r[1].negociacao||0)+'h</td>'+
       '<td style="text-align:right;font-weight:700">'+Math.round(total)+'h</td>'+
-      '<td style="text-align:right;color:var(--neg)">R$ '+Math.round(custoReal).toLocaleString('pt-BR')+'</td>'+
-      '<td style="text-align:right;color:var(--pos)">R$ '+Math.round(vendidoReal).toLocaleString('pt-BR')+'</td>'+
-      '<td style="text-align:right;font-weight:700;color:'+mc+'">R$ '+Math.round(margem).toLocaleString('pt-BR')+'</td>'+
+      '<td style="text-align:right;color:var(--neg)">'+moedaSimbolo()+' '+Math.round(custoReal).toLocaleString(localeEnt())+'</td>'+
+      '<td style="text-align:right;color:var(--pos)">'+moedaSimbolo()+' '+Math.round(vendidoReal).toLocaleString(localeEnt())+'</td>'+
+      '<td style="text-align:right;font-weight:700;color:'+mc+'">'+moedaSimbolo()+' '+Math.round(margem).toLocaleString(localeEnt())+'</td>'+
     '</tr>';
   }).join('')||'<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">Sem alocações</td></tr>';
 }
@@ -9608,7 +9938,7 @@ function tiRenderAtivos(){
   document.getElementById('ti-kpis').innerHTML=[{label:'Total',value:String(d.length),sub:'ativos'},{label:'Em Uso',value:String(d.filter(function(a){return a.status==='ativo';}).length),sub:'alocados'},{label:'Patrimônio',value:fmt(total),sub:'TI'}].map(function(k){return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-value">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
   var slm={ativo:'badge-blue',disponivel:'badge-green',manutencao:'badge-amber',baixado:'badge-gray'};
   var sll={ativo:'Em uso',disponivel:'Disponível',manutencao:'Manutenção',baixado:'Baixado'};
-  document.getElementById('ti-table').innerHTML=d.map(function(a){return '<tr><td><strong>'+a.nome+'</strong></td><td>'+a.tipo+'</td><td>'+(a.resp||'—')+'</td><td style="font-size:10px;color:var(--text3)">'+(a.serie||'—')+'</td><td style="text-align:right">'+(a.valor?'R$ '+Math.round(a.valor).toLocaleString('pt-BR'):'—')+'</td><td><span class="badge '+(slm[a.status]||'badge-gray')+'">'+(sll[a.status]||a.status)+'</span></td><td><button class="btn" style="padding:2px 8px;font-size:10px" onclick="tiRemover('+a.id+')">✕</button></td></tr>';}).join('')||'<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Nenhum ativo</td></tr>';
+  document.getElementById('ti-table').innerHTML=d.map(function(a){return '<tr><td><strong>'+a.nome+'</strong></td><td>'+a.tipo+'</td><td>'+(a.resp||'—')+'</td><td style="font-size:10px;color:var(--text3)">'+(a.serie||'—')+'</td><td style="text-align:right">'+(a.valor?''+moedaSimbolo()+' '+Math.round(a.valor).toLocaleString(localeEnt()):'—')+'</td><td><span class="badge '+(slm[a.status]||'badge-gray')+'">'+(sll[a.status]||a.status)+'</span></td><td><button class="btn" style="padding:2px 8px;font-size:10px" onclick="tiRemover('+a.id+')">✕</button></td></tr>';}).join('')||'<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Nenhum ativo</td></tr>';
 }
 
 function getEstoque(){return JSON.parse(localStorage.getItem('euphoria_estoque')||'[]');}
@@ -9638,7 +9968,7 @@ function licRender(){
     var fim=l.venc?new Date(l.venc):null, dias=fim?Math.ceil((fim-hoje)/86400000):null;
     var st=!fim?'Ativa':dias<0?'Vencida':dias<=30?'Vence em breve':'Ativa';
     var cls=st==='Vencida'?'badge-red':st==='Vence em breve'?'badge-amber':'badge-green';
-    return '<tr><td><strong>'+l.nome+'</strong></td><td>'+l.tipo+'</td><td>'+(l.vagas||'—')+'</td><td style="text-align:right">'+(l.valor?'R$ '+l.valor.toLocaleString('pt-BR'):'—')+'</td><td>'+(l.venc||'—')+'</td><td><span class="badge '+cls+'">'+st+'</span></td><td><button class="btn" style="padding:2px 8px;font-size:10px" onclick="licRemover('+l.id+')">✕</button></td></tr>';
+    return '<tr><td><strong>'+l.nome+'</strong></td><td>'+l.tipo+'</td><td>'+(l.vagas||'—')+'</td><td style="text-align:right">'+(l.valor?''+moedaSimbolo()+' '+l.valor.toLocaleString(localeEnt()):'—')+'</td><td>'+(l.venc||'—')+'</td><td><span class="badge '+cls+'">'+st+'</span></td><td><button class="btn" style="padding:2px 8px;font-size:10px" onclick="licRemover('+l.id+')">✕</button></td></tr>';
   }).join('')||'<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Nenhuma licença</td></tr>';
 }
 
@@ -9877,9 +10207,9 @@ function gUpdateSen(cargoSel, id) {
   var cargo = cargoSel.value;
   var rates = (RATE_CARD[dept] || {})[cargo] || {};
   var senSel = row.querySelector('.mrow-sen');
-  senSel.innerHTML = Object.entries(rates).map(function(e){return '<option value="'+e[0]+'">'+e[0]+' — R$ '+e[1]+'/h</option>';}).join('');
+  senSel.innerHTML = Object.entries(rates).map(function(e){return '<option value="'+e[0]+'">'+e[0]+' — '+moedaSimbolo()+' '+e[1]+'/h</option>';}).join('');
   var rateEl = row.querySelector('.mrow-rate');
-  rateEl.textContent = 'R$' + (Object.values(rates)[0] || 0) + '/h';
+  rateEl.textContent = moedaSimbolo() + (Object.values(rates)[0] || 0) + '/h';
 }
 
 function gRemoverLinha(id) {
@@ -9922,7 +10252,7 @@ function exportarPropostaExcel() {
   var rows = p.equipe.map(function(m) {
     var rate = ((RATE_CARD[m.departamento]||{})[m.cargo]||{})[m.seniority] || 0;
     var sub = m.horas * rate; subtotal += sub;
-    return [m.departamento, m.cargo, m.seniority, m.horas, (m.dedicacao*100).toFixed(0)+'%', 'R$ '+rate, 'R$ '+Math.round(sub).toLocaleString('pt-BR')];
+    return [m.departamento, m.cargo, m.seniority, m.horas, (m.dedicacao*100).toFixed(0)+'%', ''+moedaSimbolo()+' '+rate, ''+moedaSimbolo()+' '+Math.round(sub).toLocaleString(localeEnt())];
   });
   var taxes = subtotal * (p.impostos||.155);
   var totalMes = subtotal + taxes;
@@ -9936,10 +10266,10 @@ function exportarPropostaExcel() {
   csv += 'Departamento,Cargo,Seniority,Horas/mês,Dedicação,Rate R$/h,Subtotal/mês\n';
   rows.forEach(function(r){ csv += r.join(',') + '\n'; });
   csv += '\n';
-  csv += 'Subtotal Equipe,R$ '+Math.round(subtotal).toLocaleString('pt-BR')+'\n';
-  csv += 'Impostos ('+((p.impostos||.155)*100).toFixed(1)+'%),R$ '+Math.round(taxes).toLocaleString('pt-BR')+'\n';
-  csv += 'Total Mensal,R$ '+Math.round(totalMes).toLocaleString('pt-BR')+'\n';
-  csv += 'Total Contrato ('+p.duracao+'x),R$ '+Math.round(totalContrato).toLocaleString('pt-BR')+'\n';
+  csv += 'Subtotal Equipe,'+moedaSimbolo()+' '+Math.round(subtotal).toLocaleString(localeEnt())+'\n';
+  csv += 'Impostos ('+((p.impostos||.155)*100).toFixed(1)+'%),'+moedaSimbolo()+' '+Math.round(taxes).toLocaleString(localeEnt())+'\n';
+  csv += 'Total Mensal,'+moedaSimbolo()+' '+Math.round(totalMes).toLocaleString(localeEnt())+'\n';
+  csv += 'Total Contrato ('+p.duracao+'x),'+moedaSimbolo()+' '+Math.round(totalContrato).toLocaleString(localeEnt())+'\n';
 
   var a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'}));
@@ -9959,7 +10289,7 @@ function exportarPropostaPDF() {
     if(!rate) rate=200;
     var sub=m.horas*rate; subtotal+=sub;
     var pct=((m.horas/160)*100).toFixed(0)+'%';
-    return '<tr><td>'+m.departamento+'</td><td>'+m.cargo+'</td><td>'+(m.seniority||'')+'</td><td align="center">'+m.horas+'h</td><td align="center">'+pct+'</td><td align="right"><strong>R$ '+Math.round(sub).toLocaleString('pt-BR')+'</strong></td></tr>';
+    return '<tr><td>'+m.departamento+'</td><td>'+m.cargo+'</td><td>'+(m.seniority||'')+'</td><td align="center">'+m.horas+'h</td><td align="center">'+pct+'</td><td align="right"><strong>'+moedaSimbolo()+' '+Math.round(sub).toLocaleString(localeEnt())+'</strong></td></tr>';
   }).join('');
   var taxes=subtotal*(p.impostos||.155), totalMes=subtotal+taxes, totalContrato=totalMes*(p.duracao||12);
   var usdMes=Math.round(totalMes/usdBrl), usdContrato=Math.round(totalContrato/usdBrl);
@@ -9991,11 +10321,11 @@ function exportarPropostaPDF() {
       '<th align="center">Horas/m&ecirc;s</th><th align="center">% Dedica&ccedil;&atilde;o</th><th align="right">Subtotal/m&ecirc;s</th>'+
     '</tr></thead><tbody>'+rowsHtml+'</tbody></table>'+
     '<div class="totals">'+
-      '<div class="tl"><span>Subtotal Equipe</span><span>R$ '+Math.round(subtotal).toLocaleString('pt-BR')+'</span></div>'+
-      '<div class="tl"><span>Impostos ('+((p.impostos||.155)*100).toFixed(1)+'%)</span><span>R$ '+Math.round(taxes).toLocaleString('pt-BR')+'</span></div>'+
-      '<div class="tl main"><span>INVESTIMENTO MENSAL</span><span>R$ '+Math.round(totalMes).toLocaleString('pt-BR')+'</span></div>'+
+      '<div class="tl"><span>Subtotal Equipe</span><span>'+moedaSimbolo()+' '+Math.round(subtotal).toLocaleString(localeEnt())+'</span></div>'+
+      '<div class="tl"><span>Impostos ('+((p.impostos||.155)*100).toFixed(1)+'%)</span><span>'+moedaSimbolo()+' '+Math.round(taxes).toLocaleString(localeEnt())+'</span></div>'+
+      '<div class="tl main"><span>INVESTIMENTO MENSAL</span><span>'+moedaSimbolo()+' '+Math.round(totalMes).toLocaleString(localeEnt())+'</span></div>'+
       '<div class="tl ref"><span>Ref. USD/m&ecirc;s</span><span>USD '+usdMes.toLocaleString('en-US')+'</span></div>'+
-      '<div class="tl main"><span>INVESTIMENTO TOTAL ('+(p.duracao||12)+'x)</span><span>R$ '+Math.round(totalContrato).toLocaleString('pt-BR')+'</span></div>'+
+      '<div class="tl main"><span>INVESTIMENTO TOTAL ('+(p.duracao||12)+'x)</span><span>'+moedaSimbolo()+' '+Math.round(totalContrato).toLocaleString(localeEnt())+'</span></div>'+
       '<div class="tl ref"><span>Ref. USD total</span><span>USD '+usdContrato.toLocaleString('en-US')+'</span></div>'+
     '</div>'+
     '<div class="footer">'+
@@ -10257,7 +10587,7 @@ function rcRenderEditor() {
             'data-key="'+key.replace(/"/g,'&quot;')+'" ' +
             'onchange="rcUpdateRate(this)" ' +
             'style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:4px;font-family:var(--font-mono);font-size:12px;outline:none;width:100px;text-align:right"></td>' +
-          '<td style="text-align:right;color:var(--text3);font-size:11px">R$ '+(rate*160).toLocaleString('pt-BR')+'/mês</td>' +
+          '<td style="text-align:right;color:var(--text3);font-size:11px">'+moedaSimbolo()+' '+(rate*160).toLocaleString(localeEnt())+'/mês</td>' +
         '</tr>';
       });
     });
@@ -10525,7 +10855,7 @@ async function loadCRVbs(){
     var topCli=Object.entries(cliMap).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
     var c1=document.getElementById('chartCRTopCli');
     if(window.chartCRTopCliInst){try{window.chartCRTopCliInst.destroy();}catch(e){}}
-    if(c1&&c1.getContext('2d'))window.chartCRTopCliInst=new Chart(c1,{type:'bar',indexAxis:'y',data:{labels:topCli.map(function(c){return c[0].substring(0,20);}),datasets:[{data:topCli.map(function(c){return c[1];}),backgroundColor:'rgba(96,165,250,0.4)',borderColor:'rgba(96,165,250,0.8)',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:true,aspectRatio:1.5,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#555',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#888',font:{size:9}},grid:{display:false}}}}});
+    if(c1&&c1.getContext('2d'))window.chartCRTopCliInst=new Chart(c1,{type:'bar',indexAxis:'y',data:{labels:topCli.map(function(c){return c[0].substring(0,20);}),datasets:[{data:topCli.map(function(c){return c[1];}),backgroundColor:'rgba(96,165,250,0.4)',borderColor:'rgba(96,165,250,0.8)',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:true,aspectRatio:1.5,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#555',font:{size:9},callback:function(v){return moedaSimbolo()+Math.round(v/1000)+'k';}},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#888',font:{size:9}},grid:{display:false}}}}});
 
     // 2. Tipo pagamento doughnut
     var c2=document.getElementById('chartCRTipo');
@@ -10535,7 +10865,7 @@ async function loadCRVbs(){
     // 3. Aging bar
     var c3=document.getElementById('chartCRaging');
     if(window.chartCRAgingInst){try{window.chartCRAgingInst.destroy();}catch(e){}}
-    if(c3&&c3.getContext('2d'))window.chartCRAgingInst=new Chart(c3,{type:'bar',data:{labels:['+60d','31-60d','1-30d','A Vencer'],datasets:[{data:[a60,a31,a1,av],backgroundColor:['rgba(248,113,113,0.7)','rgba(251,191,36,0.7)','rgba(251,191,36,0.4)','rgba(110,231,183,0.7)'],borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#888',font:{size:9}},grid:{display:false}},y:{ticks:{color:'#555',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}},grid:{color:'rgba(255,255,255,0.04)'}}}}});
+    if(c3&&c3.getContext('2d'))window.chartCRAgingInst=new Chart(c3,{type:'bar',data:{labels:['+60d','31-60d','1-30d','A Vencer'],datasets:[{data:[a60,a31,a1,av],backgroundColor:['rgba(248,113,113,0.7)','rgba(251,191,36,0.7)','rgba(251,191,36,0.4)','rgba(110,231,183,0.7)'],borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#888',font:{size:9}},grid:{display:false}},y:{ticks:{color:'#555',font:{size:9},callback:function(v){return moedaSimbolo()+Math.round(v/1000)+'k';}},grid:{color:'rgba(255,255,255,0.04)'}}}}});
 
     // Runway
     var runway=document.getElementById('cr-runway');
@@ -10620,7 +10950,7 @@ async function loadCPVbs(){
     var topForn=Object.entries(fornMap).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
     var c2=document.getElementById('chartCPFornec');
     if(window.chartCPFornecInst){try{window.chartCPFornecInst.destroy();}catch(e){}}
-    if(c2&&c2.getContext('2d'))window.chartCPFornecInst=new Chart(c2,{type:'bar',indexAxis:'y',data:{labels:topForn.map(function(f){return f[0];}),datasets:[{data:topForn.map(function(f){return f[1];}),backgroundColor:'rgba(248,113,113,0.4)',borderColor:'rgba(248,113,113,0.8)',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:true,aspectRatio:1.5,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#555',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#888',font:{size:9}},grid:{display:false}}}}});
+    if(c2&&c2.getContext('2d'))window.chartCPFornecInst=new Chart(c2,{type:'bar',indexAxis:'y',data:{labels:topForn.map(function(f){return f[0];}),datasets:[{data:topForn.map(function(f){return f[1];}),backgroundColor:'rgba(248,113,113,0.4)',borderColor:'rgba(248,113,113,0.8)',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:true,aspectRatio:1.5,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#555',font:{size:9},callback:function(v){return moedaSimbolo()+Math.round(v/1000)+'k';}},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#888',font:{size:9}},grid:{display:false}}}}});
 
   }catch(e){document.getElementById('cp-tbody-vbs').innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--neg)">'+e.message+'</td></tr>';}
 }
@@ -10662,7 +10992,7 @@ function jurFmtDataCurta(iso){
 }
 function jurFmtMoeda(v){
   var n=typeof v==='number'?v:parseNum(String(v||''));
-  return (n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  return (n||0).toLocaleString(localeEnt(),{minimumFractionDigits:2,maximumFractionDigits:2});
 }
 
 // ── MOLDES DOS CONTRATOS (texto real dos modelos da Euphoria, com placeholders) ──
@@ -10686,7 +11016,7 @@ JUR_EUPHORIA.nome+', pessoa jurídica de direito privado inscrita no CNPJ/MF sob
 'Durante a vigência deste Instrumento e sem prejuízo das demais obrigações nele previstas, a CONTRATADA se compromete e se obriga a: despender seus melhores esforços na prestação dos Serviços, utilizando-se das melhores práticas, métodos e técnicas aplicáveis, sempre visando à satisfação dos interesses da CONTRATANTE; ser responsável pela prestação de serviços, pelos serviços desenvolvidos por seus colaboradores, bem como pelas ações e/ou omissões destes; seguir rigorosamente as regras de segurança, os preceitos legais e as melhores práticas de mercado aplicáveis à execução dos Serviços; usar adequadamente todos os bens materiais e imateriais disponibilizados pela CONTRATANTE; responsabilizar-se pela manutenção e guarda das informações obtidas em razão deste Contrato; assumir inteira responsabilidade pela boa execução dos Serviços, refazendo os que forem julgados mal executados; assumir integral responsabilidade por perdas e danos causados à CONTRATANTE em razão de negligência, imprudência ou imperícia; solicitar prévia e expressa autorização da CONTRATANTE para tudo o que não estiver incluso no objeto deste Contrato; envidar esforços para preservar a imagem da CONTRATANTE; respeitar as obras intelectuais e direitos de terceiros; manter a CONTRATANTE informada sobre a execução dos Serviços; e cumprir com os prazos e cronogramas definidos no Anexo I.\n\n'+
 'Durante a vigência deste Instrumento, a CONTRATANTE se compromete e se obriga a: aceitar os Serviços executados pela CONTRATADA sempre que estiverem de acordo com as normas referidas neste Instrumento; aplicar os princípios da boa-fé e da lealdade; disponibilizar materiais e equipamentos necessários à prestação dos serviços; fornecer os documentos e informações necessários à execução dos Serviços; e pagar, pontualmente, todos os valores previstos na Cláusula 3 e correspondente Anexo I.\n\n\n'+
 'CLÁUSULA 3 – PREÇO E FORMA DE PAGAMENTO\n\n'+
-'Pela prestação dos Serviços, a CONTRATANTE pagará à CONTRATADA o valor de R$ '+honor+', descrito no Anexo I do presente instrumento, no prazo de 30 dias corridos após a emissão da nota.\n\n'+
+'Pela prestação dos Serviços, a CONTRATANTE pagará à CONTRATADA o valor de '+moedaSimbolo()+' '+honor+', descrito no Anexo I do presente instrumento, no prazo de 30 dias corridos após a emissão da nota.\n\n'+
 'Além dos valores dos serviços constantes do Anexo I, a CONTRATANTE pagará à CONTRATADA o equivalente a 10% (dez por cento) sobre o valor da produção, a título "Comissionamento de Produção".\n\n'+
 'Comissionamento de Produção é o documento emitido pela CONTRATADA e encaminhado à CONTRATANTE, contendo a discriminação dos serviços e/ou dos materiais necessários à prestação de serviços internos, serviços de terceiros, preços correspondentes e custos da CONTRATADA.\n\n'+
 'O início da prestação dos Serviços dependerá da emissão da nota de pagamento da 1ª (primeira) parcela pela CONTRATADA à CONTRATANTE, de acordo com o cronograma descrito no Anexo I.\n\n'+
@@ -10752,7 +11082,7 @@ JUR_EUPHORIA.nome+', pessoa jurídica de direito privado inscrita no CNPJ/MF sob
 'ANEXO I\n\n'+
 '1. Serviços e Escopo\n'+(d.servicos||'[Descrever escopo dos serviços]')+'\n\n'+
 '2. Preço dos Serviços, condições de faturamento e pagamento\n'+
-'Investimento: R$ '+honor+' (custos em Reais, considerando impostos).\n'+
+'Investimento: '+moedaSimbolo()+' '+honor+' (custos em Reais, considerando impostos).\n'+
 'Comissão para gestão de terceiros: 10%.\n'+
 'Condição de pagamento: 30 dias.\n'+
 'Não estão incluídos custos de produção (compra de imagem, som, vídeo etc.), custos de ferramentas e despesas de viagem, salvo acordo em contrário.\n';
@@ -10782,7 +11112,7 @@ JUR_EUPHORIA.nome+', pessoa jurídica de direito privado, inscrita no CNPJ/ME so
 'CLÁUSULA TERCEIRA – DA VIGÊNCIA\n\n'+
 'Acordam as Partes que o presente Contrato terá início em '+dataIni+' e terá prazo determinado de 2 (dois) anos, sendo renovado automaticamente por igual período, exceto se qualquer das Partes se manifestar contrariamente à renovação automática, mediante notificação encaminhada à outra Parte com no mínimo 30 (trinta) dias de antecedência do encerramento do Contrato.\n\n\n'+
 'CLÁUSULA QUARTA – DO PAGAMENTO\n\n'+
-'Em contraprestação aos SERVIÇOS ora acordados, a CONTRATADA fará jus ao recebimento de honorários mensais correspondentes a R$ '+honor+', com vencimento sempre no último dia útil do mês relativo à prestação dos serviços.\n\n'+
+'Em contraprestação aos SERVIÇOS ora acordados, a CONTRATADA fará jus ao recebimento de honorários mensais correspondentes a '+moedaSimbolo()+' '+honor+', com vencimento sempre no último dia útil do mês relativo à prestação dos serviços.\n\n'+
 'O pagamento será efetuado pela CONTRATANTE através de depósito bancário. Não efetivado o respectivo pagamento na data aprazada, sobre a quantia devida incidirá juros de mora de 1% (um por cento) ao mês ou fração, além de multa de 2% (dois por cento), corrigido monetariamente com base no IGP/FGV, pro rata die.\n\n\n'+
 'CLÁUSULA QUINTA – DAS OBRIGAÇÕES DAS PARTES\n\n'+
 'Além de outras obrigações previstas neste contrato, a CONTRATADA se obriga a: seguir os protocolos e diretrizes determinados pela legislação e pela CONTRATANTE no que se refere aos Serviços; dar ciência à CONTRATANTE, imediatamente e por escrito, de qualquer anormalidade que verificar na execução dos SERVIÇOS; responder por eventuais infrações à legislação; e contratar, remunerar, fiscalizar, dirigir, controlar e organizar o trabalho realizado por seus cotistas ou prepostos.\n\n'+
@@ -10825,7 +11155,7 @@ JUR_EUPHORIA.nome+', pessoa jurídica de direito privado, inscrita no CNPJ/ME so
 'CLÁUSULA SEGUNDA – DO PRAZO\n\n'+
 'Os serviços terão início em '+dataIni+' e prazo de execução de '+(d.prazo||'[PRAZO]')+', podendo ser prorrogado mediante acordo escrito entre as Partes.\n\n\n'+
 'CLÁUSULA TERCEIRA – DO VALOR E PAGAMENTO\n\n'+
-'Pela prestação dos serviços, a CONTRATANTE pagará ao CONTRATADO o valor de R$ '+valor+', mediante depósito bancário, contra a apresentação de recibo ou nota fiscal correspondente.\n\n\n'+
+'Pela prestação dos serviços, a CONTRATANTE pagará ao CONTRATADO o valor de '+moedaSimbolo()+' '+valor+', mediante depósito bancário, contra a apresentação de recibo ou nota fiscal correspondente.\n\n\n'+
 'CLÁUSULA QUARTA – DA AUTONOMIA E INEXISTÊNCIA DE VÍNCULO\n\n'+
 'O CONTRATADO presta os serviços objeto deste Contrato de forma autônoma e eventual, não havendo qualquer vínculo empregatício, de subordinação, habitualidade ou exclusividade com a CONTRATANTE, sendo o CONTRATADO responsável por seus próprios encargos tributários, previdenciários e trabalhistas.\n\n\n'+
 'CLÁUSULA QUINTA – DA PROPRIEDADE INTELECTUAL\n\n'+
@@ -10861,7 +11191,7 @@ JUR_EUPHORIA.nome+', empresa registrada no Brasil sob o CNPJ '+JUR_EUPHORIA.cnpj
 'Por este Distrato, as Partes dão por extintas quaisquer tratativas, acordos, propostas ou negócios anteriormente firmados referentes ao objeto do Contrato de Prestação de Serviços, o qual é extinto de pleno direito neste ato.\n\n'+
 'As Partes expressamente aceitam e reconhecem, neste ato, que a partir desta data não haverá quaisquer obrigações resultantes do Contrato de Prestação de Serviços, a qualquer título, que possam ser reclamadas por uma Parte à outra.\n\n'+
 'O presente distrato é celebrado em caráter irrevogável e irretratável, renunciando as Partes, expressamente, à faculdade do arrependimento.\n\n\n'+
-'EUPHORIA declara o pagamento de R$ '+valor+' em caráter de rescisão de contrato'+(d.banco?', na conta indicada pelo PRESTADOR ('+d.banco+')':', na conta bancária indicada pelo PRESTADOR')+'.\n\n'+
+'EUPHORIA declara o pagamento de '+moedaSimbolo()+' '+valor+' em caráter de rescisão de contrato'+(d.banco?', na conta indicada pelo PRESTADOR ('+d.banco+')':', na conta bancária indicada pelo PRESTADOR')+'.\n\n'+
 'Qualquer aviso ou notificação relativa ao presente distrato será dado às Partes contratantes mediante entrega pessoal, contra recibo, ou por via postal através de carta registrada nos endereços constantes do preâmbulo deste Distrato.\n\n'+
 'As Partes reciprocamente, declaram e garantem, que: (i) tem plenos poderes e competência para firmar o presente distrato, cumprir as suas obrigações e consumar as transações aqui previstas (ii) o presente distrato constitui documento legal e válido e oponível entre as Partes.\n\n'+
 'As Partes concordam que os termos e condições do Contrato de Prestação de Serviços e do presente distrato deverão permanecer confidenciais. Assim, nenhuma das Partes deverá divulgar a terceiros as disposições do Contrato de Prestação de Serviços e do presente distrato, ou quaisquer detalhes relacionados às operações avençadas em tais instrumentos, sem autorização prévia e por escrito da outra Parte, exceto se exigidos por lei ou autoridade competente. Tais informações poderão ser divulgadas aos advogados das Partes, contadores ou outros profissionais no curso normal dos negócios, desde que tais profissionais sejam informados sobre a natureza confidencial das informações advindas do Contrato de Prestação de Serviços.\n\n'+
@@ -10888,8 +11218,8 @@ function jurTemplateCarta(d){
 'Depois do processo de entrevistas realizado pela equipe da Euphoria Creative, gostaríamos de formalizar uma proposta de trabalho para atuar no nosso time a partir do dia '+dataInicio+'. Esta posição tem um grande valor estratégico para a empresa, clientes e a todas as metas que queremos atingir no futuro. Para isso, nossa proposta está baseada no seguinte pacote:\n\n'+
 'Regime de Contratação: Prestador de Serviços (PJ).\n'+
 'Cargo: '+(d.cargo||'[CARGO]')+'.\n'+
-'Salário Base: R$ '+salario+' + 13º e 1/3 de férias.\n'+
-'Flash Benefício: R$ '+jurFmtMoeda(d.flash||0)+' mensais referentes a vale-refeição/vale-transporte, disponibilizados na modalidade "cartão de crédito".\n'+
+'Salário Base: '+moedaSimbolo()+' '+salario+' + 13º e 1/3 de férias.\n'+
+'Flash Benefício: '+moedaSimbolo()+' '+jurFmtMoeda(d.flash||0)+' mensais referentes a vale-refeição/vale-transporte, disponibilizados na modalidade "cartão de crédito".\n'+
 'Benefício Wellhub (Gympass): A Euphoria cobre a mensalidade para o acesso à plataforma Gympass, conforme o plano escolhido pelo colaborador.\n'+
 'Plano de saúde: '+(d.plano||'Care Plus Soho 30')+', sem descontos, 100% pago pela empresa (sem dependentes). Qualquer dependente incluído no plano é pago 100% pelo colaborador.\n'+
 'Pacote contabilidade: 100% pago pela agência para emissão de notas fiscais (inclui abertura de empresa e honorários de contabilidade; não inclui alteração de endereço, fechamento de empresa ou alteração de dados cadastrais).\n'+
@@ -10933,7 +11263,7 @@ function jurTemplateNDA(d){
   var rep=d.rep||'[REPRESENTANTE]';
   // jurFmtMoeda devolve so o numero (os outros modelos ja escrevem "R$" antes),
   // entao aqui o prefixo entra explicito.
-  var multa=d.multa ? ('R$ '+jurFmtMoeda(d.multa)) : 'R$ 30.000,00';
+  var multa=d.multa ? (''+moedaSimbolo()+' '+jurFmtMoeda(d.multa)) : 'R$ 30.000,00';
   var multaExt=d.multaExtenso||'trinta mil reais';
   return 'TERMO DE CONFIDENCIALIDADE\n\n\n'+
 'O presente instrumento é celebrado entre:\n\n'+
@@ -11122,7 +11452,7 @@ function dreSetView(view){
   }
 }
 
-function dreSign(v){return v>=0?'R$ '+Math.round(v).toLocaleString('pt-BR'):'(R$ '+Math.round(Math.abs(v)).toLocaleString('pt-BR')+')';}
+function dreSign(v){return v>=0?''+moedaSimbolo()+' '+Math.round(v).toLocaleString(localeEnt()):'('+moedaSimbolo()+' '+Math.round(Math.abs(v)).toLocaleString(localeEnt())+')';}
 function drePct(v,base){return base?(v/Math.abs(base)*100).toFixed(1)+'%':'—';}
 
 function dreGetData(){
@@ -11295,14 +11625,14 @@ function buildCashflowVbs_OLD_UNUSED(){
     window.chartCFVbsInst=new Chart(c1,{type:'bar',data:{labels:meses,datasets:[
       {label:'Entradas (CR)',data:meses.map(function(m){return byMonth[m].rec;}),backgroundColor:'rgba(110,231,183,0.5)',borderRadius:3},
       {label:'Saídas (CP)',data:meses.map(function(m){return -byMonth[m].pag;}),backgroundColor:'rgba(248,113,113,0.5)',borderRadius:3}
-    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#888',font:{size:10}}}},scales:{x:{grid:{display:false},ticks:{color:'#666',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#666',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}}}}}});
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#888',font:{size:10}}}},scales:{x:{grid:{display:false},ticks:{color:'#666',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#666',font:{size:9},callback:function(v){return moedaSimbolo()+Math.round(v/1000)+'k';}}}}}});
   }
 
   // Chart saldo acumulado
   var c2=document.getElementById('chartCFSaldo');
   if(c2&&c2.getContext('2d')){
     if(window.chartCFSaldoInst){try{window.chartCFSaldoInst.destroy();}catch(e){}}
-    window.chartCFSaldoInst=new Chart(c2,{type:'line',data:{labels:meses,datasets:[{label:'Saldo',data:saldos,borderColor:'rgba(96,165,250,0.8)',backgroundColor:'rgba(96,165,250,0.1)',fill:true,tension:0.3,pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#666',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#666',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}}}}}});
+    window.chartCFSaldoInst=new Chart(c2,{type:'line',data:{labels:meses,datasets:[{label:'Saldo',data:saldos,borderColor:'rgba(96,165,250,0.8)',backgroundColor:'rgba(96,165,250,0.1)',fill:true,tension:0.3,pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#666',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#666',font:{size:9},callback:function(v){return moedaSimbolo()+Math.round(v/1000)+'k';}}}}}});
   }
 
   // Tables top 20
@@ -11412,7 +11742,7 @@ function filterCRTableAndCharts(){
   var c1=document.getElementById('chartCRTopCli');
   if(c1&&c1.getContext('2d')){
     if(window.chartCRTopCliInst){try{window.chartCRTopCliInst.destroy();}catch(e){}}
-    window.chartCRTopCliInst=new Chart(c1,{type:'bar',data:{labels:topCli.map(function(c){return c[0].substring(0,20);}),datasets:[{data:topCli.map(function(c){return c[1];}),backgroundColor:'rgba(96,165,250,0.4)',borderColor:'rgba(96,165,250,0.8)',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#888',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#888',font:{size:9}},grid:{display:false}}}}});
+    window.chartCRTopCliInst=new Chart(c1,{type:'bar',data:{labels:topCli.map(function(c){return c[0].substring(0,20);}),datasets:[{data:topCli.map(function(c){return c[1];}),backgroundColor:'rgba(96,165,250,0.4)',borderColor:'rgba(96,165,250,0.8)',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#888',font:{size:9},callback:function(v){return moedaSimbolo()+Math.round(v/1000)+'k';}},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#888',font:{size:9}},grid:{display:false}}}}});
   }
   var c2=document.getElementById('chartCRTipo');
   if(c2&&c2.getContext('2d')){
@@ -11422,7 +11752,7 @@ function filterCRTableAndCharts(){
   var c3=document.getElementById('chartCRaging');
   if(c3&&c3.getContext('2d')){
     if(window.chartCRAgingInst){try{window.chartCRAgingInst.destroy();}catch(e){}}
-    window.chartCRAgingInst=new Chart(c3,{type:'bar',data:{labels:['+60d','31-60d','1-30d','A Vencer'],datasets:[{data:[a60,a31,a1,av],backgroundColor:['rgba(248,113,113,0.7)','rgba(251,191,36,0.7)','rgba(251,191,36,0.4)','rgba(110,231,183,0.7)'],borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#888',font:{size:9}},grid:{display:false}},y:{ticks:{color:'#555',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}},grid:{color:'rgba(255,255,255,0.04)'}}}}});
+    window.chartCRAgingInst=new Chart(c3,{type:'bar',data:{labels:['+60d','31-60d','1-30d','A Vencer'],datasets:[{data:[a60,a31,a1,av],backgroundColor:['rgba(248,113,113,0.7)','rgba(251,191,36,0.7)','rgba(251,191,36,0.4)','rgba(110,231,183,0.7)'],borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#888',font:{size:9}},grid:{display:false}},y:{ticks:{color:'#555',font:{size:9},callback:function(v){return moedaSimbolo()+Math.round(v/1000)+'k';}},grid:{color:'rgba(255,255,255,0.04)'}}}}});
   }
   // Runway
   var runway=document.getElementById('cr-runway');
@@ -11475,7 +11805,7 @@ function filterCPTableAndCharts(){
   var c2=document.getElementById('chartCPFornec');
   if(c2&&c2.getContext('2d')){
     if(window.chartCPFornecInst){try{window.chartCPFornecInst.destroy();}catch(e){}}
-    window.chartCPFornecInst=new Chart(c2,{type:'bar',data:{labels:topForn.map(function(f){return f[0];}),datasets:[{data:topForn.map(function(f){return f[1];}),backgroundColor:'rgba(248,113,113,0.4)',borderColor:'rgba(248,113,113,0.8)',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#555',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#888',font:{size:9}},grid:{display:false}}}}});
+    window.chartCPFornecInst=new Chart(c2,{type:'bar',data:{labels:topForn.map(function(f){return f[0];}),datasets:[{data:topForn.map(function(f){return f[1];}),backgroundColor:'rgba(248,113,113,0.4)',borderColor:'rgba(248,113,113,0.8)',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#555',font:{size:9},callback:function(v){return moedaSimbolo()+Math.round(v/1000)+'k';}},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#888',font:{size:9}},grid:{display:false}}}}});
   }
   document.getElementById('cp-meta-vbs').textContent=filtered.length+' registros';
 }
@@ -11525,12 +11855,12 @@ function cfBuildMensal(crRows, cpRows){
   var c1=document.getElementById('chartCFVbs');
   if(c1&&c1.getContext('2d')){
     if(window.chartCFVbsInst){try{window.chartCFVbsInst.destroy();}catch(e){}}
-    window.chartCFVbsInst=new Chart(c1,{type:'bar',data:{labels:meses,datasets:[{label:'Entradas (CR)',data:meses.map(function(m){return byMonth[m].rec;}),backgroundColor:'rgba(110,231,183,0.5)',borderRadius:3},{label:'Saídas (CP)',data:meses.map(function(m){return -byMonth[m].pag;}),backgroundColor:'rgba(248,113,113,0.5)',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#888',font:{size:10}}}},scales:{x:{grid:{display:false},ticks:{color:'#666',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#666',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}}}}}});
+    window.chartCFVbsInst=new Chart(c1,{type:'bar',data:{labels:meses,datasets:[{label:'Entradas (CR)',data:meses.map(function(m){return byMonth[m].rec;}),backgroundColor:'rgba(110,231,183,0.5)',borderRadius:3},{label:'Saídas (CP)',data:meses.map(function(m){return -byMonth[m].pag;}),backgroundColor:'rgba(248,113,113,0.5)',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#888',font:{size:10}}}},scales:{x:{grid:{display:false},ticks:{color:'#666',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#666',font:{size:9},callback:function(v){return moedaSimbolo()+Math.round(v/1000)+'k';}}}}}});
   }
   var c2=document.getElementById('chartCFSaldo');
   if(c2&&c2.getContext('2d')){
     if(window.chartCFSaldoInst){try{window.chartCFSaldoInst.destroy();}catch(e){}}
-    window.chartCFSaldoInst=new Chart(c2,{type:'line',data:{labels:meses,datasets:[{label:'Saldo',data:saldos,borderColor:'rgba(96,165,250,0.8)',backgroundColor:'rgba(96,165,250,0.1)',fill:true,tension:0.3,pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#666',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#666',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}}}}}});
+    window.chartCFSaldoInst=new Chart(c2,{type:'line',data:{labels:meses,datasets:[{label:'Saldo',data:saldos,borderColor:'rgba(96,165,250,0.8)',backgroundColor:'rgba(96,165,250,0.1)',fill:true,tension:0.3,pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#666',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#666',font:{size:9},callback:function(v){return moedaSimbolo()+Math.round(v/1000)+'k';}}}}}});
   }
   // Tables
   var crSorted=crRows.slice().sort(function(a,b){return parseFloat(b.Valor_Aberto_CR||0)-parseFloat(a.Valor_Aberto_CR||0);}).slice(0,20);
@@ -11561,7 +11891,7 @@ function cfBuildQuarter(crRows, cpRows){
   var c=document.getElementById('chartCFVbs');
   if(c&&c.getContext('2d')){
     if(window.chartCFVbsInst){try{window.chartCFVbsInst.destroy();}catch(e){}}
-    window.chartCFVbsInst=new Chart(c,{type:'bar',data:{labels:qs,datasets:[{label:'Entradas (CR)',data:qs.map(function(q){return quarters[q].rec;}),backgroundColor:'rgba(110,231,183,0.6)',borderRadius:4},{label:'Saídas (CP)',data:qs.map(function(q){return -quarters[q].pag;}),backgroundColor:'rgba(248,113,113,0.6)',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#888',font:{size:10}}}},scales:{x:{grid:{display:false},ticks:{color:'#888',font:{size:11}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#666',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}}}}}});
+    window.chartCFVbsInst=new Chart(c,{type:'bar',data:{labels:qs,datasets:[{label:'Entradas (CR)',data:qs.map(function(q){return quarters[q].rec;}),backgroundColor:'rgba(110,231,183,0.6)',borderRadius:4},{label:'Saídas (CP)',data:qs.map(function(q){return -quarters[q].pag;}),backgroundColor:'rgba(248,113,113,0.6)',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#888',font:{size:10}}}},scales:{x:{grid:{display:false},ticks:{color:'#888',font:{size:11}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#666',font:{size:9},callback:function(v){return moedaSimbolo()+Math.round(v/1000)+'k';}}}}}});
   }
 }
 
@@ -11637,7 +11967,7 @@ async function cfProjetar(){
     return {label:mo.label,rec:rec,pipe:pipe,pag:pag,custo:custo,saldoMes:saldoMes,saldoAcum:saldoAcum};
   });
 
-  var fmt=function(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR');};
+  var fmt=function(v){return ''+moedaSimbolo()+' '+Math.round(v).toLocaleString(localeEnt());};
   var saldoFinal=rows.length?rows[rows.length-1].saldoAcum:saldoInicial;
   var mediaSaidaMes=rows.reduce(function(s,r){return s+r.pag+r.custo;},0)/Math.max(1,rows.length);
   var runway=mediaSaidaMes>0?(saldoInicial/mediaSaidaMes).toFixed(1)+' meses':'—';
@@ -11663,7 +11993,7 @@ async function cfProjetar(){
         {type:'bar',label:'Custo Equipe',data:rows.map(function(r){return -r.custo;}),backgroundColor:'rgba(251,191,36,0.5)',stack:'fluxo',borderRadius:2},
         {type:'line',label:'Saldo Acumulado',data:rows.map(function(r){return r.saldoAcum;}),borderColor:'#fff',backgroundColor:'transparent',tension:0.3,pointRadius:3}
       ]
-    },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#888',font:{size:10}}}},scales:{x:{stacked:true,grid:{display:false},ticks:{color:'#666',font:{size:10}}},y:{stacked:true,grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#666',font:{size:9},callback:function(v){return 'R$'+Math.round(v/1000)+'k';}}}}}});
+    },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#888',font:{size:10}}}},scales:{x:{stacked:true,grid:{display:false},ticks:{color:'#666',font:{size:10}}},y:{stacked:true,grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#666',font:{size:9},callback:function(v){return moedaSimbolo()+Math.round(v/1000)+'k';}}}}}});
   }
 
   var tbody=document.getElementById('cfp-tbody');
@@ -11773,7 +12103,7 @@ function cfProjetarDiario(){
     rows.push({data:k,dataFmt:dataFmt,diaSemana:diasSemana[d.getDay()],rec:rec,pag:pag,folha:folha,saldoDia:saldoDia,saldoAcum:saldoAcum});
   }
 
-  var fmt=function(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR');};
+  var fmt=function(v){return ''+moedaSimbolo()+' '+Math.round(v).toLocaleString(localeEnt());};
   var piorDia=rows.reduce(function(min,r){return r.saldoAcum<min.saldoAcum?r:min;},rows[0]);
   var diasNegativos=rows.filter(function(r){return r.saldoAcum<0;}).length;
   var saldoFinal=rows.length?rows[rows.length-1].saldoAcum:saldoInicial;
@@ -11933,11 +12263,11 @@ function cmpPopularSelects(){
 
 // Mostra o simbolo da moeda da propria entidade - exibir valor do Mexico como
 // "R$" num painel financeiro induz a erro de leitura.
-function cmpMoeda(entidade){ return entidade === 'MX' ? 'MX$' : 'R$'; }
+function cmpMoeda(entidade){ return (ENTIDADE_CONFIG[entidade]||ENTIDADE_CONFIG.BR).simbolo; }
 function cmpFmt(v, entidade){
   if (v === null || v === undefined) return '—';
   var neg = v < 0;
-  var s = cmpMoeda(entidade)+' '+Math.abs(Math.round(v)).toLocaleString('pt-BR');
+  var s = cmpMoeda(entidade)+' '+Math.abs(Math.round(v)).toLocaleString(localeEnt());
   return neg ? '('+s+')' : s;
 }
 
@@ -12049,7 +12379,7 @@ function cmpRenderChart(A, B, deIdx, ateIdx){
     options:{ responsive:true, maintainAspectRatio:false,
       plugins:{ legend:{ labels:{ color:'#888', font:{size:10} } } },
       scales:{ x:{ grid:{display:false}, ticks:{color:'#666', font:{size:10}} },
-        y:{ grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#666', font:{size:9}, callback:function(v){ return 'R$'+Math.round(v/1000)+'k'; }} } }
+        y:{ grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#666', font:{size:9}, callback:function(v){ return moedaSimbolo()+Math.round(v/1000)+'k'; }} } }
     }
   });
 }
@@ -12141,7 +12471,7 @@ function anOrdenar(o,e){
   anRender();
 }
 
-function anFmt(v){ return 'R$ '+Math.round(v).toLocaleString('pt-BR'); }
+function anFmt(v){ return ''+moedaSimbolo()+' '+Math.round(v).toLocaleString(localeEnt()); }
 
 function anPopularClientes(){
   var sel=document.getElementById('an-f-cliente'); if(!sel) return;
@@ -12439,7 +12769,7 @@ function anImprimir(){
     '.footer{border-top:1px solid #eee;margin-top:16px;padding-top:8px;font-size:8px;color:#999;line-height:1.5}'+
     '@media print{.np{display:none}@page{size:landscape}}';
   var body='<img src="'+LOGO+'" class="logo"><h1>Análise de Mídia</h1>'+
-    '<div class="sub">'+document.getElementById('an-status').textContent+' · Gerado em '+new Date().toLocaleString('pt-BR')+'</div>'+
+    '<div class="sub">'+document.getElementById('an-status').textContent+' · Gerado em '+new Date().toLocaleString(localeEnt())+'</div>'+
     '<div class="box">'+document.getElementById('an-ritmo').innerText.replace(/\n/g,'<br>')+'</div>'+
     sec('Onde está furando o plano','an-desvio-tbody',['Cliente','Categoria','Planejado','Faturado','Desvio','Execução','Leitura'])+
     sec('Campanhas paradas','an-paradas-tbody',['Cliente','Campanha','Veículo','Categoria','Último mês','Valor parado','Meses'])+
@@ -12455,8 +12785,8 @@ function anImprimir(){
 }
 
 function bvNum(v){ var n = parseFloat(v); return isNaN(n) ? 0 : n; }
-function bvFmt(v){ return 'R$ '+Math.round(bvNum(v)).toLocaleString('pt-BR'); }
-function bvPct(v){ return bvNum(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:2})+'%'; }
+function bvFmt(v){ return ''+moedaSimbolo()+' '+Math.round(bvNum(v)).toLocaleString(localeEnt()); }
+function bvPct(v){ return bvNum(v).toLocaleString(localeEnt(),{minimumFractionDigits:0,maximumFractionDigits:2})+'%'; }
 
 async function bvCarregar(){
   var status = document.getElementById('bv-status');
@@ -12966,7 +13296,7 @@ function midiaJuntarFontes(budgetMap, realMap){
   }).sort(function(a,b){ return (b.planejado||b.faturado)-(a.planejado||a.faturado); });
 }
 
-function midiaFmtBRL(v){ return 'R$ '+Math.round(v).toLocaleString('pt-BR'); }
+function midiaFmtBRL(v){ return ''+moedaSimbolo()+' '+Math.round(v).toLocaleString(localeEnt()); }
 
 function midiaRenderTabela(tbodyId, metaId, rows, label){
   var metaEl = document.getElementById(metaId);
@@ -13013,7 +13343,7 @@ function midiaRenderChartMensal(mesDeIdx, mesAteIdx){
       plugins:{ legend:{ labels:{ color:'#888', font:{size:10} } } },
       scales:{
         x:{ grid:{display:false}, ticks:{ color:'#666', font:{size:10} } },
-        y:{ grid:{color:'rgba(255,255,255,0.04)'}, ticks:{ color:'#666', font:{size:9}, callback:function(v){ return 'R$'+Math.round(v/1000)+'k'; } } }
+        y:{ grid:{color:'rgba(255,255,255,0.04)'}, ticks:{ color:'#666', font:{size:9}, callback:function(v){ return moedaSimbolo()+Math.round(v/1000)+'k'; } } }
       }
     }
   });
@@ -13098,7 +13428,7 @@ function midiaRelatorio(){
     '@media print{.np{display:none}}';
   var body='<img src="'+LOGO+'" class="logo">'+
     '<h1>Conciliação de Mídia — '+periodo+'</h1>'+
-    '<div class="sub">Fonte: VBS · FT/FTPRIC/FT0001 (Investimento por Cliente) · Gerado em '+new Date().toLocaleString('pt-BR')+'</div>'+
+    '<div class="sub">Fonte: VBS · FT/FTPRIC/FT0001 (Investimento por Cliente) · Gerado em '+new Date().toLocaleString(localeEnt())+'</div>'+
     '<div class="box">'+
       '<div class="l"><span>Mídia faturada</span><strong>'+midiaFmtBRL(midiaTotal)+' &nbsp;('+pct(midiaTotal)+')</strong></div>'+
       '<div class="l warn"><span>Produção (não faz parte do Budget de mídia)</span><strong>'+midiaFmtBRL(prodTotal)+' &nbsp;('+pct(prodTotal)+')</strong></div>'+
@@ -13744,7 +14074,7 @@ function recAgregarPorMes(d){
 function recRenderMensal(){
   var d=recFiltrar();
   var agg=recAgregarPorMes(d), mesMap=agg.mesMap, keys=agg.keys;
-  var fmtK=function(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR');};
+  var fmtK=function(v){return ''+moedaSimbolo()+' '+Math.round(v).toLocaleString(localeEnt());};
   var prevRL=null;
   var totRow={bruto:0,fee:0,repProd:0,repMidia:0,comProd:0,comMidia:0,ci:0,rl:0};
   var rowsHtml=keys.map(function(k){
@@ -13785,7 +14115,7 @@ function recImprimirMensal(){
   var d=recFiltrar();
   if(!d.length){alert('Sem dados para imprimir! Carregue o VBS primeiro.');return;}
   var agg=recAgregarPorMes(d), mesMap=agg.mesMap, keys=agg.keys;
-  var fmtK=function(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR');};
+  var fmtK=function(v){return ''+moedaSimbolo()+' '+Math.round(v).toLocaleString(localeEnt());};
   var totBruto=keys.reduce(function(s,k){return s+mesMap[k].bruto;},0);
   var totRL=keys.reduce(function(s,k){return s+mesMap[k].rl;},0);
 
@@ -13868,7 +14198,7 @@ function gerarFinancialHighlights(){
 
   var saldoAtual=parseFloat((document.getElementById('cf-saldo-inicial')||{}).value)||0;
 
-  var fmtR=function(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR');};
+  var fmtR=function(v){return ''+moedaSimbolo()+' '+Math.round(v).toLocaleString(localeEnt());};
 
   var meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   var maxRev=Math.max.apply(null, revM.concat([1]));
@@ -14009,7 +14339,7 @@ function calcularAlertasRisco(crAll, cpAll, saldoInicial){
   return alertas;
 }
 
-function fmtBRL(v){ return 'R$ '+Math.round(v).toLocaleString('pt-BR'); }
+function fmtBRL(v){ return moedaFmt(v); }
 
 function renderAlertasRisco(crAll, cpAll, saldoInicial){
   var el=document.getElementById('painel-alertas');
@@ -14072,7 +14402,7 @@ function imprimirAbaAtual(){
     '@media print{.np{display:none}}';
 
   var body='<div class="hdr"><img src="'+LOGO+'"><div><h1>'+titulo+'</h1><div class="sub">'+sub+'</div></div></div>'+
-    '<div class="meta">Gerado em '+new Date().toLocaleString('pt-BR')+' — Euphoria Creative Agency, documento interno</div>'+
+    '<div class="meta">Gerado em '+new Date().toLocaleString(localeEnt())+' — Euphoria Creative Agency, documento interno</div>'+
     clone.outerHTML+
     '<div style="text-align:center;padding:24px"><button class="np" onclick="window.print()" style="background:#111;color:#fff;border:none;padding:12px 28px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:700">🖨 Imprimir / Salvar PDF</button></div>';
 
@@ -14092,7 +14422,7 @@ function renderPainelDiario(){
 
   var saldoInicial=parseFloat((document.getElementById('cf-saldo-inicial')||{}).value)||0;
   var crAll=window._crRows||[], cpAll=window._cpRows||[];
-  var fmt=function(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR');};
+  var fmt=function(v){return ''+moedaSimbolo()+' '+Math.round(v).toLocaleString(localeEnt());};
 
   renderAlertasRisco(crAll, cpAll, saldoInicial);
 
@@ -14185,11 +14515,11 @@ function recRenderizar(){
   var totBruto=d.reduce(function(s,r){return s+parseFloat(r.Valor_faturamento_total||0);},0);
 
   document.getElementById('rec-kpis').innerHTML=[
-    {label:'Receita Líquida',value:'R$ '+Math.round(totRL).toLocaleString('pt-BR'),sub:'total do período'},
-    {label:'Fee',value:'R$ '+Math.round(totFee).toLocaleString('pt-BR'),sub:(totRL>0?(totFee/totRL*100).toFixed(1):0)+'% da RL'},
-    {label:'Com. Produção',value:'R$ '+Math.round(totComProd).toLocaleString('pt-BR'),sub:(totRL>0?(totComProd/totRL*100).toFixed(1):0)+'% da RL'},
-    {label:'Com. Mídia',value:'R$ '+Math.round(totComMidia).toLocaleString('pt-BR'),sub:'comissão + BV'},
-    {label:'Faturamento Bruto',value:'R$ '+Math.round(totBruto).toLocaleString('pt-BR'),sub:'gross billing'},
+    {label:'Receita Líquida',value:''+moedaSimbolo()+' '+Math.round(totRL).toLocaleString(localeEnt()),sub:'total do período'},
+    {label:'Fee',value:''+moedaSimbolo()+' '+Math.round(totFee).toLocaleString(localeEnt()),sub:(totRL>0?(totFee/totRL*100).toFixed(1):0)+'% da RL'},
+    {label:'Com. Produção',value:''+moedaSimbolo()+' '+Math.round(totComProd).toLocaleString(localeEnt()),sub:(totRL>0?(totComProd/totRL*100).toFixed(1):0)+'% da RL'},
+    {label:'Com. Mídia',value:''+moedaSimbolo()+' '+Math.round(totComMidia).toLocaleString(localeEnt()),sub:'comissão + BV'},
+    {label:'Faturamento Bruto',value:''+moedaSimbolo()+' '+Math.round(totBruto).toLocaleString(localeEnt()),sub:'gross billing'},
   ].map(function(k){return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-value" style="font-size:15px">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
 
   // Chart por tipo
@@ -14215,7 +14545,7 @@ function recRenderizar(){
   if(topCli.length)_recCharts.cli=new Chart(c2,{type:'bar',data:{
     labels:topCli.map(function(c){return c[0].split(' ')[0];}),
     datasets:[{label:'Receita Líquida',data:topCli.map(function(c){return Math.round(c[1]);}),backgroundColor:'rgba(255,255,255,0.2)',borderRadius:3}]
-  },options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',callback:function(v){return 'R$'+Math.round(v/1000)+'k';}}},y:{grid:{display:false},ticks:{color:'#888',font:{size:9}}}}}});
+  },options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',callback:function(v){return moedaSimbolo()+Math.round(v/1000)+'k';}}},y:{grid:{display:false},ticks:{color:'#888',font:{size:9}}}}}});
 
   // Chart mensal por tipo
   var mesMap={};
@@ -14240,7 +14570,7 @@ function recRenderizar(){
       {label:'Com. Mídia',data:mesKeys.map(function(m){return Math.round((mesMap[m]||{midia:0}).midia);}),backgroundColor:'rgba(167,139,250,0.6)',borderRadius:2},
       {label:'CI',data:mesKeys.map(function(m){return Math.round((mesMap[m]||{ci:0}).ci);}),backgroundColor:'rgba(52,211,153,0.5)',borderRadius:2},
     ]
-  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#888',font:{size:10}}}},scales:{x:{stacked:true,grid:{display:false},ticks:{color:'#666',font:{size:10}}},y:{stacked:true,grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',callback:function(v){return 'R$'+Math.round(v/1000)+'k';}}}}}});
+  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#888',font:{size:10}}}},scales:{x:{stacked:true,grid:{display:false},ticks:{color:'#666',font:{size:10}}},y:{stacked:true,grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',callback:function(v){return moedaSimbolo()+Math.round(v/1000)+'k';}}}}}});
 
   // Tabela detalhada — agrupa por cliente + mês + tipo
   var tblMap={};
@@ -14263,7 +14593,7 @@ function recRenderizar(){
   });
 
   var tblRows=Object.values(tblMap).sort(function(a,b){return b.rl-a.rl;});
-  var fmtK=function(v){return v===0?'—':'R$ '+Math.round(v).toLocaleString('pt-BR');};
+  var fmtK=function(v){return v===0?'—':''+moedaSimbolo()+' '+Math.round(v).toLocaleString(localeEnt());};
   document.getElementById('rec-table').innerHTML=tblRows.map(function(r){
     return '<tr>'+
       '<td><strong>'+r.cli+'</strong></td>'+
@@ -14276,7 +14606,7 @@ function recRenderizar(){
       '<td style="text-align:right;font-size:11px;color:#60a5fa">'+fmtK(r.comProd)+'</td>'+
       '<td style="text-align:right;font-size:11px;color:#a78bfa">'+fmtK(r.comMidia)+'</td>'+
       '<td style="text-align:right;font-size:11px;color:#34d399">'+fmtK(r.ci)+'</td>'+
-      '<td style="text-align:right;font-weight:700;color:var(--pos)">R$ '+Math.round(r.rl).toLocaleString('pt-BR')+'</td>'+
+      '<td style="text-align:right;font-weight:700;color:var(--pos)">'+moedaSimbolo()+' '+Math.round(r.rl).toLocaleString(localeEnt())+'</td>'+
     '</tr>';
   }).join('')||'<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text3)">Clique em "↺ Carregar VBS" para buscar os dados</td></tr>';
 }
@@ -14605,7 +14935,7 @@ async function carregarActualVbs(){
 
     var total = Object.values(vbsMap).reduce(function(s,v){return s+v;},0);
     if(btn){
-      btn.textContent='✅ Actual VBS: R$ '+Math.round(total).toLocaleString('pt-BR');
+      btn.textContent='✅ Actual VBS: '+moedaSimbolo()+' '+Math.round(total).toLocaleString(localeEnt());
       btn.disabled=false;
       btn.style.color='var(--pos)';
     }
@@ -14625,7 +14955,7 @@ var _crmTipos = {fee:'Fee Mensal',projeto:'Projeto',midia:'Midia',misto:'Misto'}
 // conversao real.
 var _crmStatus = {prospect:'Prospect',proposta:'Proposta Enviada',negociacao:'Negociacao',ganho:'Ganho',perdido:'Perdido',desistimos:'Desistimos'};
 
-function crmFmt(v){ return 'R$ '+Math.round(v||0).toLocaleString('pt-BR'); }
+function crmFmt(v){ return moedaFmt(v); }
 
 // ── CRM localStorage fallback ────────────────────────────────────────────────
 function crmLocalLoad(){
@@ -15819,7 +16149,7 @@ crmCarregar = async function(){
 };
 
 // ── CRM CALCULADORA ──────────────────────────────────────────────────────────
-function crmFmtValorLinha(v){ return 'R$ ' + Math.round(v).toLocaleString('pt-BR'); }
+function crmFmtValorLinha(v){ return moedaFmt(v); }
 
 // Preenche os selects de ano do periodo. O contrato pode atravessar o ano
 // (ex.: agosto/2026 a julho/2027), entao ano de inicio e de fim sao separados.
