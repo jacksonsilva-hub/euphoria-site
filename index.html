@@ -1711,6 +1711,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
         <button class="btn btn-primary" onclick="pplAbrirModal()">+ Novo Colaborador</button>
         <button class="btn" onclick="pplImportarVBS()" class="btn-vbs" style="font-size:11px">⬇️ Importar do VBS</button>
+        <button class="btn" onclick="document.getElementById('mx-file').click()" style="font-size:11px" title="Importa Pipeline, Pessoas e FTEs da planilha do México">🇲🇽 Importar planilha MX</button>
+        <input type="file" id="mx-file" accept=".xlsx,.xls" style="display:none" onchange="mxImportar(this)">
         <button class="btn" onclick="pplExportExcel()" style="font-size:11px">📊 Exportar Excel</button>
         <span style="display:inline-flex;gap:4px;align-items:center;border-left:1px solid var(--border);padding-left:8px;margin-left:2px">
           <select id="folha-mes" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:11px;outline:none;cursor:pointer">
@@ -4838,6 +4840,216 @@ var PERMISSIONS = {
 };
 var currentUser = null;
 
+// Troca a entidade ativa. Recarrega para que todos os modulos releiam do
+// comeco: eles guardam dados em memoria e lsKey muda de prefixo, entao seguir
+// sem recarregar misturaria numero de uma empresa com o de outra.
+function trocarEntidade(ent){
+  if(!currentUser || currentUser.role!=='superadmin') return;
+  if(!ENTIDADE_CONFIG[ent]) return;
+  try{ localStorage.setItem('euphoria_entidade_ativa', ent); }catch(e){}
+  location.reload();
+}
+
+// ── IMPORTAÇÃO DA PLANILHA DO MÉXICO ────────────────────────────────────────
+// A MD do Mexico mantem tudo em "[EUPHORIA] My Statuts": pipeline, pessoas,
+// alocacao de FTE, freelas, fornecedores e contratacoes. Tres dessas abas ja
+// tem modulo correspondente aqui, entao o caminho mais curto para ela parar de
+// manter planilha e importar essas tres agora, em vez de esperar os modulos
+// novos ficarem prontos.
+// Um importador so, que le o arquivo inteiro e roteia cada aba para o modulo
+// certo - pedir tres uploads do mesmo arquivo seria pior.
+function mxNorm(v){
+  return String(v==null?'':v).trim().toUpperCase().normalize('NFD')
+    .replace(/[̀-ͯ]/g,'').replace(/[^A-Z0-9]/g,'');
+}
+function mxNum(v){
+  if(v==null||v==='') return 0;
+  if(typeof v==='number') return v;
+  var s=String(v).replace(/[R$MX\s]/gi,'').replace(/\./g,'').replace(/,/g,'.').replace(/[^0-9.\-]/g,'');
+  var n=parseFloat(s); return isNaN(n)?0:n;
+}
+// Data chega como serial do Excel ou texto ISO.
+function mxData(v){
+  if(v==null||v==='') return '';
+  if(typeof v==='number' && v>20000){
+    var d=new Date(Math.round((v-25569)*86400000));
+    return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');
+  }
+  var m=String(v).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? m[0] : '';
+}
+
+// Procura o cabecalho nas 6 primeiras linhas: as abas dela comecam em L1 ou L3
+// conforme o caso, e exigir posicao fixa quebraria na primeira edicao.
+function mxCabecalho(rows, obrigatorios){
+  for(var r=0;r<Math.min(rows.length,6);r++){
+    var linha=(rows[r]||[]).map(mxNorm);
+    var ok = obrigatorios.every(function(o){ return linha.indexOf(o)>=0; });
+    if(ok){
+      var mapa={};
+      linha.forEach(function(h,i){ if(h && mapa[h]===undefined) mapa[h]=i; });
+      return {linha:r, col:mapa};
+    }
+  }
+  return null;
+}
+
+// "ongoing"/"completed" sao contratos fechados; "standby"/"pitch" ainda nao.
+var MX_STATUS = {ONGOING:'ganho', COMPLETED:'ganho', STANDBY:'prospect',
+                 PITCH:'proposta', LOST:'perdido', CANCELLED:'perdido', DECLINED:'desistimos'};
+
+function mxLerPipeline(wb){
+  var nome=wb.SheetNames.find(function(n){ return mxNorm(n).indexOf('PIPELINE')>=0; });
+  if(!nome) return [];
+  var rows=XLSX.utils.sheet_to_json(wb.Sheets[nome],{header:1,raw:true,defval:null});
+  var cab=mxCabecalho(rows,['PROJECT','TYPE','STATUS']);
+  if(!cab) return [];
+  var c=cab.col, out=[];
+  for(var r=cab.linha+1;r<rows.length;r++){
+    var row=rows[r]||[];
+    // A primeira coluna traz o cliente (Twitch, Amazon Music...) sem rotulo.
+    var cli=row[0];
+    if(cli==null||!String(cli).trim()) continue;
+    var ini=mxData(row[c.START]), fim=mxData(row[c.END]);
+    var st=MX_STATUS[mxNorm(row[c.STATUS])] || 'prospect';
+    var tipo=mxNorm(row[c.TYPE]);
+    out.push({
+      empresa:String(cli).trim(), contato:'', email:'',
+      status:st,
+      tipo: tipo==='FEE' ? 'fee' : 'projeto',
+      valor_potencial:mxNum(row[c.BUDGET]),
+      fee_mensal:0,
+      mes_inicio: ini?parseInt(ini.substring(5,7)):1,
+      mes_fim: fim?parseInt(fim.substring(5,7)):12,
+      ano_inicio: ini?parseInt(ini.substring(0,4)):null,
+      ano_fim: fim?parseInt(fim.substring(0,4)):null,
+      ano: ini?parseInt(ini.substring(0,4)):new Date().getFullYear(),
+      investimento_midia:0, comissao_midia:0, investimento_producao:0, comissao_producao:0,
+      probabilidade: st==='ganho'?100:(st==='perdido'?0:25),
+      responsavel:'',
+      observacoes:[row[c.PROJECT]?('Projeto: '+row[c.PROJECT]):'',
+                   (c.PROVEEDORES!==undefined && mxNum(row[c.PROVEEDORES]))?('Fornecedores: '+mxNum(row[c.PROVEEDORES])):'',
+                   row[c.NOTAS]?String(row[c.NOTAS]):''].filter(Boolean).join(' · ')
+    });
+  }
+  return out;
+}
+
+function mxLerPessoas(wb){
+  var nome=wb.SheetNames.find(function(n){ return mxNorm(n).indexOf('INGRESOS')>=0; });
+  if(!nome) return [];
+  var rows=XLSX.utils.sheet_to_json(wb.Sheets[nome],{header:1,raw:true,defval:null});
+  var cab=mxCabecalho(rows,['NOMBRE','ROL']);
+  if(!cab) return [];
+  var c=cab.col, out=[];
+  for(var r=cab.linha+1;r<rows.length;r++){
+    var row=rows[r]||[];
+    var n=row[c.NOMBRE];
+    if(n==null||!String(n).trim()) continue;
+    var st=mxNorm(row[c.STATUS]);
+    // A planilha mistura as duas coisas na coluna "Rol": 31 linhas trazem
+    // e-mail ali e 56 trazem cargo de verdade, e a coluna "Mail" so as vezes
+    // esta preenchida. Decide pelo conteudo, nao pelo rotulo - importar e-mail
+    // como cargo encheria o cadastro de "ana.luna@..." no lugar da funcao.
+    var vRol=String(row[c.ROL]||'').trim();
+    var vMail=String(row[c.MAIL]||'').trim();
+    var rolEhEmail = vRol.indexOf('@')>=0;
+    out.push({
+      id:'mx'+r,
+      nome:String(n).trim(),
+      cargo: rolEhEmail ? '' : vRol,
+      depto:String(row[c.CUENTA]||'').trim(),
+      email: vMail || (rolEhEmail ? vRol : ''),
+      tipo:'clt', salario:mxNum(row[c.SUELDOBRUTO]), beneficios:0, horas:160,
+      admissao:mxData(row[c.INGRESO]),
+      telefone:String(row[c.CEL]||'').trim(),
+      // So "Contratado"/"Activo" conta como gente na casa; o resto e candidato
+      // ou saida, e entrar como ativo inflaria headcount e custo.
+      status:(st==='CONTRATADO'||st==='ACTIVO')?'ativo':'inativo',
+      recebe13:'nao', recebeferias:'nao'
+    });
+  }
+  return out;
+}
+
+function mxLerAlocacao(wb){
+  var nome=wb.SheetNames.find(function(n){ return mxNorm(n).indexOf('FTESCONTROL')>=0; });
+  if(!nome) return [];
+  var rows=XLSX.utils.sheet_to_json(wb.Sheets[nome],{header:1,raw:true,defval:null});
+  var cab=mxCabecalho(rows,['ACCOUNT','ROLE']);
+  if(!cab) return [];
+  var c=cab.col, out=[], base=Date.now();
+  for(var r=cab.linha+1;r<rows.length;r++){
+    var row=rows[r]||[];
+    var conta=row[c.ACCOUNT];
+    if(conta==null||!String(conta).trim()) continue;
+    var fte=mxNum(row[c.SOLDFTE]);
+    if(!fte && c.SOLD!==undefined) fte=mxNum(row[c.SOLD]);
+    var quem=String(row[c.TALENTSTATUS]||'').trim();
+    out.push({
+      id:String(base+r),
+      colaborador: quem || '(a contratar)',
+      depto:String(row[c.AREA]||'').trim(),
+      cliente:String(conta).trim(),
+      projeto:String(row[c.ROLE]||'').trim(),
+      // FTE vira horas na base de 160h/mes, a mesma do resto do sistema.
+      horas: Math.round(fte*160*100)/100,
+      valorVendido:0, absorcao:'', status:'aprovado',
+      mesInicio:'', mesFim:'',
+      obs:[row[c.RESOURCETYPE]?('Recurso: '+row[c.RESOURCETYPE]):'',
+           mxNorm(row[c.RECRUITMENTFLAG])==='YES'?'Vaga em aberto':'',
+           row[c.NOTES]?String(row[c.NOTES]):''].filter(Boolean).join(' · '),
+      link:''
+    });
+  }
+  return out;
+}
+
+async function mxImportar(input){
+  var f=input.files && input.files[0];
+  if(!f) return;
+  if(typeof XLSX==='undefined'){ alert('Biblioteca de planilha não carregou.'); return; }
+  var ent = currentUser ? currentUser.entidade : '?';
+  if(ent!=='MX'){
+    if(!confirm('Você está na entidade '+ent+'.\n\nEsta planilha é do México e os dados seriam gravados na entidade atual.\n\n'+
+      'Troque para 🇲🇽 Euphoria México no seletor do topo antes de importar.\n\nImportar mesmo assim?')){ input.value=''; return; }
+  }
+  var leitor=new FileReader();
+  leitor.onload=async function(ev){
+    try{
+      var wb=XLSX.read(new Uint8Array(ev.target.result),{type:'array'});
+      var pessoas=mxLerPessoas(wb), pipeline=mxLerPipeline(wb), aloc=mxLerAlocacao(wb);
+      if(!pessoas.length && !pipeline.length && !aloc.length){
+        alert('Não encontrei as abas esperadas.\n\nProcuro por "Pipeline MX", "Ingresos + equipos" e "FTEs Control".');
+        input.value=''; return;
+      }
+      var ativos=pessoas.filter(function(p){ return p.status==='ativo'; }).length;
+      if(!confirm('Encontrei na planilha:\n\n'+
+          '• '+pessoas.length+' pessoa(s) ('+ativos+' ativas) — vão para People\n'+
+          '• '+pipeline.length+' linha(s) de pipeline — vão para o CRM\n'+
+          '• '+aloc.length+' alocação(ões) de FTE — vão para Alocação\n\n'+
+          'Isso substitui o conteúdo atual desses três módulos na entidade '+ent+'. Continuar?')){
+        input.value=''; return;
+      }
+      if(pessoas.length) lsSet('euphoria_people_v2', JSON.stringify(pessoas));
+      if(aloc.length)    lsSet('euphoria_alocacao_v1', JSON.stringify(aloc));
+      if(pipeline.length){
+        var base=crmLocalNextId([]);
+        crmLocalSave(pipeline.map(function(p,i){ var o=Object.assign({},p); o.id=base+i; return o; }));
+        _crmData=crmLocalLoad();
+        try{ await crmMigrarParaBanco(); }catch(e){}
+      }
+      alert('Importado: '+pessoas.length+' pessoas · '+pipeline.length+' no pipeline · '+aloc.length+' alocações.\n\n'+
+            'A planilha não traz contato, responsável nem valor de venda por alocação — complete na tela.');
+      if(typeof pplRenderTable==='function') pplRenderTable();
+      if(typeof alocRenderTabela==='function') alocRenderTabela();
+      if(typeof crmRenderView==='function') crmRenderView();
+    }catch(e){ alert('Não consegui importar: '+e.message); }
+    input.value='';
+  };
+  leitor.readAsArrayBuffer(f);
+}
+
 // ── CONFIGURAÇÃO POR ENTIDADE ────────────────────────
 var ENTIDADE_CONFIG = {
   BR: {
@@ -5073,6 +5285,12 @@ function doLogin() {
   }
   currentUser = found;
   migrarLocalStorage();
+  if(found.role==='superadmin'){
+    try{
+      var entSalva=localStorage.getItem('euphoria_entidade_ativa');
+      if(entSalva && ENTIDADE_CONFIG[entSalva]) found.entidade=entSalva;
+    }catch(e){}
+  }
   var cfg = ENTIDADE_CONFIG[found.entidade||'BR'];
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('user-badge').style.display = 'flex';
@@ -5081,7 +5299,24 @@ function doLogin() {
 
   // Show entity flag in header
   var flagEl = document.getElementById('entity-flag');
-  if(flagEl){ flagEl.textContent = cfg.flag+' '+cfg.nome; flagEl.style.display='inline'; }
+  if(flagEl){
+    // Superadmin opera as duas empresas: a bandeira vira seletor. Para os
+    // demais continua sendo so um rotulo - trocar de entidade mostraria dados
+    // de uma empresa a quem foi dado acesso a outra.
+    if(found.role==='superadmin'){
+      flagEl.innerHTML = Object.keys(ENTIDADE_CONFIG).map(function(e){
+        var c=ENTIDADE_CONFIG[e];
+        return '<option value="'+e+'">'+c.flag+' '+c.nome+'</option>'; }).join('');
+      flagEl.outerHTML = '<select id="entity-flag" onchange="trocarEntidade(this.value)" '+
+        'style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);'+
+        'padding:4px 8px;border-radius:6px;font-size:11px;margin-right:8px;cursor:pointer" '+
+        'title="Alternar entre Brasil e México">'+flagEl.innerHTML+'</select>';
+      var novoSel=document.getElementById('entity-flag');
+      if(novoSel) novoSel.value = found.entidade||'BR';
+    } else {
+      flagEl.textContent = cfg.flag+' '+cfg.nome; flagEl.style.display='inline';
+    }
+  }
   var btnBkp = document.getElementById('btn-backup');
   if(btnBkp) btnBkp.style.display='inline-block';
   var btnPrint = document.getElementById('btn-print-generico');
