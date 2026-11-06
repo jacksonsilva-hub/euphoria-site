@@ -917,11 +917,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
         </select>
       </div>
       <div>
-        <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Dia do mês do pagamento da folha</label>
-        <input type="number" id="cfd-dia-folha" min="1" max="28" value="5" style="width:70px;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;outline:none">
+        <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Pagamento da folha</label>
+        <div id="cfd-dia-folha-info" style="font-size:11px;color:var(--text2);padding:6px 0;white-space:nowrap">último dia útil do mês, contando até o dia 30</div>
       </div>
       <button class="btn btn-primary" onclick="cfProjetarDiario()" style="font-size:11px;padding:6px 14px">↺ Projetar Diário</button>
-      <span style="font-size:10px;color:var(--text3)">Folha é uma estimativa (custo mensal total injetado no dia configurado) — CR/CP usam a data real de vencimento.</span>
+      <span style="font-size:10px;color:var(--text3)">Folha é uma estimativa (custo mensal total injetado no dia de pagamento) — CR/CP usam a data real de vencimento. O dia de pagamento considera só fim de semana; feriado não entra na conta.</span>
     </div>
     <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:0 16px 16px" id="cfd-kpis"></div>
     <div id="cfd-aviso" style="display:none;padding:0 16px"></div>
@@ -2377,7 +2377,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
           <span class="table-meta" id="fnf-vinc-meta">—</span>
         </div>
         <div style="padding:10px 14px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border)">
-          O CNPJ não vem do nosso cadastro — ele vive no VBS. O sistema sugere o fornecedor mais parecido, mas o vínculo só vale depois que alguém confirma: razão social de PJ raramente é igual ao nome da pessoa, e confirmar errado é pagar a empresa errada.
+          O CNPJ não vem do nosso cadastro — ele vive no VBS. O sistema sugere o fornecedor mais parecido, mas o vínculo só vale depois que alguém confirma: razão social de PJ raramente é igual ao nome da pessoa, e confirmar errado é pagar a empresa errada. Se você já sabe o CNPJ, digite direto no campo da linha: o documento é chave exata e traz o cadastro do VBS junto.
           <button class="btn btn-vbs" onclick="fnfCarregarTerceiros(true)" style="font-size:10px;padding:3px 10px;margin-left:8px">⬇️ Carregar fornecedores do VBS</button>
         </div>
         <div style="overflow-x:auto;max-height:460px">
@@ -6431,13 +6431,29 @@ function fnfInit(){
   fnfAjustarVencimento();
   fnfRender();
 }
-// Ultimo dia do mes, que e o que a Euphoria vem usando. Editavel.
+// A Euphoria paga a folha no ultimo dia util do mes, e trata o mes como se
+// terminasse no dia 30: em mes de 31 dias, o 31 nao conta. Entao o candidato e o
+// dia 30 (ou o ultimo dia, nos fevereiros) e dali se volta ate cair em dia util.
+// Feriado nao entra na conta - o sistema nao tem calendario de feriados, so sabe
+// distinguir fim de semana. Em mes com feriado no fim, confira a data na mao.
+function folhaDataPagamento(ano, mes){
+  var ultimo = new Date(ano, mes+1, 0).getDate();
+  var d = new Date(ano, mes, Math.min(ultimo, 30));
+  while(d.getDay()===0 || d.getDay()===6) d.setDate(d.getDate()-1);
+  return d;
+}
+function folhaDataPagamentoISO(ano, mes){
+  var d = folhaDataPagamento(ano, mes);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+
+         String(d.getDate()).padStart(2,'0');
+}
+
+// Vencimento sugerido = data de pagamento da folha. Editavel.
 function fnfAjustarVencimento(){
   var el = document.getElementById('fnf-venc'); if(!el) return;
   var r = fnfMesAno();
   if(isNaN(r.ano) || isNaN(r.mes)) return;
-  var ult = new Date(r.ano, r.mes+1, 0);
-  el.value = r.ano+'-'+String(r.mes+1).padStart(2,'0')+'-'+String(ult.getDate()).padStart(2,'0');
+  el.value = folhaDataPagamentoISO(r.ano, r.mes);
 }
 
 async function fnfCarregarTerceiros(forcar){
@@ -6463,6 +6479,19 @@ async function fnfCarregarTerceiros(forcar){
 
 function fnfVinculo(p){ return p && p.vbs_terceiro ? p.vbs_terceiro : null; }
 
+function fnfFmtDoc(dig){
+  if(dig.length===14) return dig.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,'$1.$2.$3/$4-$5');
+  if(dig.length===11) return dig.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/,'$1.$2.$3-$4');
+  return dig;
+}
+
+// Fornecedor do VBS cujo documento bate exatamente com o digitado. Diferente do
+// casamento por nome, CNPJ nao tem "quase": ou e a empresa ou nao e.
+function fnfAcharPorDoc(dig){
+  if(!dig || !_fnfTerceiros) return null;
+  return _fnfTerceiros.find(function(t){ return fnfSoDig(t.cnpj)===dig; }) || null;
+}
+
 function fnfSalvarVinculo(pessoaId, idTerceiro){
   var d = getPplData();
   var i = d.findIndex(function(x){ return String(x.id)===String(pessoaId); });
@@ -6472,8 +6501,47 @@ function fnfSalvarVinculo(pessoaId, idTerceiro){
     var t = (_fnfTerceiros||[]).find(function(x){ return String(x.id)===String(idTerceiro); });
     if(!t) return;
     d[i].vbs_terceiro = { id:t.id, cod:t.cod, dv:t.dv, cnpj:t.cnpj, razao:t.razao,
+                          origem:'sugestao',
                           confirmado_em:new Date().toISOString(),
                           confirmado_por:(currentUser&&currentUser.name)||null };
+  }
+  savePplData(d);
+  fnfRender();
+}
+
+// Vinculo pelo documento digitado. Quando o fornecedor existe no VBS, o cadastro
+// inteiro vem junto (id, codigo, razao social) e a conferencia segue funcionando
+// igual. Quando nao existe, o CNPJ fica gravado assim mesmo e a linha avisa: nao
+// da pra lancar titulo para fornecedor que o VBS nao conhece, e esconder isso so
+// adiaria a descoberta para a hora do lancamento.
+function fnfVincularPorDoc(pessoaId){
+  var inp = document.getElementById('fnf-cnpj-'+pessoaId);
+  if(!inp) return;
+  if(!_fnfTerceiros){
+    alert('Carregue os fornecedores do VBS primeiro — sem isso não dá para saber se o CNPJ já existe lá.');
+    return;
+  }
+  var dig = fnfSoDig(inp.value);
+  if(dig.length!==14 && dig.length!==11){
+    alert('CNPJ tem 14 dígitos e CPF tem 11. Você digitou '+dig.length+'.');
+    return;
+  }
+  var d = getPplData();
+  var i = d.findIndex(function(x){ return String(x.id)===String(pessoaId); });
+  if(i<0) return;
+  var t = fnfAcharPorDoc(dig);
+  var base = { origem:'cnpj',
+               confirmado_em:new Date().toISOString(),
+               confirmado_por:(currentUser&&currentUser.name)||null };
+  if(t){
+    d[i].vbs_terceiro = { id:t.id, cod:t.cod, dv:t.dv, cnpj:t.cnpj, razao:t.razao,
+                          origem:base.origem, confirmado_em:base.confirmado_em,
+                          confirmado_por:base.confirmado_por };
+  } else {
+    d[i].vbs_terceiro = { id:null, cod:null, dv:null, cnpj:fnfFmtDoc(dig), razao:null,
+                          fora_do_vbs:true,
+                          origem:base.origem, confirmado_em:base.confirmado_em,
+                          confirmado_por:base.confirmado_por };
   }
   savePplData(d);
   fnfRender();
@@ -6538,11 +6606,14 @@ function fnfLote(ano, mes){
     var valor = dias>=30 ? sal : (sal/30*dias);
     var v = fnfVinculo(p);
     var titulo = null;
-    if(v && _fnfTitulos){
+    if(v && v.id && _fnfTitulos){
       titulo = _fnfTitulos.find(function(t){ return String(t.ID_Terceiro_CP)===String(v.id); }) || null;
     }
     var situacao;
     if(!v) situacao = {rot:'sem vínculo', cor:'gray'};
+    // CNPJ gravado, mas sem cadastro no VBS: o titulo nao tem como ser lancado
+    // ate alguem cadastrar o fornecedor la, entao nao adianta dizer "falta lancar".
+    else if(!v.id) situacao = {rot:'fornecedor fora do VBS', cor:'red'};
     else if(!_fnfTitulos) situacao = {rot:'não conferido', cor:'gray'};
     else if(!titulo) situacao = {rot:'falta lançar', cor:'amber'};
     else if(Math.abs((parseFloat(titulo.Valor_Documento_CP)||0) - valor) > 0.01)
@@ -6590,15 +6661,19 @@ function fnfRender(){
   var lote = fnfLote(r.ano, r.mes);
 
   var semVinc = lote.filter(function(l){ return !l.vinc; }).length;
+  var foraVbs = lote.filter(function(l){ return l.vinc && !l.vinc.id; }).length;
   var falta   = lote.filter(function(l){ return l.situacao.rot==='falta lançar'; }).length;
   var ok      = lote.filter(function(l){ return l.situacao.rot==='lançado'; }).length;
-  var difer   = lote.filter(function(l){ return l.situacao.cor==='red'; }).length;
+  // So divergencia de valor - "fornecedor fora do VBS" tambem e vermelho e
+  // contaria junto se o filtro fosse pela cor.
+  var difer   = lote.filter(function(l){ return l.situacao.rot.indexOf('valor diferente')===0; }).length;
   var total   = lote.reduce(function(s,l){ return s+l.valor; },0);
 
   document.getElementById('fnf-kpis').innerHTML =
     [['Pessoas no lote', lote.length, ''],
      ['Valor total', moedaFmt(total), ''],
      ['Sem vínculo', semVinc, semVinc?'neg':''],
+     ['Fora do VBS', foraVbs, foraVbs?'neg':''],
      ['Falta lançar', _fnfTitulos?falta:'—', falta?'amber':''],
      ['Já lançado', _fnfTitulos?ok:'—', ok?'pos':'']]
     .map(function(k){
@@ -6640,20 +6715,36 @@ function fnfRender(){
   document.getElementById('fnf-vinc-meta').textContent =
     vinculadas+' de '+pessoas.length+' vinculados · '+_fnfTerceiros.length+' fornecedores no VBS';
 
+  // Campo para digitar o documento direto, sem depender da sugestao por nome.
+  // Quem ja sabe o CNPJ nao precisa procurar a PJ numa lista de 1100.
+  function campoDoc(p){
+    return '<div style="display:flex;gap:6px;margin-top:6px">'+
+      '<input id="fnf-cnpj-'+p.id+'" maxlength="18" placeholder="ou digite o CNPJ"'+
+        ' onkeydown="if(event.key===\'Enter\'){event.preventDefault();fnfVincularPorDoc(\''+p.id+'\');}"'+
+        ' style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:11px;font-family:var(--font-mono);outline:none">'+
+      '<button class="btn" style="font-size:10px;padding:3px 10px" onclick="fnfVincularPorDoc(\''+p.id+'\')">vincular</button>'+
+    '</div>';
+  }
+
   vtb.innerHTML = pessoas.map(function(p){
     var v = fnfVinculo(p);
     if(v){
+      var achado = !!v.id;
       return '<tr><td><strong>'+p.nome+'</strong></td>'+
-        '<td style="font-size:11px">'+v.razao+'</td>'+
+        '<td style="font-size:11px">'+(v.razao ||
+          '<span style="color:var(--neg)">não há fornecedor com esse CNPJ no VBS</span>')+'</td>'+
         '<td style="font-family:var(--font-mono);font-size:11px">'+(v.cnpj||'—')+'</td>'+
-        '<td><span class="badge badge-green">confirmado</span>'+
-          (v.confirmado_por?'<div style="font-size:10px;color:var(--text3)">'+v.confirmado_por+'</div>':'')+'</td>'+
+        '<td><span class="badge badge-'+(achado?'green':'red')+'">'+
+          (achado?'confirmado':'cadastrar no VBS')+'</span>'+
+          (v.confirmado_por?'<div style="font-size:10px;color:var(--text3)">'+v.confirmado_por+
+            (v.origem==='cnpj'?' · por CNPJ':'')+'</div>':'')+'</td>'+
         '<td style="text-align:right"><button class="btn" style="font-size:10px;padding:2px 8px" onclick="fnfSalvarVinculo(\''+p.id+'\',null)">trocar</button></td></tr>';
     }
     var sug = fnfSugestoes(p);
     if(!sug.length){
       return '<tr><td><strong>'+p.nome+'</strong></td>'+
-        '<td colspan="3" style="font-size:11px;color:var(--text3)">nenhum fornecedor parecido — procure pelo nome da PJ no VBS</td>'+
+        '<td colspan="2" style="font-size:11px;color:var(--text3)">nenhum fornecedor parecido'+campoDoc(p)+'</td>'+
+        '<td><span class="badge badge-gray">—</span></td>'+
         '<td></td></tr>';
     }
     var niv = fnfNivel(sug[0]);
@@ -6663,7 +6754,7 @@ function fnfRender(){
              (s.motivos.length?'  ['+s.motivos.join(' + ')+']':'')+'</option>';
     }).join('');
     return '<tr><td><strong>'+p.nome+'</strong><div style="font-size:10px;color:var(--text3)">'+moedaFmt(p.salario)+'</div></td>'+
-      '<td colspan="2"><select id="fnf-sug-'+p.id+'" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:11px;outline:none">'+opts+'</select></td>'+
+      '<td colspan="2"><select id="fnf-sug-'+p.id+'" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:11px;outline:none">'+opts+'</select>'+campoDoc(p)+'</td>'+
       '<td><span class="badge badge-'+niv.cor+'">'+niv.rot+'</span></td>'+
       '<td style="text-align:right"><button class="btn btn-primary" style="font-size:10px;padding:3px 10px" onclick="fnfConfirmarSugestao(\''+p.id+'\')">confirmar</button></td></tr>';
   }).join('');
@@ -6692,8 +6783,10 @@ function fnfExportar(){
   aoa.push(['#','COLABORADOR','RAZÃO SOCIAL (VBS)','CNPJ/CPF','CÓD. VBS','DIAS','VALOR',
             'VENCIMENTO','HISTÓRICO','CONTA CONTÁBIL','SITUAÇÃO NO VBS','Nº NF']);
   lote.forEach(function(l,i){
-    aoa.push([i+1, l.p.nome, l.vinc?l.vinc.razao:'— SEM VÍNCULO —', l.vinc?l.vinc.cnpj:'',
-              l.vinc?(l.vinc.cod+(l.vinc.dv!=null?'-'+l.vinc.dv:'')):'',
+    aoa.push([i+1, l.p.nome,
+              l.vinc ? (l.vinc.razao || '— NÃO CADASTRADO NO VBS —') : '— SEM VÍNCULO —',
+              l.vinc?l.vinc.cnpj:'',
+              (l.vinc&&l.vinc.cod)?(l.vinc.cod+(l.vinc.dv!=null?'-'+l.vinc.dv:'')):'',
               l.dias, Math.round(l.valor*100)/100, vencBR, hist,
               '40803-8 SERVIÇOS TERCEIROS PJ', l.situacao.rot, '']);
   });
@@ -12526,7 +12619,6 @@ function cfDataKeyLocal(y,m,d){return y+'-'+String(m+1).padStart(2,'0')+'-'+Stri
 function cfProjetarDiario(){
   var saldoInicial=parseFloat(document.getElementById('cf-saldo-inicial').value)||0;
   var nDias=parseInt((document.getElementById('cfd-dias')||{}).value)||30;
-  var diaFolha=parseInt((document.getElementById('cfd-dia-folha')||{}).value)||5;
 
   var crAll=window._crRows||[], cpAll=window._cpRows||[];
   if(!crAll.length&&!cpAll.length){alert('Clique em "Gerar Fluxo" primeiro (busca CR e CP no VBS).');return;}
@@ -12590,7 +12682,10 @@ function cfProjetarDiario(){
     var k=cfDataKeyLocal(y,m,dia);
     var rec=crPorDia[k]||0, pag=cpPorDia[k]||0;
     var folha=0;
-    if(dia===diaFolha){
+    // A folha cai no dia de pagamento daquele mes especifico - que muda conforme
+    // o mes termina em fim de semana ou nao, entao e recalculado a cada mes da
+    // projecao em vez de ser um dia fixo.
+    if(dia===folhaDataPagamento(y,m).getDate()){
       var mk=y+'-'+m;
       if(custoMesCache[mk]===undefined){
         var total=0;
