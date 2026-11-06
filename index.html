@@ -6452,6 +6452,7 @@ var FNF_STOP = {'DA':1,'DE':1,'DO':1,'DAS':1,'DOS':1,'LTDA':1,'EPP':1,'EIRELI':1
 var FNF_MESES = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO',
                  'AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
 var _fnfTerceiros = null;   // cadastro de fornecedores do VBS (cache local)
+var _fnfTerceirosOrigem = null; // de onde vieram: cadastro, titulos, erros
 var _fnfTitulos = null;     // titulos do VBS da janela conferida
 var _fnfConferido = null;   // 'ano-mes' ja conferido
 
@@ -6507,25 +6508,70 @@ function fnfAjustarVencimento(){
   el.value = folhaDataPagamentoISO(r.ano, r.mes);
 }
 
+// O cadastro de terceiros do VBS devolve so os do tipo "Autonomo" - nove, em
+// 11/2026 - e nenhuma das PJ da folha esta entre eles. Filtrar por outro tipo
+// (F, P, C, T) devolve zero. Mas toda PJ que ja teve titulo lancado aparece nas
+// contas a pagar, e o titulo carrega o cadastro inteiro do fornecedor: ID,
+// codigo, digito, CNPJ e razao social. Entao o catalogo util e a uniao dos
+// dois, com as contas a pagar fazendo o trabalho pesado - em 10/2026 eram 71
+// fornecedores de folha contra 9 do cadastro.
+async function fnfTerceirosDosTitulos(meses){
+  var hoje = new Date();
+  var ini = new Date(hoje.getFullYear(), hoje.getMonth()-(meses||12), 1);
+  var fim = new Date(hoje.getFullYear(), hoje.getMonth()+2, 0);
+  var fmt = function(d){
+    return String(d.getDate()).padStart(2,'0')+String(d.getMonth()+1).padStart(2,'0')+d.getFullYear();
+  };
+  var r = await fetch(API+'/api/contas-pagar?duplicatas_canceladas=N&apresenta_cancelado=N'+
+    '&data_vencimento_de='+fmt(ini)+'&data_vencimento_ate='+fmt(fim), {cache:'no-store'});
+  var titulos = vbsRetorno(await r.json(), 'contas a pagar');
+  var mapa = {};
+  titulos.forEach(function(t){
+    var id = t.ID_Terceiro_CP;
+    if(!id || mapa[id]) return;
+    mapa[id] = { id:id, cod:t.CodVBS_Terceiro_CP, dv:t.DV_CodVBS_Terceiro_CP,
+                 cnpj:t.CNPJ_CPF_Terceiro_CP,
+                 razao:t.RazaoSocial_Terceiro_CP || t.Nome_Terceiro_CP,
+                 fantasia:t.Nome_Terceiro_CP, tipo:'com título lançado' };
+  });
+  return Object.keys(mapa).map(function(k){ return mapa[k]; });
+}
+
 async function fnfCarregarTerceiros(forcar){
   if(_fnfTerceiros && !forcar){ fnfRender(); return; }
   var tb = document.getElementById('fnf-vinc-tbody');
   if(tb) tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text3)">Carregando fornecedores do VBS…</td></tr>';
+  var doCadastro = [], dosTitulos = [], erros = [];
+  // As duas fontes sao independentes: se uma falhar, a outra ainda serve.
   try{
     var r = await fetch(API+'/api/terceiros?ativos=1',{cache:'no-store'});
-    var lista = vbsRetorno(await r.json(), 'terceiros');
     // Guarda so o necessario: o retorno completo traz contatos, contas
-    // bancarias e PIX de 1100 fornecedores e nao cabe no localStorage.
-    _fnfTerceiros = lista.map(function(t){
+    // bancarias e PIX, e nao cabe no localStorage.
+    doCadastro = vbsRetorno(await r.json(), 'terceiros').map(function(t){
       return { id:t.ID_terceiro, cod:t.CodVBS_terceiro, dv:t.Digito_CodVBS_terceiro,
                cnpj:t.CNPJ_CPF_terceiro, razao:t.Razao_social_terceiro,
                fantasia:t.Nome_fantasia_terceiro, tipo:t.Descricao_Tipo_terceiro };
     });
-    try{ lsSetLocal('vbs_terceiros_cache', JSON.stringify(_fnfTerceiros)); }catch(e){}
-    fnfRender();
-  }catch(e){
-    if(tb) tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--neg)">'+e.message+'</td></tr>';
+  }catch(e){ erros.push('cadastro de terceiros: '+e.message); }
+  try{
+    dosTitulos = await fnfTerceirosDosTitulos(12);
+  }catch(e){ erros.push('contas a pagar: '+e.message); }
+
+  if(!doCadastro.length && !dosTitulos.length){
+    if(tb) tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--neg)">'+
+      (erros.join(' · ') || 'o VBS não devolveu nenhum fornecedor')+'</td></tr>';
+    return;
   }
+  // Titulo ganha do cadastro no caso de ID repetido: traz CNPJ e codigo que o
+  // cadastro as vezes nao tem.
+  var porId = {};
+  doCadastro.forEach(function(t){ if(t.id) porId[t.id] = t; });
+  dosTitulos.forEach(function(t){ porId[t.id] = t; });
+  _fnfTerceiros = Object.keys(porId).map(function(k){ return porId[k]; });
+  _fnfTerceirosOrigem = { cadastro:doCadastro.length, titulos:dosTitulos.length, erros:erros };
+  try{ lsSetLocal('vbs_terceiros_cache', JSON.stringify(_fnfTerceiros)); }catch(e){}
+  fnfRender();
+  if(erros.length) alert('Carreguei o que deu:\n- '+erros.join('\n- '));
 }
 
 function fnfVinculo(p){ return p && p.vbs_terceiro ? p.vbs_terceiro : null; }
@@ -6565,14 +6611,20 @@ function fnfSalvarVinculo(pessoaId, idTerceiro){
 // igual. Quando nao existe, o CNPJ fica gravado assim mesmo e a linha avisa: nao
 // da pra lancar titulo para fornecedor que o VBS nao conhece, e esconder isso so
 // adiaria a descoberta para a hora do lancamento.
-function fnfVincularPorDoc(pessoaId){
-  var inp = document.getElementById('fnf-cnpj-'+pessoaId);
-  if(!inp) return;
-  if(!_fnfTerceiros){
-    alert('Carregue os fornecedores do VBS primeiro — sem isso não dá para saber se o CNPJ já existe lá.');
-    return;
+// Grava o vinculo a partir do que foi digitado. O CNPJ e a chave: quando bate
+// com um fornecedor conhecido, o ID e o codigo do VBS vem junto e a conferencia
+// continua funcionando. Quando nao bate, vale o que foi escrito - a razao social
+// digitada ganha da do cadastro, porque quem digita esta corrigindo.
+function fnfVincularPorDoc(pessoaId, valores){
+  var dig, razaoDigitada;
+  if(valores){
+    dig = fnfSoDig(valores.cnpj); razaoDigitada = (valores.razao||'').trim();
+  } else {
+    var inp = document.getElementById('fnf-cnpj-'+pessoaId);
+    var inr = document.getElementById('fnf-razao-'+pessoaId);
+    if(!inp) return;
+    dig = fnfSoDig(inp.value); razaoDigitada = inr ? inr.value.trim() : '';
   }
-  var dig = fnfSoDig(inp.value);
   if(dig.length!==14 && dig.length!==11){
     alert('CNPJ tem 14 dígitos e CPF tem 11. Você digitou '+dig.length+'.');
     return;
@@ -6580,22 +6632,32 @@ function fnfVincularPorDoc(pessoaId){
   var d = getPplData();
   var i = d.findIndex(function(x){ return String(x.id)===String(pessoaId); });
   if(i<0) return;
+
   var t = fnfAcharPorDoc(dig);
-  var base = { origem:'cnpj',
-               confirmado_em:new Date().toISOString(),
-               confirmado_por:(currentUser&&currentUser.name)||null };
-  if(t){
-    d[i].vbs_terceiro = { id:t.id, cod:t.cod, dv:t.dv, cnpj:t.cnpj, razao:t.razao,
-                          origem:base.origem, confirmado_em:base.confirmado_em,
-                          confirmado_por:base.confirmado_por };
-  } else {
-    d[i].vbs_terceiro = { id:null, cod:null, dv:null, cnpj:fnfFmtDoc(dig), razao:null,
-                          fora_do_vbs:true,
-                          origem:base.origem, confirmado_em:base.confirmado_em,
-                          confirmado_por:base.confirmado_por };
-  }
+  var v = { cnpj: t ? t.cnpj : fnfFmtDoc(dig),
+            razao: razaoDigitada || (t ? t.razao : null),
+            id: t ? t.id : null, cod: t ? t.cod : null, dv: t ? t.dv : null,
+            origem:'cnpj',
+            confirmado_em:new Date().toISOString(),
+            confirmado_por:(currentUser&&currentUser.name)||null };
+  // So da para afirmar que o fornecedor nao existe no VBS depois de ter olhado
+  // o catalogo. Sem ele carregado, o que falta e a conferencia, nao o cadastro.
+  if(!t) { if(_fnfTerceiros) v.fora_do_vbs = true; else v.nao_conferido = true; }
+  d[i].vbs_terceiro = v;
   savePplData(d);
   fnfRender();
+}
+
+// Edicao livre de um vinculo ja gravado, para corrigir o que veio do VBS.
+function fnfEditarVinculo(pessoaId){
+  var p = getPplData().find(function(x){ return String(x.id)===String(pessoaId); });
+  if(!p) return;
+  var v = fnfVinculo(p) || {};
+  var cnpj = prompt('CNPJ de '+p.nome+':', v.cnpj||'');
+  if(cnpj===null) return;
+  var razao = prompt('Razão social no VBS:', v.razao||'');
+  if(razao===null) return;
+  fnfVincularPorDoc(pessoaId, { cnpj:cnpj, razao:razao });
 }
 
 // Sugestoes ordenadas, com o motivo de cada uma visivel na tela.
@@ -6681,9 +6743,11 @@ function fnfLote(ano, mes){
 
     var situacao;
     if(!v) situacao = {rot:'sem vínculo', cor:'gray'};
-    // CNPJ gravado, mas sem cadastro no VBS: o titulo nao tem como ser lancado
-    // ate alguem cadastrar o fornecedor la, entao nao adianta dizer "falta lancar".
-    else if(!v.id) situacao = {rot:'fornecedor fora do VBS', cor:'red'};
+    // CNPJ gravado, mas sem o codigo do VBS: o titulo nao tem como ser lancado
+    // ate alguem achar o fornecedor la, entao nao adianta dizer "falta lancar".
+    else if(!v.id) situacao = v.nao_conferido
+      ? {rot:'código VBS pendente', cor:'amber'}
+      : {rot:'fornecedor fora do VBS', cor:'red'};
     else if(!_fnfTitulos) situacao = {rot:'não conferido', cor:'gray'};
     else if(!titulos.length) situacao = {rot:'falta lançar', cor:'amber'};
     else if(Math.abs(lancado - valor) > 0.01)
@@ -6799,16 +6863,23 @@ function fnfRender(){
   }
   var pessoas = fnfPessoasDoMes(r.ano, r.mes);
   var vinculadas = pessoas.filter(function(p){ return fnfVinculo(p); }).length;
+  var o = _fnfTerceirosOrigem;
   document.getElementById('fnf-vinc-meta').textContent =
-    vinculadas+' de '+pessoas.length+' vinculados · '+_fnfTerceiros.length+' fornecedores no VBS';
+    vinculadas+' de '+pessoas.length+' vinculados · '+_fnfTerceiros.length+' fornecedores'+
+    (o ? ' ('+o.titulos+' com título lançado, '+o.cadastro+' do cadastro)' : '');
 
-  // Campo para digitar o documento direto, sem depender da sugestao por nome.
-  // Quem ja sabe o CNPJ nao precisa procurar a PJ numa lista de 1100.
+  // Campos livres para preencher na mao, sem depender da sugestao por nome nem
+  // do cadastro do VBS. O CNPJ e a chave: se bater com um fornecedor conhecido,
+  // o codigo e o ID vem junto; se nao bater, vale o que foi digitado.
   function campoDoc(p){
+    var est = 'background:var(--bg3);border:1px solid var(--border);color:var(--text2);'+
+              'padding:5px 8px;border-radius:6px;font-size:11px;outline:none';
+    var enter = ' onkeydown="if(event.key===\'Enter\'){event.preventDefault();fnfVincularPorDoc(\''+p.id+'\');}"';
     return '<div style="display:flex;gap:6px;margin-top:6px">'+
-      '<input id="fnf-cnpj-'+p.id+'" maxlength="18" placeholder="ou digite o CNPJ"'+
-        ' onkeydown="if(event.key===\'Enter\'){event.preventDefault();fnfVincularPorDoc(\''+p.id+'\');}"'+
-        ' style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:11px;font-family:var(--font-mono);outline:none">'+
+      '<input id="fnf-cnpj-'+p.id+'" maxlength="18" placeholder="CNPJ"'+enter+
+        ' style="width:150px;font-family:var(--font-mono);'+est+'">'+
+      '<input id="fnf-razao-'+p.id+'" placeholder="razão social (opcional)"'+enter+
+        ' style="flex:1;'+est+'">'+
       '<button class="btn" style="font-size:10px;padding:3px 10px" onclick="fnfVincularPorDoc(\''+p.id+'\')">vincular</button>'+
     '</div>';
   }
@@ -6817,15 +6888,19 @@ function fnfRender(){
     var v = fnfVinculo(p);
     if(v){
       var achado = !!v.id;
+      var sel = achado ? {cor:'green', rot:'confirmado'}
+              : v.nao_conferido ? {cor:'amber', rot:'código VBS pendente'}
+              : {cor:'red', rot:'cadastrar no VBS'};
       return '<tr><td><strong>'+p.nome+'</strong></td>'+
         '<td style="font-size:11px">'+(v.razao ||
-          '<span style="color:var(--neg)">não há fornecedor com esse CNPJ no VBS</span>')+'</td>'+
+          '<span style="color:var(--text3)">— sem razão social —</span>')+'</td>'+
         '<td style="font-family:var(--font-mono);font-size:11px">'+(v.cnpj||'—')+'</td>'+
-        '<td><span class="badge badge-'+(achado?'green':'red')+'">'+
-          (achado?'confirmado':'cadastrar no VBS')+'</span>'+
+        '<td><span class="badge badge-'+sel.cor+'">'+sel.rot+'</span>'+
           (v.confirmado_por?'<div style="font-size:10px;color:var(--text3)">'+v.confirmado_por+
             (v.origem==='cnpj'?' · por CNPJ':'')+'</div>':'')+'</td>'+
-        '<td style="text-align:right"><button class="btn" style="font-size:10px;padding:2px 8px" onclick="fnfSalvarVinculo(\''+p.id+'\',null)">trocar</button></td></tr>';
+        '<td style="text-align:right;white-space:nowrap">'+
+          '<button class="btn" style="font-size:10px;padding:2px 8px" onclick="fnfEditarVinculo(\''+p.id+'\')">editar</button> '+
+          '<button class="btn" style="font-size:10px;padding:2px 8px" onclick="fnfSalvarVinculo(\''+p.id+'\',null)">trocar</button></td></tr>';
     }
     var sug = fnfSugestoes(p);
     if(!sug.length){
