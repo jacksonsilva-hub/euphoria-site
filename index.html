@@ -2352,7 +2352,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       </div>
 
       <div id="fnf-aviso" style="display:none;margin-bottom:14px"></div>
-      <div class="kpi-grid" id="fnf-kpis" style="grid-template-columns:repeat(5,1fr);margin-bottom:16px"></div>
+      <div class="kpi-grid" id="fnf-kpis" style="grid-template-columns:repeat(6,1fr);margin-bottom:16px"></div>
 
       <div class="table-card" style="margin-bottom:18px">
         <div class="table-header">
@@ -2367,6 +2367,32 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
               <th>Histórico</th><th>Situação no VBS</th><th></th>
             </tr></thead>
             <tbody id="fnf-tbody"><tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">Escolha o mês para montar o lote</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="table-card" style="margin-bottom:18px">
+        <div class="table-header">
+          <span class="table-title">NFs recebidas no mês</span>
+          <span class="table-meta" id="fnf-nf-meta">—</span>
+        </div>
+        <div style="padding:10px 14px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border)">
+          A contabilidade manda XML e CSV — e os dois não se repetem: o CSV é de quem emite pela prefeitura de São Paulo, o XML de quem emite pelo padrão nacional ou por outra prefeitura. Importe os dois. Quem manda a NF direto por e-mail entra no manual, pelo botão da própria linha.
+          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+            <input type="file" id="fnf-nf-file" multiple accept=".xml,.csv" style="display:none" onchange="fnfNfImportar(this)">
+            <button class="btn btn-vbs" onclick="document.getElementById('fnf-nf-file').click()" style="font-size:10px;padding:3px 10px">📂 Importar XML / CSV</button>
+            <button class="btn" onclick="fnfNfExportar()" style="font-size:10px;padding:3px 10px">📥 Exportar conferência</button>
+            <button class="btn" onclick="fnfNfLimpar()" style="font-size:10px;padding:3px 10px">🗑 Limpar o mês</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto;max-height:460px">
+          <table class="tbl" style="min-width:1000px">
+            <thead><tr>
+              <th>Colaborador</th><th>NF</th>
+              <th style="text-align:right">Valor da NF</th><th style="text-align:right">Esperado</th>
+              <th>Emissão</th><th>Origem</th><th>Situação</th><th></th>
+            </tr></thead>
+            <tbody id="fnf-nf-tbody"><tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">Escolha o mês</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -5233,7 +5259,7 @@ var SYNC_MODULOS = [
   'euphoria_people_v2','euphoria_people_hist','euphoria_movimentacoes',
   'euphoria_ferias','euphoria_ausencias','euphoria_alocacao_v1',
   'euphoria_juridico','euphoria_projetos','euphoria_ts','euphoria_ti_ativos',
-  'euphoria_nf_ctrl','euphoria_despesas_fixas','euphoria_lancamentos',
+  'euphoria_nf_ctrl','euphoria_nf_pj','euphoria_despesas_fixas','euphoria_lancamentos',
   'crm_meta_2025','crm_meta_2026','crm_meta_2027','crm_meta_2028'
 ];
 var _syncTimers = {};
@@ -6021,7 +6047,7 @@ function backupAutoSave(){
 function backupColetar(){
   var ent = currentUser&&currentUser.entidade ? currentUser.entidade : 'BR';
   var keys = [
-    'euphoria_people_v2','euphoria_people_hist','euphoria_movimentacoes','euphoria_nf_ctrl','euphoria_despesas_fixas','euphoria_ferias','euphoria_ausencias',
+    'euphoria_people_v2','euphoria_people_hist','euphoria_movimentacoes','euphoria_nf_ctrl','euphoria_nf_pj','euphoria_despesas_fixas','euphoria_ferias','euphoria_ausencias',
     'euphoria_alocacao_v1','euphoria_lancamentos',
     'crm_prospects','crm_responsaveis',
     'euphoria_ts','euphoria_projetos','euphoria_juridico',
@@ -6703,6 +6729,10 @@ function fnfRender(){
     }).join('');
   }
 
+  // Antes do painel de vinculos, que tem return proprio quando o cadastro do
+  // VBS ainda nao foi carregado — a conferencia de NF nao depende disso.
+  fnfNfRender();
+
   // ── painel de vinculos ──
   var vtb = document.getElementById('fnf-vinc-tbody');
   if(!_fnfTerceiros){
@@ -6799,6 +6829,327 @@ function fnfExportar(){
   var wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Lote '+FNF_MESES[r.mes].slice(0,3)+r.ano);
   XLSX.writeFile(wb, 'lote-folha-pj-'+String(r.mes+1).padStart(2,'0')+'-'+r.ano+'.xlsx');
+}
+
+// ── NFs RECEBIDAS DOS PJ ─────────────────────────────────────────────────────
+// O lote de um mes chega por dois caminhos que NAO se repetem - conferido em
+// 10/2026, 22 notas em XML e 24 em CSV, zero em comum:
+//
+//   CSV  export da NFS-e paulistana, um arquivo por emissor, texto em latin-1
+//         e numero no formato brasileiro (17.500,00);
+//   XML  quem emite fora de Sao Paulo, em tres layouts diferentes que a
+//         contabilidade manda no mesmo lote:
+//           NFSe      ns .../sped.fazenda.gov.br/nfse   (padrao nacional)
+//           CompNfse  ns .../giss.com.br/tipos-v2_04    (ABRASF municipal)
+//           NFSE      sem namespace                     (variante antiga)
+//         Os campos mudam de nome entre eles (o numero da nota e nNFSe,
+//         Numero ou IdentificacaoNfse/Numero), entao a leitura e por nome de
+//         tag em qualquer profundidade, com ordem de preferencia por campo.
+//
+// Quem manda a NF direto por e-mail nao entra por nenhum dos dois: e lancado a
+// mao na propria linha da pessoa.
+var FNF_CNPJ_EUPHORIA = '47882625000198';
+
+function getNfPj(){ try{ return JSON.parse(lsGet('euphoria_nf_pj')||'{}'); }catch(e){ return {}; } }
+function saveNfPj(d){ lsSet('euphoria_nf_pj', JSON.stringify(d)); backupAutoSave(); }
+function fnfNfChave(ano,mes){ return ano+'-'+mes; }
+function fnfNfDoMes(ano,mes){ return getNfPj()[fnfNfChave(ano,mes)] || []; }
+
+// "17.500,00" e "17500.00" chegam no mesmo lote, de fontes diferentes.
+function fnfNum(s){
+  s = String(s==null?'':s).trim();
+  if(!s) return 0;
+  if(s.indexOf(',')>=0) s = s.replace(/\./g,'').replace(',','.');
+  var v = parseFloat(s);
+  return isNaN(v) ? 0 : v;
+}
+function fnfNorm(s){
+  return String(s==null?'':s).normalize('NFD').replace(/[̀-ͯ]/g,'')
+         .toLowerCase().trim();
+}
+function fnfLocal(e){
+  return String(e.localName || e.nodeName || '').replace(/^.*:/,'');
+}
+
+// Indexa as folhas da arvore por "Pai/Filho" e por nome solto, para o mesmo
+// seletor servir aos tres layouts.
+function fnfXmlIndex(doc){
+  var idx = {}, todos = doc.getElementsByTagName('*');
+  for(var i=0;i<todos.length;i++){
+    var e = todos[i];
+    if(e.children && e.children.length) continue;
+    var txt = (e.textContent||'').trim();
+    if(!txt) continue;
+    var nome = fnfLocal(e);
+    var pai  = e.parentNode && e.parentNode.nodeType===1 ? fnfLocal(e.parentNode) : '';
+    if(pai && !(pai+'/'+nome in idx)) idx[pai+'/'+nome] = txt;
+    if(!(nome in idx)) idx[nome] = txt;
+  }
+  return idx;
+}
+function fnfIdxPega(idx){
+  for(var i=1;i<arguments.length;i++){ if(arguments[i] in idx) return idx[arguments[i]]; }
+  return '';
+}
+
+// Prestador e tomador tem a MESMA tag Cnpj no layout ABRASF, entao nao da para
+// pegar a primeira: sobe a arvore ate achar o bloco que diz de quem e.
+function fnfXmlCnpjPrestador(doc){
+  var todos = doc.getElementsByTagName('*'), reserva = '';
+  for(var i=0;i<todos.length;i++){
+    var e = todos[i];
+    if(!/^cnpj$/i.test(fnfLocal(e))) continue;
+    var dig = (e.textContent||'').replace(/\D/g,'');
+    if(!dig || dig===FNF_CNPJ_EUPHORIA) continue;
+    var p = e.parentNode, saltos = 0, ehPrestador = false;
+    while(p && p.nodeType===1 && saltos<6){
+      var pn = fnfLocal(p);
+      if(/prestador|^prest$|^emit$/i.test(pn)){ ehPrestador = true; break; }
+      if(/tomador|^toma$|intermediario/i.test(pn)) break;
+      p = p.parentNode; saltos++;
+    }
+    if(ehPrestador) return dig;
+    if(!reserva && dig.length===14) reserva = dig;
+  }
+  return reserva;
+}
+
+function fnfNfLerXml(texto, arquivo){
+  var doc = new DOMParser().parseFromString(texto, 'application/xml');
+  if(doc.getElementsByTagName('parsererror').length) return null;
+  var raiz = doc.documentElement; if(!raiz) return null;
+  var ns = raiz.namespaceURI || '';
+  var layout = /sped\.fazenda/i.test(ns) ? 'XML nacional'
+             : ns ? 'XML municipal' : 'XML sem namespace';
+  var idx = fnfXmlIndex(doc);
+  var valor = fnfIdxPega(idx,'valores/vLiq','vLiq','ValoresNfse/ValorLiquidoNfse',
+                             'Valores/ValorLiquidoNfse','ValorLiquidoNfse',
+                             'vServPrest/vServ','vServ','ValorServicos');
+  var nf = fnfIdxPega(idx,'infNFSe/nNFSe','nNFSe','InfNfse/Numero',
+                          'IdentificacaoNfse/Numero','Numero');
+  var data = fnfIdxPega(idx,'infNFSe/dhProc','dhProc','InfNfse/DataEmissao',
+                            'DataEmissao','Competencia').slice(0,10);
+  var cnpj = fnfXmlCnpjPrestador(doc);
+  if(!cnpj || !nf) return null;
+  return { cnpj:cnpj, nf:String(nf).replace(/^0+/,'') || String(nf),
+           razao: fnfIdxPega(idx,'emit/xNome','PrestadorServico/RazaoSocial','RazaoSocial','xNome'),
+           valor: fnfNum(valor), data:data, fonte:layout, arquivo:arquivo };
+}
+
+function fnfNfLerCsv(texto, arquivo){
+  var linhas = texto.split(/\r?\n/).filter(function(l){ return l.trim(); });
+  if(linhas.length<2) return [];
+  var cab = linhas[0].split(';').map(fnfNorm);
+  function col(nome){ var i = cab.indexOf(fnfNorm(nome)); return i; }
+  var iTipo  = col('tipo de registro'),
+      iCnpj  = col('cpf/cnpj do prestador'),
+      iRazao = col('razao social do prestador'),
+      iNf    = col('nº nfs-e'),
+      iValor = col('valor dos servicos'),
+      iData  = col('data hora nfe');
+  if(iCnpj<0 || iNf<0) return [];
+  var saida = [];
+  for(var i=1;i<linhas.length;i++){
+    var c = linhas[i].split(';');
+    // 'Total' e rodape do arquivo, nao e nota
+    if(iTipo>=0 && String(c[iTipo]||'').trim()!=='2') continue;
+    var cnpj = String(c[iCnpj]||'').replace(/\D/g,'');
+    var nf = String(c[iNf]||'').trim();
+    if(!cnpj || !nf) continue;
+    saida.push({ cnpj:cnpj, nf:nf.replace(/^0+/,'')||nf,
+                 razao:String(c[iRazao]||'').trim(), valor:fnfNum(c[iValor]),
+                 data:String(c[iData]||'').slice(0,10), fonte:'CSV São Paulo',
+                 arquivo:arquivo });
+  }
+  return saida;
+}
+
+function fnfNfImportar(input){
+  var arquivos = Array.prototype.slice.call(input.files||[]);
+  input.value = '';
+  if(!arquivos.length) return;
+  var r = fnfMesAno();
+  var lidas = [], falhas = [], pendentes = arquivos.length;
+
+  arquivos.forEach(function(f){
+    var leitor = new FileReader();
+    leitor.onload = function(){
+      try{
+        if(/\.xml$/i.test(f.name)){
+          var n = fnfNfLerXml(String(leitor.result||''), f.name);
+          if(n) lidas.push(n); else falhas.push(f.name);
+        } else {
+          var ns = fnfNfLerCsv(String(leitor.result||''), f.name);
+          if(ns.length) lidas = lidas.concat(ns); else falhas.push(f.name);
+        }
+      }catch(e){ falhas.push(f.name+' ('+e.message+')'); }
+      if(--pendentes===0) fnfNfGravar(r.ano, r.mes, lidas, falhas);
+    };
+    leitor.onerror = function(){
+      falhas.push(f.name);
+      if(--pendentes===0) fnfNfGravar(r.ano, r.mes, lidas, falhas);
+    };
+    // O CSV da prefeitura de SP vem em latin-1; lido como UTF-8 os acentos do
+    // cabecalho quebram e as colunas deixam de ser encontradas.
+    if(/\.xml$/i.test(f.name)) leitor.readAsText(f, 'UTF-8');
+    else leitor.readAsText(f, 'ISO-8859-1');
+  });
+}
+
+function fnfNfGravar(ano, mes, lidas, falhas){
+  var todos = getNfPj(), k = fnfNfChave(ano,mes);
+  var atuais = todos[k] || [];
+  var vistos = {};
+  atuais.forEach(function(n){ vistos[n.cnpj+'|'+n.nf] = true; });
+  var novas = 0, repetidas = 0;
+  lidas.forEach(function(n){
+    var ch = n.cnpj+'|'+n.nf;
+    if(vistos[ch]){ repetidas++; return; }
+    vistos[ch] = true; atuais.push(n); novas++;
+  });
+  todos[k] = atuais; saveNfPj(todos);
+  fnfRender();
+  var msg = novas+' nota(s) importada(s).';
+  if(repetidas) msg += '\n'+repetidas+' já estavam no mês (mesmo CNPJ e número) — ignoradas.';
+  if(falhas.length) msg += '\n\nNão consegui ler '+falhas.length+' arquivo(s):\n- '+falhas.slice(0,10).join('\n- ');
+  alert(msg);
+}
+
+function fnfNfLancarManual(pessoaId){
+  var d = getPplData().find(function(x){ return String(x.id)===String(pessoaId); });
+  if(!d) return;
+  var v = fnfVinculo(d);
+  if(!v || !v.cnpj){ alert('Cadastre o CNPJ de '+d.nome+' antes — é por ele que a nota é reconhecida.'); return; }
+  var nf = prompt('Número da NF de '+d.nome+':'); if(nf===null) return;
+  nf = String(nf).trim(); if(!nf) return;
+  var val = prompt('Valor da NF (R$):'); if(val===null) return;
+  var valor = fnfNum(val);
+  if(!valor){ alert('Valor inválido.'); return; }
+  var r = fnfMesAno();
+  var padrao = folhaDataPagamentoISO(r.ano, r.mes);
+  var data = prompt('Data de emissão (AAAA-MM-DD):', padrao); if(data===null) return;
+  fnfNfGravar(r.ano, r.mes, [{ cnpj:fnfSoDig(v.cnpj), nf:nf, razao:v.razao||d.nome,
+                               valor:valor, data:String(data).slice(0,10),
+                               fonte:'manual', arquivo:'' }], []);
+}
+
+function fnfNfRemover(cnpj, nf){
+  if(!confirm('Remover a NF '+nf+' deste mês?')) return;
+  var r = fnfMesAno(), todos = getNfPj(), k = fnfNfChave(r.ano,r.mes);
+  todos[k] = (todos[k]||[]).filter(function(n){ return !(n.cnpj===cnpj && n.nf===nf); });
+  saveNfPj(todos); fnfRender();
+}
+
+function fnfNfLimpar(){
+  var r = fnfMesAno();
+  var n = fnfNfDoMes(r.ano,r.mes).length;
+  if(!n){ alert('Não há NF registrada neste mês.'); return; }
+  if(!confirm('Apagar as '+n+' nota(s) de '+FNF_MESES[r.mes]+'/'+r.ano+'?')) return;
+  var todos = getNfPj(); delete todos[fnfNfChave(r.ano,r.mes)];
+  saveNfPj(todos); fnfRender();
+}
+
+// Cruza o que chegou com o que a folha diz que deveria chegar.
+function fnfNfConferencia(ano, mes){
+  var recebidas = fnfNfDoMes(ano, mes);
+  var porCnpj = {};
+  recebidas.forEach(function(n){
+    (porCnpj[n.cnpj] = porCnpj[n.cnpj] || []).push(n);
+  });
+  var linhas = [], usados = {};
+  fnfLote(ano, mes).forEach(function(l){
+    var dig = l.vinc && l.vinc.cnpj ? fnfSoDig(l.vinc.cnpj) : '';
+    var nfs = dig ? (porCnpj[dig]||[]) : [];
+    if(dig) usados[dig] = true;
+    if(!nfs.length){
+      linhas.push({ pessoa:l.p, esperado:l.valor, nf:null, semVinculo:!dig,
+                    situacao: dig ? {rot:'falta a NF', cor:'amber'}
+                                  : {rot:'sem CNPJ cadastrado', cor:'gray'} });
+      return;
+    }
+    // Uma pessoa pode emitir mais de uma nota no mes (rescisao, ferias): o que
+    // tem de bater com o esperado e a soma, nao cada nota isolada.
+    var soma = nfs.reduce(function(s,n){ return s+n.valor; },0);
+    nfs.forEach(function(n,i){
+      linhas.push({ pessoa:l.p, esperado: i===0?l.valor:null, nf:n,
+                    situacao: i>0 ? {rot:'2ª nota no mês', cor:'blue'}
+                            : Math.abs(soma-l.valor)<=0.01 ? {rot:'confere', cor:'green'}
+                            : {rot:'difere '+moedaFmt(soma-l.valor), cor:'red'} });
+    });
+  });
+  // Notas que chegaram sem dono: CNPJ que nao esta no cadastro de ninguem.
+  Object.keys(porCnpj).forEach(function(dig){
+    if(usados[dig]) return;
+    porCnpj[dig].forEach(function(n){
+      linhas.push({ pessoa:null, esperado:null, nf:n, orfa:true,
+                    situacao:{rot:'CNPJ não cadastrado', cor:'red'} });
+    });
+  });
+  return linhas;
+}
+
+function fnfNfRender(){
+  var tb = document.getElementById('fnf-nf-tbody');
+  if(!tb) return;
+  var r = fnfMesAno();
+  var linhas = fnfNfConferencia(r.ano, r.mes);
+  var recebidas = fnfNfDoMes(r.ano, r.mes);
+  var falta = linhas.filter(function(l){ return l.situacao.rot==='falta a NF'; }).length;
+  var orfas = linhas.filter(function(l){ return l.orfa; }).length;
+  var total = recebidas.reduce(function(s,n){ return s+n.valor; },0);
+
+  document.getElementById('fnf-nf-meta').textContent =
+    recebidas.length+' nota(s) · '+moedaFmt(total)+
+    (falta?' · faltam '+falta:'')+(orfas?' · '+orfas+' sem dono':'');
+
+  if(!linhas.length){
+    tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">Nenhum PJ ativo neste mês</td></tr>';
+    return;
+  }
+  tb.innerHTML = linhas.map(function(l){
+    var n = l.nf;
+    var nome = l.pessoa ? l.pessoa.nome
+             : '<span style="color:var(--text3)">'+(n.razao||'—')+'</span>';
+    var acao = '';
+    if(!n && !l.semVinculo){
+      acao = '<button class="btn" style="font-size:10px;padding:2px 8px" onclick="fnfNfLancarManual(\''+l.pessoa.id+'\')">lançar</button>';
+    } else if(n){
+      acao = '<button class="btn" style="font-size:10px;padding:2px 8px" onclick="fnfNfRemover(\''+n.cnpj+'\',\''+n.nf+'\')">remover</button>';
+    }
+    return '<tr>'+
+      '<td><strong>'+nome+'</strong>'+
+        (l.orfa?'<div style="font-size:10px;color:var(--text3);font-family:var(--font-mono)">'+fnfFmtDoc(n.cnpj)+'</div>':'')+'</td>'+
+      '<td style="font-family:var(--font-mono);font-size:11px">'+(n?n.nf:'—')+'</td>'+
+      '<td style="text-align:right">'+(n?moedaFmt(n.valor):'—')+'</td>'+
+      '<td style="text-align:right;color:var(--text3)">'+(l.esperado!=null?moedaFmt(l.esperado):'—')+'</td>'+
+      '<td style="font-size:11px">'+(n&&n.data?n.data.split('-').reverse().join('/'):'—')+'</td>'+
+      '<td style="font-size:10px;color:var(--text3)">'+(n?n.fonte:'—')+'</td>'+
+      '<td><span class="badge badge-'+l.situacao.cor+'">'+l.situacao.rot+'</span></td>'+
+      '<td style="text-align:right">'+acao+'</td>'+
+    '</tr>';
+  }).join('');
+}
+
+function fnfNfExportar(){
+  if(typeof XLSX==='undefined'){ alert('Biblioteca de planilha não carregou. Recarregue a página.'); return; }
+  var r = fnfMesAno();
+  var linhas = fnfNfConferencia(r.ano, r.mes);
+  if(!linhas.length){ alert('Nada a exportar neste mês.'); return; }
+  var aoa = [['CONFERÊNCIA DE NFs DOS PJ — '+FNF_MESES[r.mes]+'/'+r.ano],
+             ['Gerado pelo Euphoria OS em '+new Date().toLocaleString(localeEnt())],[],
+             ['COLABORADOR','CNPJ','NF','VALOR DA NF','ESPERADO','EMISSÃO','ORIGEM','SITUAÇÃO']];
+  linhas.forEach(function(l){
+    var n = l.nf;
+    aoa.push([ l.pessoa?l.pessoa.nome:(n?n.razao:''),
+               n?fnfFmtDoc(n.cnpj):(l.pessoa&&fnfVinculo(l.pessoa)?fnfVinculo(l.pessoa).cnpj:''),
+               n?n.nf:'', n?n.valor:'', l.esperado!=null?l.esperado:'',
+               n?n.data:'', n?n.fonte:'', l.situacao.rot ]);
+  });
+  var ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:34},{wch:20},{wch:8},{wch:13},{wch:13},{wch:12},{wch:16},{wch:24}];
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'NFs '+FNF_MESES[r.mes].slice(0,3)+r.ano);
+  XLSX.writeFile(wb, 'nfs-pj-'+String(r.mes+1).padStart(2,'0')+'-'+r.ano+'.xlsx');
 }
 
 // ── MOVIMENTAÇÕES INTERNAS ───────────────────────────────────────────────────
