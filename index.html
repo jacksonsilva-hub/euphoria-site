@@ -2356,6 +2356,31 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
 
       <div class="table-card" style="margin-bottom:18px">
         <div class="table-header">
+          <span class="table-title">Solicitação de emissão</span>
+          <span class="table-meta" id="fnf-sol-meta">—</span>
+        </div>
+        <div style="padding:10px 14px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border)">
+          Quem emite a NF de cada PJ — a contabilidade ou a própria pessoa. É isso que separa o pedido do mês em duas saídas: a planilha que vai para a contabilidade e a lista de quem emite sozinho. Quem emite a própria nota entra igual aos outros, inclusive você: o controle não é o e-mail, é a linha ficar pendente até a NF chegar.
+          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-vbs" onclick="fnfSolExportar('contabilidade')" style="font-size:10px;padding:3px 10px">📥 Planilha da contabilidade</button>
+            <button class="btn" onclick="fnfSolExportar('propria')" style="font-size:10px;padding:3px 10px">📥 Planilha de quem emite sozinho</button>
+            <button class="btn" onclick="fnfSolCopiar()" style="font-size:10px;padding:3px 10px">📋 Copiar lista para e-mail</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto;max-height:420px">
+          <table class="tbl" style="min-width:980px">
+            <thead><tr>
+              <th>Colaborador</th><th>Quem emite</th>
+              <th style="text-align:right">Salário</th><th style="text-align:right">13º</th>
+              <th style="text-align:right">Total a emitir</th><th>NFs</th><th>Situação</th>
+            </tr></thead>
+            <tbody id="fnf-sol-tbody"><tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Escolha o mês</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="table-card" style="margin-bottom:18px">
+        <div class="table-header">
           <span class="table-title">Lote do mês</span>
           <span class="table-meta" id="fnf-meta">—</span>
         </div>
@@ -6625,27 +6650,48 @@ function fnfPessoasDoMes(ano, mes){
   }).sort(function(a,b){ return String(a.nome).localeCompare(String(b.nome),'pt-BR'); });
 }
 
+// O mes pode ter mais de uma parcela por pessoa: em novembro e dezembro entra
+// metade do 13o, e a Euphoria pede uma NF para cada parcela - salario numa,
+// 13o noutra. Por isso o lote devolve as parcelas separadas e o esperado do mes
+// e a soma delas, nao so o salario.
 function fnfLote(ano, mes){
   return fnfPessoasDoMes(ano, mes).map(function(p){
     var sal = parseFloat(pplSalarioNoMes(p, ano, mes))||0;
     var dias = pplDiasTrabalhados(p, ano, mes);
-    var valor = dias>=30 ? sal : (sal/30*dias);
-    var v = fnfVinculo(p);
-    var titulo = null;
-    if(v && v.id && _fnfTitulos){
-      titulo = _fnfTitulos.find(function(t){ return String(t.ID_Terceiro_CP)===String(v.id); }) || null;
+    var salProp = dias>=30 ? sal : (sal/30*dias);
+    // 1/12 por mes trabalhado no ano, metade em novembro e metade em dezembro.
+    var decimo = parseFloat(pplDecimoTerceiroNoMes(p, ano, mes))||0;
+    var valor = salProp + decimo;
+
+    var parcelas = [{ tipo:'Salário', valor:salProp,
+                      historico: fnfHistorico(ano, mes) }];
+    if(decimo > 0){
+      parcelas.push({ tipo:'13º ('+(mes===10?'1ª':'2ª')+' parcela)', valor:decimo,
+                      historico:'ADIANTAMENTO 13 SALARIO '+FNF_MESES[mes]+' '+ano });
     }
+
+    var v = fnfVinculo(p);
+    // Soma TODOS os titulos do fornecedor na janela, nao so o primeiro: com duas
+    // parcelas sao dois titulos, e comparar um deles com o total acusaria
+    // divergencia falsa em todo mundo em novembro e dezembro.
+    var titulos = (v && v.id && _fnfTitulos)
+      ? _fnfTitulos.filter(function(t){ return String(t.ID_Terceiro_CP)===String(v.id); })
+      : [];
+    var lancado = titulos.reduce(function(s,t){ return s+(parseFloat(t.Valor_Documento_CP)||0); }, 0);
+
     var situacao;
     if(!v) situacao = {rot:'sem vínculo', cor:'gray'};
     // CNPJ gravado, mas sem cadastro no VBS: o titulo nao tem como ser lancado
     // ate alguem cadastrar o fornecedor la, entao nao adianta dizer "falta lancar".
     else if(!v.id) situacao = {rot:'fornecedor fora do VBS', cor:'red'};
     else if(!_fnfTitulos) situacao = {rot:'não conferido', cor:'gray'};
-    else if(!titulo) situacao = {rot:'falta lançar', cor:'amber'};
-    else if(Math.abs((parseFloat(titulo.Valor_Documento_CP)||0) - valor) > 0.01)
-      situacao = {rot:'valor diferente ('+moedaFmt(titulo.Valor_Documento_CP)+')', cor:'red'};
+    else if(!titulos.length) situacao = {rot:'falta lançar', cor:'amber'};
+    else if(Math.abs(lancado - valor) > 0.01)
+      situacao = {rot:'valor diferente ('+moedaFmt(lancado)+')', cor:'red'};
     else situacao = {rot:'lançado', cor:'green'};
-    return { p:p, sal:sal, dias:dias, valor:valor, vinc:v, titulo:titulo, situacao:situacao };
+
+    return { p:p, sal:salProp, decimo:decimo, dias:dias, valor:valor,
+             parcelas:parcelas, vinc:v, titulos:titulos, situacao:situacao };
   });
 }
 
@@ -6714,23 +6760,34 @@ function fnfRender(){
   if(!lote.length){
     tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">Nenhum PJ ativo neste mês</td></tr>';
   } else {
+    // Uma linha por parcela: em novembro e dezembro a pessoa aparece duas vezes,
+    // salario e 13o, porque sao duas NFs e dois titulos.
     tb.innerHTML = lote.map(function(l){
       var v = l.vinc;
-      return '<tr>'+
-        '<td><strong>'+l.p.nome+'</strong>'+(l.dias<30?'<div style="font-size:10px;color:var(--amber)">proporcional '+l.dias+'/30</div>':'')+'</td>'+
-        '<td style="font-size:11px">'+(v?v.razao:'<span style="color:var(--text3)">—</span>')+'</td>'+
-        '<td style="font-family:var(--font-mono);font-size:11px">'+(v?(v.cnpj||'—'):'—')+'</td>'+
-        '<td style="text-align:right">'+l.dias+'</td>'+
-        '<td style="text-align:right;font-weight:600">'+moedaFmt(l.valor)+'</td>'+
-        '<td style="font-size:10px;color:var(--text3)">'+fnfHistorico(r.ano,r.mes)+'</td>'+
-        '<td><span class="badge badge-'+l.situacao.cor+'">'+l.situacao.rot+'</span></td>'+
-        '<td style="text-align:right">'+(v?'<button class="btn" style="font-size:10px;padding:2px 8px" onclick="fnfSalvarVinculo(\''+l.p.id+'\',null)">desvincular</button>':'')+'</td>'+
-      '</tr>';
+      return l.parcelas.map(function(par, i){
+        var primeira = i===0;
+        return '<tr'+(primeira?'':' style="opacity:.85"')+'>'+
+          '<td>'+(primeira
+            ? '<strong>'+l.p.nome+'</strong>'+(l.dias<30?'<div style="font-size:10px;color:var(--amber)">proporcional '+l.dias+'/30</div>':'')
+            : '<span style="color:var(--text3);padding-left:12px">↳ '+l.p.nome+'</span>')+
+            '<div style="font-size:10px;color:var(--text3)">'+par.tipo+'</div></td>'+
+          '<td style="font-size:11px">'+(primeira?(v?v.razao:'<span style="color:var(--text3)">—</span>'):'')+'</td>'+
+          '<td style="font-family:var(--font-mono);font-size:11px">'+(primeira?(v?(v.cnpj||'—'):'—'):'')+'</td>'+
+          '<td style="text-align:right">'+(primeira?l.dias:'')+'</td>'+
+          '<td style="text-align:right;font-weight:600">'+moedaFmt(par.valor)+
+            (l.parcelas.length>1&&primeira?'<div style="font-size:10px;color:var(--text3);font-weight:400">total '+moedaFmt(l.valor)+'</div>':'')+'</td>'+
+          '<td style="font-size:10px;color:var(--text3)">'+par.historico+'</td>'+
+          '<td>'+(primeira?'<span class="badge badge-'+l.situacao.cor+'">'+l.situacao.rot+'</span>':'')+'</td>'+
+          '<td style="text-align:right">'+(primeira&&v?'<button class="btn" style="font-size:10px;padding:2px 8px" onclick="fnfSalvarVinculo(\''+l.p.id+'\',null)">desvincular</button>':'')+'</td>'+
+        '</tr>';
+      }).join('');
     }).join('');
   }
 
   // Antes do painel de vinculos, que tem return proprio quando o cadastro do
-  // VBS ainda nao foi carregado — a conferencia de NF nao depende disso.
+  // VBS ainda nao foi carregado — nem a solicitacao nem a conferencia de NF
+  // dependem disso.
+  fnfSolRender();
   fnfNfRender();
 
   // ── painel de vinculos ──
@@ -6810,25 +6867,165 @@ function fnfExportar(){
   aoa.push(['Gerado pelo Euphoria OS em '+new Date().toLocaleString(localeEnt())+
             ' · valor já proporcional (dias/30) · vencimento '+vencBR]);
   aoa.push([]);
-  aoa.push(['#','COLABORADOR','RAZÃO SOCIAL (VBS)','CNPJ/CPF','CÓD. VBS','DIAS','VALOR',
+  aoa.push(['#','COLABORADOR','PARCELA','RAZÃO SOCIAL (VBS)','CNPJ/CPF','CÓD. VBS','DIAS','VALOR',
             'VENCIMENTO','HISTÓRICO','CONTA CONTÁBIL','SITUAÇÃO NO VBS','Nº NF']);
-  lote.forEach(function(l,i){
-    aoa.push([i+1, l.p.nome,
-              l.vinc ? (l.vinc.razao || '— NÃO CADASTRADO NO VBS —') : '— SEM VÍNCULO —',
-              l.vinc?l.vinc.cnpj:'',
-              (l.vinc&&l.vinc.cod)?(l.vinc.cod+(l.vinc.dv!=null?'-'+l.vinc.dv:'')):'',
-              l.dias, Math.round(l.valor*100)/100, vencBR, hist,
-              '40803-8 SERVIÇOS TERCEIROS PJ', l.situacao.rot, '']);
+  var linha = 0, totalGeral = 0;
+  lote.forEach(function(l){
+    l.parcelas.forEach(function(par, i){
+      linha++;
+      totalGeral += Math.round(par.valor*100)/100;
+      aoa.push([linha, l.p.nome, par.tipo,
+                l.vinc ? (l.vinc.razao || '— NÃO CADASTRADO NO VBS —') : '— SEM VÍNCULO —',
+                l.vinc?l.vinc.cnpj:'',
+                (l.vinc&&l.vinc.cod)?(l.vinc.cod+(l.vinc.dv!=null?'-'+l.vinc.dv:'')):'',
+                i===0?l.dias:'', Math.round(par.valor*100)/100, vencBR, par.historico,
+                '40803-8 SERVIÇOS TERCEIROS PJ', i===0?l.situacao.rot:'', '']);
+    });
   });
   aoa.push([]);
-  aoa.push(['','TOTAL','','','','',
-    Math.round(lote.reduce(function(s,l){ return s+Math.round(l.valor*100)/100; },0)*100)/100]);
+  aoa.push(['','TOTAL','','','','','', Math.round(totalGeral*100)/100]);
 
   var ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = [{wch:4},{wch:34},{wch:42},{wch:20},{wch:12},{wch:6},{wch:13},{wch:12},{wch:34},{wch:30},{wch:22},{wch:12}];
+  ws['!cols'] = [{wch:4},{wch:34},{wch:18},{wch:42},{wch:20},{wch:12},{wch:6},{wch:13},{wch:12},{wch:34},{wch:30},{wch:22},{wch:12}];
   var wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Lote '+FNF_MESES[r.mes].slice(0,3)+r.ano);
   XLSX.writeFile(wb, 'lote-folha-pj-'+String(r.mes+1).padStart(2,'0')+'-'+r.ano+'.xlsx');
+}
+
+// ── SOLICITAÇÃO DE EMISSÃO ───────────────────────────────────────────────────
+// O ciclo do mes comeca aqui, antes de qualquer nota existir: alguem precisa
+// pedir a emissao. Parte dos PJ tem a nota emitida pela contabilidade e parte
+// emite a propria - inclusive quem faz o pedido. Mandar e-mail para si mesmo
+// nao resolveria nada; o que faz o controle e a linha ficar pendente ate a NF
+// chegar, e para isso quem emite sozinho precisa estar na lista como os outros.
+var FNF_EMISSORES = { contabilidade:'Contabilidade', propria:'A própria pessoa' };
+
+function fnfSolEmissor(p){ return (p && p.nf_emissor) || ''; }
+
+function fnfSolDefinir(pessoaId, valor){
+  var d = getPplData();
+  var i = d.findIndex(function(x){ return String(x.id)===String(pessoaId); });
+  if(i<0) return;
+  if(valor) d[i].nf_emissor = valor; else delete d[i].nf_emissor;
+  savePplData(d);
+  fnfRender();
+}
+
+// Junta o que deve ser emitido com o que ja chegou, por pessoa.
+function fnfSolLinhas(ano, mes){
+  var recebidas = fnfNfDoMes(ano, mes), porCnpj = {};
+  recebidas.forEach(function(n){ (porCnpj[n.cnpj] = porCnpj[n.cnpj] || []).push(n); });
+  return fnfLote(ano, mes).map(function(l){
+    var dig = l.vinc && l.vinc.cnpj ? fnfSoDig(l.vinc.cnpj) : '';
+    var nfs = dig ? (porCnpj[dig]||[]) : [];
+    var soma = nfs.reduce(function(s,n){ return s+n.valor; },0);
+    var situacao;
+    if(!fnfSolEmissor(l.p)) situacao = {rot:'definir quem emite', cor:'gray'};
+    else if(!nfs.length) situacao = {rot:'a emitir', cor:'amber'};
+    else if(nfs.length < l.parcelas.length) situacao = {rot:'falta '+(l.parcelas.length-nfs.length)+' NF', cor:'amber'};
+    else if(Math.abs(soma-l.valor) > 0.01) situacao = {rot:'valor difere', cor:'red'};
+    else situacao = {rot:'emitida', cor:'green'};
+    return { l:l, nfs:nfs, situacao:situacao };
+  });
+}
+
+function fnfSolRender(){
+  var tb = document.getElementById('fnf-sol-tbody'); if(!tb) return;
+  var r = fnfMesAno();
+  var linhas = fnfSolLinhas(r.ano, r.mes);
+  var semDefinir = linhas.filter(function(x){ return !fnfSolEmissor(x.l.p); }).length;
+  var aEmitir = linhas.filter(function(x){ return x.situacao.cor==='amber'; }).length;
+  var total = linhas.reduce(function(s,x){ return s+x.l.valor; },0);
+  var tem13 = linhas.some(function(x){ return x.l.decimo>0; });
+
+  document.getElementById('fnf-sol-meta').textContent =
+    linhas.length+' PJ · '+moedaFmt(total)+' a emitir'+
+    (tem13?' · com 13º':'')+(semDefinir?' · '+semDefinir+' sem emissor definido':'');
+
+  if(!linhas.length){
+    tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Nenhum PJ ativo neste mês</td></tr>';
+    return;
+  }
+  tb.innerHTML = linhas.map(function(x){
+    var p = x.l.p, em = fnfSolEmissor(p);
+    var opts = ['<option value="">— definir —</option>'].concat(
+      Object.keys(FNF_EMISSORES).map(function(k){
+        return '<option value="'+k+'"'+(em===k?' selected':'')+'>'+FNF_EMISSORES[k]+'</option>';
+      })).join('');
+    return '<tr>'+
+      '<td><strong>'+p.nome+'</strong>'+
+        (x.l.dias<30?'<div style="font-size:10px;color:var(--amber)">proporcional '+x.l.dias+'/30</div>':'')+'</td>'+
+      '<td><select onchange="fnfSolDefinir(\''+p.id+'\',this.value)" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:4px 7px;border-radius:6px;font-size:11px;outline:none">'+opts+'</select></td>'+
+      '<td style="text-align:right">'+moedaFmt(x.l.sal)+'</td>'+
+      '<td style="text-align:right">'+(x.l.decimo?moedaFmt(x.l.decimo):'<span style="color:var(--text3)">—</span>')+'</td>'+
+      '<td style="text-align:right;font-weight:600">'+moedaFmt(x.l.valor)+
+        '<div style="font-size:10px;color:var(--text3);font-weight:400">'+x.l.parcelas.length+' NF</div></td>'+
+      '<td style="font-size:11px">'+(x.nfs.length?x.nfs.map(function(n){ return n.nf; }).join(', ')
+                                                 :'<span style="color:var(--text3)">—</span>')+'</td>'+
+      '<td><span class="badge badge-'+x.situacao.cor+'">'+x.situacao.rot+'</span></td>'+
+    '</tr>';
+  }).join('');
+}
+
+function fnfSolExportar(grupo){
+  if(typeof XLSX==='undefined'){ alert('Biblioteca de planilha não carregou. Recarregue a página.'); return; }
+  var r = fnfMesAno();
+  var linhas = fnfSolLinhas(r.ano, r.mes).filter(function(x){ return fnfSolEmissor(x.l.p)===grupo; });
+  if(!linhas.length){
+    alert('Ninguém marcado como "'+FNF_EMISSORES[grupo]+'" em '+FNF_MESES[r.mes]+'/'+r.ano+'.');
+    return;
+  }
+  var venc = document.getElementById('fnf-venc').value || '';
+  var vencBR = venc ? venc.split('-').reverse().join('/') : '';
+  var aoa = [['SOLICITAÇÃO DE EMISSÃO DE NF — '+FNF_MESES[r.mes]+'/'+r.ano],
+             [FNF_EMISSORES[grupo]+' · pagamento em '+vencBR+
+              ' · uma NF por parcela · gerado em '+new Date().toLocaleString(localeEnt())],[],
+             ['#','COLABORADOR','RAZÃO SOCIAL','CNPJ','PARCELA','VALOR','COMPETÊNCIA','DESCRIÇÃO SUGERIDA']];
+  var n = 0, total = 0;
+  linhas.forEach(function(x){
+    x.l.parcelas.forEach(function(par){
+      n++; total += Math.round(par.valor*100)/100;
+      aoa.push([n, x.l.p.nome,
+                x.l.vinc ? (x.l.vinc.razao||'') : '— SEM CNPJ CADASTRADO —',
+                x.l.vinc ? (x.l.vinc.cnpj||'') : '',
+                par.tipo, Math.round(par.valor*100)/100,
+                String(r.mes+1).padStart(2,'0')+'/'+r.ano, par.historico]);
+    });
+  });
+  aoa.push([]);
+  aoa.push(['','TOTAL','','','', Math.round(total*100)/100]);
+  var ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:4},{wch:34},{wch:42},{wch:20},{wch:18},{wch:13},{wch:13},{wch:38}];
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Emissão '+FNF_MESES[r.mes].slice(0,3));
+  XLSX.writeFile(wb, 'solicitacao-nf-'+grupo+'-'+String(r.mes+1).padStart(2,'0')+'-'+r.ano+'.xlsx');
+}
+
+// Texto pronto para colar no e-mail. Sem endereco de ninguem: o cadastro nao
+// guarda e-mail, e deduzir a partir do nome erraria em quem usa conta pessoal.
+function fnfSolCopiar(){
+  var r = fnfMesAno();
+  var linhas = fnfSolLinhas(r.ano, r.mes).filter(function(x){ return fnfSolEmissor(x.l.p)==='propria'; });
+  if(!linhas.length){ alert('Ninguém marcado como "A própria pessoa" neste mês.'); return; }
+  var venc = document.getElementById('fnf-venc').value || '';
+  var vencBR = venc ? venc.split('-').reverse().join('/') : '';
+  var txt = 'Emissão de NF — '+FNF_MESES[r.mes]+'/'+r.ano+'\n'+
+            'Pagamento em '+vencBR+'. Uma NF por parcela.\n\n';
+  linhas.forEach(function(x){
+    txt += x.l.p.nome+(x.l.vinc&&x.l.vinc.razao?' ('+x.l.vinc.razao+')':'')+'\n';
+    x.l.parcelas.forEach(function(par){
+      txt += '  - '+par.tipo+': '+moedaFmt(par.valor)+'\n';
+    });
+    if(x.l.parcelas.length>1) txt += '  total: '+moedaFmt(x.l.valor)+'\n';
+    txt += '\n';
+  });
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(function(){
+      alert('Lista de '+linhas.length+' pessoa(s) copiada — é só colar no e-mail.');
+    }, function(){ prompt('Copie a lista abaixo:', txt); });
+  } else {
+    prompt('Copie a lista abaixo:', txt);
+  }
 }
 
 // ── NFs RECEBIDAS DOS PJ ─────────────────────────────────────────────────────
