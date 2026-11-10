@@ -3544,28 +3544,41 @@ function resetFilters() {
 }
 
 // ─── P&L HELPERS ─────────────────────────────────────────
+// Estas tres funcoes leem a aba de Budget carregada em G.pl. Elas nasceram para
+// o Brasil: rotulo em ingles, sempre na coluna 1. A aba do Mexico tem os rotulos
+// em espanhol e nem sempre na mesma coluna, entao nada casava e o Budget do
+// Mexico vinha zerado - o que abriu espaco para o Actual do Brasil ocupar o
+// lugar no Dashboard. Agora delegam para plNormalizarRotulo/plDetectarColunaRotulo,
+// que e o leitor generico ja usado pelo Actual e pelo Comparativo.
 function getPLRow(label) {
-  for (const row of (G.pl || [])) {
-    if (row[1] && row[1].trim() === label) return row;
+  var rows = G.pl || [];
+  var col = plDetectarColunaRotulo(rows);
+  for (var i = 0; i < rows.length; i++) {
+    if (rows[i] && plNormalizarRotulo(rows[i][col]) === label) return rows[i];
   }
   return null;
 }
+// Em que coluna estao os rotulos de G.pl - os meses comecam na seguinte.
+function getPLCol() { return plDetectarColunaRotulo(G.pl || []); }
 
 // Returns array of 12 monthly values (already multiplied × 1000 for display in R$)
 function getMonthly(label) {
   const row = getPLRow(label);
   if (!row) return Array(12).fill(0);
-  return Array.from({length: 12}, (_, i) => parseNum(row[2 + i]) * 1000);
+  const col = getPLCol();
+  return Array.from({length: 12}, (_, i) => parseNum(row[col + 1 + i]) * 1000);
 }
 
 // Returns annual BUD 2026 total × 1000
 function getAnnual(label) {
   const row = getPLRow(label);
   if (!row) return 0;
-  // Try column 15 first (BUD 2026 total), fallback to sum
-  const tot = parseNum(row[15]);
+  // Total anual = rotulo+14 (a coluna rotulo+13 e a separadora em branco);
+  // se vier vazia, soma os doze meses.
+  const col = getPLCol();
+  const tot = parseNum(row[col + 14]);
   if (tot !== 0) return tot * 1000;
-  return Array.from({length: 12}, (_, i) => parseNum(row[2 + i])).reduce((a,b) => a+b, 0) * 1000;
+  return Array.from({length: 12}, (_, i) => parseNum(row[col + 1 + i])).reduce((a,b) => a+b, 0) * 1000;
 }
 
 // ── LEITURA GENERICA DE ABA DE P&L ────────────────────────────────────────────
@@ -3818,13 +3831,18 @@ function renderAll() {
   // 2025 caímos no proxy antigo (Rentabilidade Real por cliente, via VBS gerencial),
   // que não tem EBITDA nem quebra mensal - melhor que nada, mas bem mais limitado.
   var gmFonteReal = null, ebitFonteReal = null, gmBase = rev;
-  var actualDoAno = (G.plActualPorAno && G.plActualPorAno[plChave(f2.ano, 'BR')]) || null;
+  // A entidade TEM que entrar aqui. Enquanto estava fixo em 'BR', quem abria o
+  // Dashboard no Mexico via a Receita, a Gross Margin e o EBITDA do Brasil com
+  // o simbolo MX$ na frente - numero de outra empresa apresentado como se fosse
+  // o seu, que e o pior erro que este sistema pode cometer.
+  var entPL = (typeof entidadeAtual==='function') ? entidadeAtual() : 'BR';
+  var actualDoAno = (G.plActualPorAno && G.plActualPorAno[plChave(f2.ano, entPL)]) || null;
   if (actualDoAno && actualDoAno.length) {
     var isFullYearActual = (deIdx === 0 && ateIdx === 11);
-    var revMActual  = getActualMonthly('REVENUE', f2.ano);
-    var gmMActual   = getActualMonthly('GROSS MARGIN', f2.ano);
-    var ebitMActual = getActualMonthly('OPERATING PROFIT/(LOSS) - EBITDA', f2.ano);
-    var sumRangeActual = function(arr, label){ return isFullYearActual ? getActualAnnual(label, f2.ano) : arr.slice(deIdx, ateIdx + 1).reduce(function(s,v){ return s+v; }, 0); };
+    var revMActual  = getActualMonthly('REVENUE', f2.ano, entPL);
+    var gmMActual   = getActualMonthly('GROSS MARGIN', f2.ano, entPL);
+    var ebitMActual = getActualMonthly('OPERATING PROFIT/(LOSS) - EBITDA', f2.ano, entPL);
+    var sumRangeActual = function(arr, label){ return isFullYearActual ? getActualAnnual(label, f2.ano, entPL) : arr.slice(deIdx, ateIdx + 1).reduce(function(s,v){ return s+v; }, 0); };
     rev  = sumRangeActual(revMActual, 'REVENUE');
     gm   = sumRangeActual(gmMActual, 'GROSS MARGIN');
     ebit = sumRangeActual(ebitMActual, 'OPERATING PROFIT/(LOSS) - EBITDA');
@@ -4123,8 +4141,9 @@ function renderPLFull() {
   const rows_html = lines.map(({ label }) => {
     const row = getPLRow(label);
     if (!row) return '';
-    const vals = Array.from({length: 12}, (_, i) => parseNum(row[2 + i]) * 1000);
-    const total = parseNum(row[15]) * 1000 || vals.reduce((a,b) => a+b, 0);
+    const col = getPLCol();
+    const vals = Array.from({length: 12}, (_, i) => parseNum(row[col + 1 + i]) * 1000);
+    const total = parseNum(row[col + 14]) * 1000 || vals.reduce((a,b) => a+b, 0);
     const isMain = mainTotals.includes(label);
     const isSub  = subtotals.includes(label) && !isMain;
     const cls = isMain ? 'total-row' : isSub ? 'subtotal-row' : '';
@@ -15895,8 +15914,12 @@ async function dashCarregarPLActual(){
   var txt = btn ? btn.textContent : null;
   if(btn){ btn.textContent='Carregando...'; btn.disabled=true; }
   try{
-    await carregarPLActual(ano);
-    var linhas = ((G.plActualPorAno||{})[ano]||[]).length;
+    // Sem a entidade, isto buscava o P&L do Brasil e o guardava na chave 'BR:ano'
+    // - era a origem do dado brasileiro no Dashboard do Mexico.
+    var entPL = (typeof entidadeAtual==='function') ? entidadeAtual() : 'BR';
+    await carregarPLActual(ano, entPL);
+    // A chave do cache e "{entidade}:{ano}"; indexar so por ano sempre dava 0.
+    var linhas = ((G.plActualPorAno||{})[plChave(ano, entPL)]||[]).length;
     applyFilters();
     alert('P&L Actual '+ano+' carregado ('+linhas+' linhas).');
   }catch(e){
