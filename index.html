@@ -3561,33 +3561,27 @@ function getPLRow(label) {
 // Em que coluna estao os rotulos de G.pl - os meses comecam na seguinte.
 function getPLCol() { return plDetectarColunaRotulo(G.pl || []); }
 
-// Returns array of 12 monthly values (already multiplied × 1000 for display in R$)
-function getMonthly(label) {
-  const row = getPLRow(label);
-  if (!row) return Array(12).fill(0);
-  const col = getPLCol();
-  return Array.from({length: 12}, (_, i) => parseNum(row[col + 1 + i]) * 1000);
-}
-
-// Returns annual BUD 2026 total × 1000
-function getAnnual(label) {
-  const row = getPLRow(label);
-  if (!row) return 0;
-  // Total anual = rotulo+14 (a coluna rotulo+13 e a separadora em branco);
-  // se vier vazia, soma os doze meses.
-  const col = getPLCol();
-  const tot = parseNum(row[col + 14]);
-  if (tot !== 0) return tot * 1000;
-  return Array.from({length: 12}, (_, i) => parseNum(row[col + 1 + i])).reduce((a,b) => a+b, 0) * 1000;
-}
+// Os doze meses e o total do ano da aba de Budget carregada em G.pl. Tinham
+// copia propria da aritmetica de colunas e do "x 1000"; agora delegam para
+// plValores, que e o mesmo leitor do Actual e do Comparativo. Uma copia a menos
+// para corrigir quando o layout muda - e ele acabou de mudar.
+function getMonthly(label) { return plValores(G.pl || [], label).mensal; }
+function getAnnual(label)  { return plValores(G.pl || [], label).anual; }
 
 // ── LEITURA GENERICA DE ABA DE P&L ────────────────────────────────────────────
 // As abas de P&L nao tem layout unico: no Budget do Brasil o rotulo fica na
 // coluna B, nos Actuals do Brasil na C, e no Mexico volta pra B - e o Mexico
 // ainda usa rotulos em espanhol. Em vez de fixar indices (que ja quebrou antes),
-// aqui a coluna do rotulo e descoberta a partir das linhas conhecidas, e a
-// regra de layout e sempre a mesma: meses = rotulo+1..rotulo+12, total anual =
-// rotulo+14 (a coluna rotulo+13 e a separadora em branco).
+// aqui a coluna do rotulo e descoberta a partir das linhas conhecidas, e os meses
+// vem sempre em rotulo+1..rotulo+12.
+//
+// O total do ano nao tem lugar fixo: nas abas antigas a coluna rotulo+13 e uma
+// separadora em branco e o total fica em rotulo+14; na aba montada a partir do
+// modelo mexicano de 2027 o total esta colado nos meses, em rotulo+13. E a
+// unidade tambem mudou: as abas antigas exibem milhares, a de 2027 esta em pesos.
+// Ler as duas com a mesma regra daria numero mil vezes errado sem erro nenhum na
+// tela - os dois valores sao plausiveis. Por isso ambos sao descobertos a partir
+// do conteudo, e a escala pode ser declarada numa celula "ESCALA:".
 var PL_ROTULOS_ES = {
   'INGRESOS':'REVENUE',
   'IMPUESTO SOBRE LAS VENTAS':'SALES TAX',
@@ -3604,7 +3598,21 @@ var PL_ROTULOS_ES = {
   'FINANZAS Y GENERALES':'FINANCE & GENERAL',
   'GANANCIA/(PÉRDIDA) ANTES DEL IMPUESTO SOBRE LA RENTA - EBITA':'PROFIT/(LOSS) BEFORE INCOME TAX - EBITA',
   'IMPUESTO SOBRE LA RENTA':'INCOME TAX',
-  'GANANCIA/(PÉRDIDA) DESPUÉS DE IMPUESTOS':'PROFIT/(LOSS) AFTER TAX'
+  'GANANCIA/(PÉRDIDA) DESPUÉS DE IMPUESTOS':'PROFIT/(LOSS) AFTER TAX',
+  // Modelo mexicano de 2027: o resultado desce de Ingresos para a utilidade
+  // antes dos impostos sobre o lucro, e nao passa por margem bruta nem EBITDA.
+  // "Utilidad neta" e a mesma conta que a "ganancia despues de impuestos" da aba
+  // de 2026, entao as duas caem na mesma chave e o Comparativo continua de pe.
+  'COSTO TOTAL':'TOTAL OPERATING COSTS',
+  'UTILIDAD ANTES DE PTU E ISR':'PROFIT BEFORE PTU AND ISR',
+  'UTILIDAD NETA':'PROFIT/(LOSS) AFTER TAX',
+  'MARGEN NETO %':'NET MARGIN %',
+  // O modelo tem as duas linhas com letra faltando ("...E IS", "UTILIDAD NET").
+  // Corrigimos na aba, mas quem copiar do modelo vai trazer o erro de volta, e
+  // uma linha que nao casa aparece como zero - nao como erro. Aceitar as duas
+  // grafias custa duas entradas e evita um zero silencioso.
+  'UTILIDAD ANTES DE PTU E IS':'PROFIT BEFORE PTU AND ISR',
+  'UTILIDAD NET':'PROFIT/(LOSS) AFTER TAX'
 };
 function plNormalizarRotulo(txt){
   var s = String(txt||'').trim();
@@ -3614,7 +3622,11 @@ function plNormalizarRotulo(txt){
 }
 // Descobre em qual coluna estao os rotulos, procurando linhas conhecidas.
 function plDetectarColunaRotulo(rows){
-  var alvos = ['REVENUE','GROSS MARGIN','OPERATING PROFIT/(LOSS) - EBITDA'];
+  // As tres primeiras existem nas abas do Brasil e do Mexico de 2026; as duas
+  // ultimas, na aba montada pelo modelo de 2027, que nao tem margem bruta nem
+  // EBITDA. Sem elas a deteccao ficaria apoiada numa linha so.
+  var alvos = ['REVENUE','GROSS MARGIN','OPERATING PROFIT/(LOSS) - EBITDA',
+               'PROFIT BEFORE PTU AND ISR','PROFIT/(LOSS) AFTER TAX'];
   var contagem = {};
   (rows||[]).forEach(function(r){
     if (!r) return;
@@ -3633,15 +3645,68 @@ function plLinha(rows, label, colRotulo){
   }
   return null;
 }
-// Devolve {mensal:[12], anual:number} em R$ (planilha esta em milhares).
+// Em que coluna esta o total do ano. Decidido pelo conteudo, nao pelo nome da
+// aba. So as linhas de resultado conhecidas servem de ancora: a primeira versao
+// disto olhava qualquer linha com rotulo e a separadora do Brasil tem lixo em
+// algumas delas, o que fez o total ser lido da coluna em branco - e o numero
+// ainda assim parecia certo, porque sem total ele cai na soma dos meses.
+function plDetectarColunaTotal(rows, col){
+  var ancoras = ['REVENUE','GROSS MARGIN','TOTAL OPERATING COSTS',
+                 'OPERATING PROFIT/(LOSS) - EBITDA','PROFIT BEFORE PTU AND ISR',
+                 'PROFIT/(LOSS) AFTER TAX'];
+  var em13 = 0, em14 = 0;
+  (rows||[]).forEach(function(r){
+    if (!r || ancoras.indexOf(plNormalizarRotulo(r[col])) === -1) return;
+    if (parseNum(String(r[col + 13] == null ? '' : r[col + 13])) !== 0) em13++;
+    if (parseNum(String(r[col + 14] == null ? '' : r[col + 14])) !== 0) em14++;
+  });
+  return em14 > em13 ? col + 14 : col + 13;
+}
+
+// Em que unidade a aba esta. A celula "ESCALA:" diz (1 = pesos/reais,
+// 1000 = milhares). Sem ela vale 1000, que e como todas as abas antigas estao -
+// assim nada muda enquanto a planilha nao for migrada.
+function plDetectarEscala(rows){
+  for (var i = 0; i < (rows||[]).length; i++) {
+    var r = rows[i];
+    if (!r) continue;
+    for (var c = 0; c < Math.min(r.length, 6); c++) {
+      var t = String(r[c] == null ? '' : r[c]).trim().toUpperCase().replace(/:$/, '');
+      if (t === 'ESCALA' || t === 'SCALE') {
+        var v = parseNum(String(r[c + 1] == null ? '' : r[c + 1]));
+        if (v > 0) return v;
+      }
+    }
+  }
+  return 1000;
+}
+
+// Devolve {mensal:[12], anual:number} na moeda da unidade.
 function plValores(rows, label){
   var col = plDetectarColunaRotulo(rows);
   var row = plLinha(rows, label, col);
   if (!row) return { mensal: Array(12).fill(0), anual: 0 };
-  var mensal = Array.from({length:12}, function(_, i){ return parseNum(row[col + 1 + i]) * 1000; });
-  var anual = parseNum(row[col + 14]) * 1000;
+  var escala = plDetectarEscala(rows);
+  var colTotal = plDetectarColunaTotal(rows, col);
+  var mensal = Array.from({length:12}, function(_, i){ return parseNum(row[col + 1 + i]) * escala; });
+  var anual = parseNum(row[colTotal]) * escala;
   if (!anual) anual = mensal.reduce(function(a,b){ return a+b; }, 0);
   return { mensal: mensal, anual: anual };
+}
+
+// Que linhas esta aba tem para o Dashboard. O modelo mexicano de 2027 nao passa
+// por margem bruta nem por EBITDA: vai de Ingresos a utilidade antes de PTU e
+// ISR. Traduzir o rotulo e manter a conta mostraria "EBITDA" sobre um numero que
+// nao e EBITDA - o mesmo tipo de erro que fez o Mexico exibir o P&L do Brasil.
+function plEsquema(rows){
+  rows = rows || [];
+  var col = plDetectarColunaRotulo(rows);
+  if (plLinha(rows, 'OPERATING PROFIT/(LOSS) - EBITDA', col)) {
+    return { margemLabel: 'Gross Margin', margemLinha: 'GROSS MARGIN',
+             resultLabel: 'EBITDA',       resultLinha: 'OPERATING PROFIT/(LOSS) - EBITDA' };
+  }
+  return { margemLabel: 'Custo total',                margemLinha: 'TOTAL OPERATING COSTS',
+           resultLabel: 'Utilidad antes de PTU e ISR', resultLinha: 'PROFIT BEFORE PTU AND ISR' };
 }
 
 // Guardados por chave "{entidade}:{ano}" em G.plActualPorAno.
@@ -3780,16 +3845,20 @@ function renderAll() {
   const deIdx = f.monthDe - 1, ateIdx = f.monthAte - 1;
 
   // P&L values
+  // Quais linhas esta aba tem: Brasil (e Mexico 2026) desce por margem bruta e
+  // EBITDA; o modelo mexicano de 2027, por custo total e utilidade antes de PTU
+  // e ISR. Os cards passam a dizer qual conta estao mostrando.
+  const esq   = plEsquema(G.pl || []);
   const revM  = getMonthly('REVENUE');
-  const gmM   = getMonthly('GROSS MARGIN');
-  const ebitM = getMonthly('OPERATING PROFIT/(LOSS) - EBITDA');
+  const gmM   = getMonthly(esq.margemLinha);
+  const ebitM = getMonthly(esq.resultLinha);
   const patM  = getMonthly('PROFIT/(LOSS) AFTER TAX');
 
   const isFullYear = deIdx === 0 && ateIdx === 11;
   const sumRange = (arr, label) => isFullYear ? getAnnual(label) : arr.slice(deIdx, ateIdx + 1).reduce((s,v) => s + v, 0);
   let rev  = sumRange(revM, 'REVENUE'),
-      gm   = sumRange(gmM, 'GROSS MARGIN'),
-      ebit = sumRange(ebitM, 'OPERATING PROFIT/(LOSS) - EBITDA'),
+      gm   = sumRange(gmM, esq.margemLinha),
+      ebit = sumRange(ebitM, esq.resultLinha),
       pat  = sumRange(patM, 'PROFIT/(LOSS) AFTER TAX');
 
   const f2 = getFilters();
@@ -3839,13 +3908,17 @@ function renderAll() {
   var actualDoAno = (G.plActualPorAno && G.plActualPorAno[plChave(f2.ano, entPL)]) || null;
   if (actualDoAno && actualDoAno.length) {
     var isFullYearActual = (deIdx === 0 && ateIdx === 11);
+    // O esquema e o da aba de Actual, nao o do Budget: as duas podem estar em
+    // layouts diferentes durante a migracao.
+    var esqA = plEsquema(actualDoAno);
     var revMActual  = getActualMonthly('REVENUE', f2.ano, entPL);
-    var gmMActual   = getActualMonthly('GROSS MARGIN', f2.ano, entPL);
-    var ebitMActual = getActualMonthly('OPERATING PROFIT/(LOSS) - EBITDA', f2.ano, entPL);
+    var gmMActual   = getActualMonthly(esqA.margemLinha, f2.ano, entPL);
+    var ebitMActual = getActualMonthly(esqA.resultLinha, f2.ano, entPL);
     var sumRangeActual = function(arr, label){ return isFullYearActual ? getActualAnnual(label, f2.ano, entPL) : arr.slice(deIdx, ateIdx + 1).reduce(function(s,v){ return s+v; }, 0); };
     rev  = sumRangeActual(revMActual, 'REVENUE');
-    gm   = sumRangeActual(gmMActual, 'GROSS MARGIN');
-    ebit = sumRangeActual(ebitMActual, 'OPERATING PROFIT/(LOSS) - EBITDA');
+    gm   = sumRangeActual(gmMActual, esqA.margemLinha);
+    ebit = sumRangeActual(ebitMActual, esqA.resultLinha);
+    esq.margemLabel = esqA.margemLabel; esq.resultLabel = esqA.resultLabel;
     pat  = null;
     gmBase = rev;
     // A aba de Actuals do ano corrente e forecast (realizado + orcado no resto) -
@@ -3870,7 +3943,7 @@ function renderAll() {
   }
 
   // KPIs
-  renderKPIs(rev, gm, ebit, pat, clientCount, f2.ano, gmFonteReal, gmBase, ebitFonteReal, (actualDoAno && actualDoAno.length) ? gmFonteReal : null);
+  renderKPIs(rev, gm, ebit, pat, clientCount, f2.ano, gmFonteReal, gmBase, ebitFonteReal, (actualDoAno && actualDoAno.length) ? gmFonteReal : null, esq);
 
   // Charts
   renderMonthlyChart(revMChart, gmMChart, MONTHS.slice(deIdx, ateIdx + 1));
@@ -3890,19 +3963,23 @@ function renderAll() {
     (f.tipo !== 'all' ? ' — ' + f.tipo : '');
 }
 
-function renderKPIs(rev, gm, ebit, pat, clientCount, anoFiltro, gmFonteReal, gmBase, ebitFonteReal, rotuloFonteRev) {
+function renderKPIs(rev, gm, ebit, pat, clientCount, anoFiltro, gmFonteReal, gmBase, ebitFonteReal, rotuloFonteRev, esq) {
+  esq = esq || { margemLabel: 'Gross Margin', resultLabel: 'EBITDA' };
+  // No modelo mexicano o segundo card e o custo total, nao a margem bruta: ele
+  // vem negativo e "% de margem" nao descreve o que esta ali.
+  const ehMargem = esq.margemLabel === 'Gross Margin';
   const gmPct   = (gmBase > 0 && gm !== null) ? gm / gmBase : 0;
   const ebitPct = (rev > 0 && ebit !== null) ? ebit / rev : 0;
   const gmSub = gm === null
     ? 'Sem dado real por ano — clique em "Rentabilidade Real (VBS)"'
-    : pct(gmPct) + ' de margem' + (gmFonteReal ? ' · '+gmFonteReal : '');
+    : pct(Math.abs(gmPct)) + (ehMargem ? ' de margem' : ' da receita') + (gmFonteReal ? ' · '+gmFonteReal : '');
   const ebitSub = ebit === null
     ? 'Sem dado real por ano'
     : pct(ebitPct) + ' de margem' + (ebitFonteReal ? ' · '+ebitFonteReal : '');
   const cards = [
     { label: 'Receita Bruta',  value: fmt(rev),  sub: rotuloFonteRev || (anoFiltro === '2025' ? 'Actual 2025' : 'Budget 2026') },
-    { label: 'Gross Margin',   value: gm   === null ? '—' : fmt(gm),   sub: gmSub, cls: gm === null ? '' : (gmPct > 0 ? 'pos' : 'neg') },
-    { label: 'EBITDA',         value: ebit === null ? '—' : fmt(ebit), sub: ebitSub, cls: ebit === null ? '' : (ebitPct > 0 ? 'pos' : 'neg') },
+    { label: esq.margemLabel,  value: gm   === null ? '—' : fmt(gm),   sub: gmSub, cls: gm === null ? '' : (ehMargem ? (gmPct > 0 ? 'pos' : 'neg') : '') },
+    { label: esq.resultLabel,  value: ebit === null ? '—' : fmt(ebit), sub: ebitSub, cls: ebit === null ? '' : (ebitPct > 0 ? 'pos' : 'neg') },
     { label: 'Clientes Ativos',value: String(clientCount), sub: 'com budget no período' }
   ];
   document.getElementById('kpi-grid').innerHTML = cards.map(k =>
@@ -4132,18 +4209,21 @@ function renderPLFull() {
     { label: 'FINANCE & GENERAL',                          section: false },
     { label: 'PROFIT/(LOSS) BEFORE INCOME TAX - EBITA',   section: true  },
     { label: 'INCOME TAX',                                 section: false },
+    // So existe no modelo mexicano; nas abas do Brasil a linha nao e encontrada
+    // e some sozinha, como todas as outras que faltam.
+    { label: 'PROFIT BEFORE PTU AND ISR',                  section: true  },
     { label: 'PROFIT/(LOSS) AFTER TAX',                    section: true  },
   ];
 
-  const subtotals = ['GROSS MARGIN','TOTAL OPERATING COSTS','OPERATING PROFIT/(LOSS) - EBITDA','PROFIT/(LOSS) BEFORE INCOME TAX - EBITA','PROFIT/(LOSS) AFTER TAX'];
+  const subtotals = ['GROSS MARGIN','TOTAL OPERATING COSTS','OPERATING PROFIT/(LOSS) - EBITDA','PROFIT/(LOSS) BEFORE INCOME TAX - EBITA','PROFIT BEFORE PTU AND ISR','PROFIT/(LOSS) AFTER TAX'];
   const mainTotals = ['OPERATING PROFIT/(LOSS) - EBITDA','PROFIT/(LOSS) AFTER TAX'];
 
   const rows_html = lines.map(({ label }) => {
-    const row = getPLRow(label);
-    if (!row) return '';
-    const col = getPLCol();
-    const vals = Array.from({length: 12}, (_, i) => parseNum(row[col + 1 + i]) * 1000);
-    const total = parseNum(row[col + 14]) * 1000 || vals.reduce((a,b) => a+b, 0);
+    if (!getPLRow(label)) return '';
+    // Mesma leitura do Dashboard: coluna do total e escala vem do conteudo da
+    // aba. Isto aqui tinha os indices e o "x 1000" escritos de novo.
+    const v12 = plValores(G.pl || [], label);
+    const vals = v12.mensal, total = v12.anual;
     const isMain = mainTotals.includes(label);
     const isSub  = subtotals.includes(label) && !isMain;
     const cls = isMain ? 'total-row' : isSub ? 'subtotal-row' : '';
@@ -15427,6 +15507,15 @@ function recImprimirMensal(){
 function gerarFinancialHighlights(){
   if(!G.pl || !G.clientes){ alert('Carregue os dados do Dashboard primeiro (clique em "↺ Actual do VBS" na aba Financeiro).'); return; }
 
+  // Esta apresentacao e construida sobre margem bruta e EBITDA. O modelo
+  // mexicano de 2027 nao tem essas linhas: gerar assim sairia uma apresentacao
+  // de margem zero e EBITDA zero, com a cara de quem apurou - pior que nao gerar.
+  if (!plLinha(G.pl||[], 'OPERATING PROFIT/(LOSS) - EBITDA', plDetectarColunaRotulo(G.pl||[]))) {
+    alert('Esta apresentação usa Gross Margin e EBITDA, que o P&L carregado não tem.\n\n'+
+          'O modelo mexicano vai de Ingresos a Utilidad antes de PTU e ISR. '+
+          'Gerar assim mostraria margem e EBITDA zerados como se fossem apurados.');
+    return;
+  }
   var revM=getMonthly('REVENUE'), gmM=getMonthly('GROSS MARGIN'), ebitM=getMonthly('OPERATING PROFIT/(LOSS) - EBITDA'), patM=getMonthly('PROFIT/(LOSS) AFTER TAX');
   var revAnnual=revM.reduce(function(s,v){return s+v;},0);
   var gmAnnual=gmM.reduce(function(s,v){return s+v;},0);
