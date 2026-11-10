@@ -917,11 +917,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
         </select>
       </div>
       <div>
-        <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Dia do mês do pagamento da folha</label>
-        <input type="number" id="cfd-dia-folha" min="1" max="28" value="5" style="width:70px;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;outline:none">
+        <label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Pagamento da folha</label>
+        <div id="cfd-dia-folha-info" style="font-size:11px;color:var(--text2);padding:6px 0;white-space:nowrap">último dia útil do mês, contando até o dia 30</div>
       </div>
       <button class="btn btn-primary" onclick="cfProjetarDiario()" style="font-size:11px;padding:6px 14px">↺ Projetar Diário</button>
-      <span style="font-size:10px;color:var(--text3)">Folha é uma estimativa (custo mensal total injetado no dia configurado) — CR/CP usam a data real de vencimento.</span>
+      <span style="font-size:10px;color:var(--text3)">Folha é uma estimativa (custo mensal total injetado no dia de pagamento) — CR/CP usam a data real de vencimento. O dia de pagamento considera só fim de semana; feriado não entra na conta.</span>
     </div>
     <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:0 16px 16px" id="cfd-kpis"></div>
     <div id="cfd-aviso" style="display:none;padding:0 16px"></div>
@@ -1719,7 +1719,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
         <button class="btn btn-primary" onclick="pplAbrirModal()">+ Novo Colaborador</button>
         <button class="btn" onclick="pplImportarVBS()" class="btn-vbs" style="font-size:11px">⬇️ Importar do VBS</button>
-        <button class="btn" onclick="document.getElementById('mx-file').click()" style="font-size:11px" title="Importa Pipeline, Pessoas e FTEs da planilha do México">🇲🇽 Importar planilha MX</button>
+        <button class="btn" data-so-entidade="MX" onclick="document.getElementById('mx-file').click()" style="font-size:11px" title="Importa Pipeline, Pessoas e FTEs da planilha do México">🇲🇽 Importar planilha MX</button>
         <input type="file" id="mx-file" accept=".xlsx,.xls" style="display:none" onchange="mxImportar(this)">
         <button class="btn" onclick="pplExportExcel()" style="font-size:11px">📊 Exportar Excel</button>
         <span style="display:inline-flex;gap:4px;align-items:center;border-left:1px solid var(--border);padding-left:8px;margin-left:2px">
@@ -2352,7 +2352,32 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       </div>
 
       <div id="fnf-aviso" style="display:none;margin-bottom:14px"></div>
-      <div class="kpi-grid" id="fnf-kpis" style="grid-template-columns:repeat(5,1fr);margin-bottom:16px"></div>
+      <div class="kpi-grid" id="fnf-kpis" style="grid-template-columns:repeat(6,1fr);margin-bottom:16px"></div>
+
+      <div class="table-card" style="margin-bottom:18px">
+        <div class="table-header">
+          <span class="table-title">Solicitação de emissão</span>
+          <span class="table-meta" id="fnf-sol-meta">—</span>
+        </div>
+        <div style="padding:10px 14px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border)">
+          Quem emite a NF de cada PJ — a contabilidade ou a própria pessoa. É isso que separa o pedido do mês em duas saídas: a planilha que vai para a contabilidade e a lista de quem emite sozinho. Quem emite a própria nota entra igual aos outros, inclusive você: o controle não é o e-mail, é a linha ficar pendente até a NF chegar.
+          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-vbs" onclick="fnfSolExportar('contabilidade')" style="font-size:10px;padding:3px 10px">📥 Planilha da contabilidade</button>
+            <button class="btn" onclick="fnfSolExportar('propria')" style="font-size:10px;padding:3px 10px">📥 Planilha de quem emite sozinho</button>
+            <button class="btn" onclick="fnfSolCopiar()" style="font-size:10px;padding:3px 10px">📋 Copiar lista para e-mail</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto;max-height:420px">
+          <table class="tbl" style="min-width:980px">
+            <thead><tr>
+              <th>Colaborador</th><th>Quem emite</th>
+              <th style="text-align:right">Salário</th><th style="text-align:right">13º</th>
+              <th style="text-align:right">Total a emitir</th><th>NFs</th><th>Situação</th>
+            </tr></thead>
+            <tbody id="fnf-sol-tbody"><tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Escolha o mês</td></tr></tbody>
+          </table>
+        </div>
+      </div>
 
       <div class="table-card" style="margin-bottom:18px">
         <div class="table-header">
@@ -2371,13 +2396,39 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
         </div>
       </div>
 
+      <div class="table-card" style="margin-bottom:18px">
+        <div class="table-header">
+          <span class="table-title">NFs recebidas no mês</span>
+          <span class="table-meta" id="fnf-nf-meta">—</span>
+        </div>
+        <div style="padding:10px 14px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border)">
+          A contabilidade manda XML e CSV — e os dois não se repetem: o CSV é de quem emite pela prefeitura de São Paulo, o XML de quem emite pelo padrão nacional ou por outra prefeitura. Importe os dois. Quem manda a NF direto por e-mail entra no manual, pelo botão da própria linha.
+          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+            <input type="file" id="fnf-nf-file" multiple accept=".xml,.csv" style="display:none" onchange="fnfNfImportar(this)">
+            <button class="btn btn-vbs" onclick="document.getElementById('fnf-nf-file').click()" style="font-size:10px;padding:3px 10px">📂 Importar XML / CSV</button>
+            <button class="btn" onclick="fnfNfExportar()" style="font-size:10px;padding:3px 10px">📥 Exportar conferência</button>
+            <button class="btn" onclick="fnfNfLimpar()" style="font-size:10px;padding:3px 10px">🗑 Limpar o mês</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto;max-height:460px">
+          <table class="tbl" style="min-width:1000px">
+            <thead><tr>
+              <th>Colaborador</th><th>NF</th>
+              <th style="text-align:right">Valor da NF</th><th style="text-align:right">Esperado</th>
+              <th>Emissão</th><th>Origem</th><th>Situação</th><th></th>
+            </tr></thead>
+            <tbody id="fnf-nf-tbody"><tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">Escolha o mês</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="table-card">
         <div class="table-header">
           <span class="table-title">Vínculo com o cadastro do VBS</span>
           <span class="table-meta" id="fnf-vinc-meta">—</span>
         </div>
         <div style="padding:10px 14px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border)">
-          O CNPJ não vem do nosso cadastro — ele vive no VBS. O sistema sugere o fornecedor mais parecido, mas o vínculo só vale depois que alguém confirma: razão social de PJ raramente é igual ao nome da pessoa, e confirmar errado é pagar a empresa errada.
+          O CNPJ não vem do nosso cadastro — ele vive no VBS. O sistema sugere o fornecedor mais parecido, mas o vínculo só vale depois que alguém confirma: razão social de PJ raramente é igual ao nome da pessoa, e confirmar errado é pagar a empresa errada. Se você já sabe o CNPJ, digite direto no campo da linha: o documento é chave exata e traz o cadastro do VBS junto.
           <button class="btn btn-vbs" onclick="fnfCarregarTerceiros(true)" style="font-size:10px;padding:3px 10px;margin-left:8px">⬇️ Carregar fornecedores do VBS</button>
         </div>
         <div style="overflow-x:auto;max-height:460px">
@@ -3493,37 +3544,44 @@ function resetFilters() {
 }
 
 // ─── P&L HELPERS ─────────────────────────────────────────
+// Estas tres funcoes leem a aba de Budget carregada em G.pl. Elas nasceram para
+// o Brasil: rotulo em ingles, sempre na coluna 1. A aba do Mexico tem os rotulos
+// em espanhol e nem sempre na mesma coluna, entao nada casava e o Budget do
+// Mexico vinha zerado - o que abriu espaco para o Actual do Brasil ocupar o
+// lugar no Dashboard. Agora delegam para plNormalizarRotulo/plDetectarColunaRotulo,
+// que e o leitor generico ja usado pelo Actual e pelo Comparativo.
 function getPLRow(label) {
-  for (const row of (G.pl || [])) {
-    if (row[1] && row[1].trim() === label) return row;
+  var rows = G.pl || [];
+  var col = plDetectarColunaRotulo(rows);
+  for (var i = 0; i < rows.length; i++) {
+    if (rows[i] && plNormalizarRotulo(rows[i][col]) === label) return rows[i];
   }
   return null;
 }
+// Em que coluna estao os rotulos de G.pl - os meses comecam na seguinte.
+function getPLCol() { return plDetectarColunaRotulo(G.pl || []); }
 
-// Returns array of 12 monthly values (already multiplied × 1000 for display in R$)
-function getMonthly(label) {
-  const row = getPLRow(label);
-  if (!row) return Array(12).fill(0);
-  return Array.from({length: 12}, (_, i) => parseNum(row[2 + i]) * 1000);
-}
-
-// Returns annual BUD 2026 total × 1000
-function getAnnual(label) {
-  const row = getPLRow(label);
-  if (!row) return 0;
-  // Try column 15 first (BUD 2026 total), fallback to sum
-  const tot = parseNum(row[15]);
-  if (tot !== 0) return tot * 1000;
-  return Array.from({length: 12}, (_, i) => parseNum(row[2 + i])).reduce((a,b) => a+b, 0) * 1000;
-}
+// Os doze meses e o total do ano da aba de Budget carregada em G.pl. Tinham
+// copia propria da aritmetica de colunas e do "x 1000"; agora delegam para
+// plValores, que e o mesmo leitor do Actual e do Comparativo. Uma copia a menos
+// para corrigir quando o layout muda - e ele acabou de mudar.
+function getMonthly(label) { return plValores(G.pl || [], label).mensal; }
+function getAnnual(label)  { return plValores(G.pl || [], label).anual; }
 
 // ── LEITURA GENERICA DE ABA DE P&L ────────────────────────────────────────────
 // As abas de P&L nao tem layout unico: no Budget do Brasil o rotulo fica na
 // coluna B, nos Actuals do Brasil na C, e no Mexico volta pra B - e o Mexico
 // ainda usa rotulos em espanhol. Em vez de fixar indices (que ja quebrou antes),
-// aqui a coluna do rotulo e descoberta a partir das linhas conhecidas, e a
-// regra de layout e sempre a mesma: meses = rotulo+1..rotulo+12, total anual =
-// rotulo+14 (a coluna rotulo+13 e a separadora em branco).
+// aqui a coluna do rotulo e descoberta a partir das linhas conhecidas, e os meses
+// vem sempre em rotulo+1..rotulo+12.
+//
+// O total do ano nao tem lugar fixo: nas abas antigas a coluna rotulo+13 e uma
+// separadora em branco e o total fica em rotulo+14; na aba montada a partir do
+// modelo mexicano de 2027 o total esta colado nos meses, em rotulo+13. E a
+// unidade tambem mudou: as abas antigas exibem milhares, a de 2027 esta em pesos.
+// Ler as duas com a mesma regra daria numero mil vezes errado sem erro nenhum na
+// tela - os dois valores sao plausiveis. Por isso ambos sao descobertos a partir
+// do conteudo, e a escala pode ser declarada numa celula "ESCALA:".
 var PL_ROTULOS_ES = {
   'INGRESOS':'REVENUE',
   'IMPUESTO SOBRE LAS VENTAS':'SALES TAX',
@@ -3540,7 +3598,21 @@ var PL_ROTULOS_ES = {
   'FINANZAS Y GENERALES':'FINANCE & GENERAL',
   'GANANCIA/(PÉRDIDA) ANTES DEL IMPUESTO SOBRE LA RENTA - EBITA':'PROFIT/(LOSS) BEFORE INCOME TAX - EBITA',
   'IMPUESTO SOBRE LA RENTA':'INCOME TAX',
-  'GANANCIA/(PÉRDIDA) DESPUÉS DE IMPUESTOS':'PROFIT/(LOSS) AFTER TAX'
+  'GANANCIA/(PÉRDIDA) DESPUÉS DE IMPUESTOS':'PROFIT/(LOSS) AFTER TAX',
+  // Modelo mexicano de 2027: o resultado desce de Ingresos para a utilidade
+  // antes dos impostos sobre o lucro, e nao passa por margem bruta nem EBITDA.
+  // "Utilidad neta" e a mesma conta que a "ganancia despues de impuestos" da aba
+  // de 2026, entao as duas caem na mesma chave e o Comparativo continua de pe.
+  'COSTO TOTAL':'TOTAL OPERATING COSTS',
+  'UTILIDAD ANTES DE PTU E ISR':'PROFIT BEFORE PTU AND ISR',
+  'UTILIDAD NETA':'PROFIT/(LOSS) AFTER TAX',
+  'MARGEN NETO %':'NET MARGIN %',
+  // O modelo tem as duas linhas com letra faltando ("...E IS", "UTILIDAD NET").
+  // Corrigimos na aba, mas quem copiar do modelo vai trazer o erro de volta, e
+  // uma linha que nao casa aparece como zero - nao como erro. Aceitar as duas
+  // grafias custa duas entradas e evita um zero silencioso.
+  'UTILIDAD ANTES DE PTU E IS':'PROFIT BEFORE PTU AND ISR',
+  'UTILIDAD NET':'PROFIT/(LOSS) AFTER TAX'
 };
 function plNormalizarRotulo(txt){
   var s = String(txt||'').trim();
@@ -3550,7 +3622,11 @@ function plNormalizarRotulo(txt){
 }
 // Descobre em qual coluna estao os rotulos, procurando linhas conhecidas.
 function plDetectarColunaRotulo(rows){
-  var alvos = ['REVENUE','GROSS MARGIN','OPERATING PROFIT/(LOSS) - EBITDA'];
+  // As tres primeiras existem nas abas do Brasil e do Mexico de 2026; as duas
+  // ultimas, na aba montada pelo modelo de 2027, que nao tem margem bruta nem
+  // EBITDA. Sem elas a deteccao ficaria apoiada numa linha so.
+  var alvos = ['REVENUE','GROSS MARGIN','OPERATING PROFIT/(LOSS) - EBITDA',
+               'PROFIT BEFORE PTU AND ISR','PROFIT/(LOSS) AFTER TAX'];
   var contagem = {};
   (rows||[]).forEach(function(r){
     if (!r) return;
@@ -3569,15 +3645,68 @@ function plLinha(rows, label, colRotulo){
   }
   return null;
 }
-// Devolve {mensal:[12], anual:number} em R$ (planilha esta em milhares).
+// Em que coluna esta o total do ano. Decidido pelo conteudo, nao pelo nome da
+// aba. So as linhas de resultado conhecidas servem de ancora: a primeira versao
+// disto olhava qualquer linha com rotulo e a separadora do Brasil tem lixo em
+// algumas delas, o que fez o total ser lido da coluna em branco - e o numero
+// ainda assim parecia certo, porque sem total ele cai na soma dos meses.
+function plDetectarColunaTotal(rows, col){
+  var ancoras = ['REVENUE','GROSS MARGIN','TOTAL OPERATING COSTS',
+                 'OPERATING PROFIT/(LOSS) - EBITDA','PROFIT BEFORE PTU AND ISR',
+                 'PROFIT/(LOSS) AFTER TAX'];
+  var em13 = 0, em14 = 0;
+  (rows||[]).forEach(function(r){
+    if (!r || ancoras.indexOf(plNormalizarRotulo(r[col])) === -1) return;
+    if (parseNum(String(r[col + 13] == null ? '' : r[col + 13])) !== 0) em13++;
+    if (parseNum(String(r[col + 14] == null ? '' : r[col + 14])) !== 0) em14++;
+  });
+  return em14 > em13 ? col + 14 : col + 13;
+}
+
+// Em que unidade a aba esta. A celula "ESCALA:" diz (1 = pesos/reais,
+// 1000 = milhares). Sem ela vale 1000, que e como todas as abas antigas estao -
+// assim nada muda enquanto a planilha nao for migrada.
+function plDetectarEscala(rows){
+  for (var i = 0; i < (rows||[]).length; i++) {
+    var r = rows[i];
+    if (!r) continue;
+    for (var c = 0; c < Math.min(r.length, 6); c++) {
+      var t = String(r[c] == null ? '' : r[c]).trim().toUpperCase().replace(/:$/, '');
+      if (t === 'ESCALA' || t === 'SCALE') {
+        var v = parseNum(String(r[c + 1] == null ? '' : r[c + 1]));
+        if (v > 0) return v;
+      }
+    }
+  }
+  return 1000;
+}
+
+// Devolve {mensal:[12], anual:number} na moeda da unidade.
 function plValores(rows, label){
   var col = plDetectarColunaRotulo(rows);
   var row = plLinha(rows, label, col);
   if (!row) return { mensal: Array(12).fill(0), anual: 0 };
-  var mensal = Array.from({length:12}, function(_, i){ return parseNum(row[col + 1 + i]) * 1000; });
-  var anual = parseNum(row[col + 14]) * 1000;
+  var escala = plDetectarEscala(rows);
+  var colTotal = plDetectarColunaTotal(rows, col);
+  var mensal = Array.from({length:12}, function(_, i){ return parseNum(row[col + 1 + i]) * escala; });
+  var anual = parseNum(row[colTotal]) * escala;
   if (!anual) anual = mensal.reduce(function(a,b){ return a+b; }, 0);
   return { mensal: mensal, anual: anual };
+}
+
+// Que linhas esta aba tem para o Dashboard. O modelo mexicano de 2027 nao passa
+// por margem bruta nem por EBITDA: vai de Ingresos a utilidade antes de PTU e
+// ISR. Traduzir o rotulo e manter a conta mostraria "EBITDA" sobre um numero que
+// nao e EBITDA - o mesmo tipo de erro que fez o Mexico exibir o P&L do Brasil.
+function plEsquema(rows){
+  rows = rows || [];
+  var col = plDetectarColunaRotulo(rows);
+  if (plLinha(rows, 'OPERATING PROFIT/(LOSS) - EBITDA', col)) {
+    return { margemLabel: 'Gross Margin', margemLinha: 'GROSS MARGIN',
+             resultLabel: 'EBITDA',       resultLinha: 'OPERATING PROFIT/(LOSS) - EBITDA' };
+  }
+  return { margemLabel: 'Custo total',                margemLinha: 'TOTAL OPERATING COSTS',
+           resultLabel: 'Utilidad antes de PTU e ISR', resultLinha: 'PROFIT BEFORE PTU AND ISR' };
 }
 
 // Guardados por chave "{entidade}:{ano}" em G.plActualPorAno.
@@ -3716,16 +3845,20 @@ function renderAll() {
   const deIdx = f.monthDe - 1, ateIdx = f.monthAte - 1;
 
   // P&L values
+  // Quais linhas esta aba tem: Brasil (e Mexico 2026) desce por margem bruta e
+  // EBITDA; o modelo mexicano de 2027, por custo total e utilidade antes de PTU
+  // e ISR. Os cards passam a dizer qual conta estao mostrando.
+  const esq   = plEsquema(G.pl || []);
   const revM  = getMonthly('REVENUE');
-  const gmM   = getMonthly('GROSS MARGIN');
-  const ebitM = getMonthly('OPERATING PROFIT/(LOSS) - EBITDA');
+  const gmM   = getMonthly(esq.margemLinha);
+  const ebitM = getMonthly(esq.resultLinha);
   const patM  = getMonthly('PROFIT/(LOSS) AFTER TAX');
 
   const isFullYear = deIdx === 0 && ateIdx === 11;
   const sumRange = (arr, label) => isFullYear ? getAnnual(label) : arr.slice(deIdx, ateIdx + 1).reduce((s,v) => s + v, 0);
   let rev  = sumRange(revM, 'REVENUE'),
-      gm   = sumRange(gmM, 'GROSS MARGIN'),
-      ebit = sumRange(ebitM, 'OPERATING PROFIT/(LOSS) - EBITDA'),
+      gm   = sumRange(gmM, esq.margemLinha),
+      ebit = sumRange(ebitM, esq.resultLinha),
       pat  = sumRange(patM, 'PROFIT/(LOSS) AFTER TAX');
 
   const f2 = getFilters();
@@ -3767,16 +3900,25 @@ function renderAll() {
   // 2025 caímos no proxy antigo (Rentabilidade Real por cliente, via VBS gerencial),
   // que não tem EBITDA nem quebra mensal - melhor que nada, mas bem mais limitado.
   var gmFonteReal = null, ebitFonteReal = null, gmBase = rev;
-  var actualDoAno = (G.plActualPorAno && G.plActualPorAno[plChave(f2.ano, 'BR')]) || null;
+  // A entidade TEM que entrar aqui. Enquanto estava fixo em 'BR', quem abria o
+  // Dashboard no Mexico via a Receita, a Gross Margin e o EBITDA do Brasil com
+  // o simbolo MX$ na frente - numero de outra empresa apresentado como se fosse
+  // o seu, que e o pior erro que este sistema pode cometer.
+  var entPL = (typeof entidadeAtual==='function') ? entidadeAtual() : 'BR';
+  var actualDoAno = (G.plActualPorAno && G.plActualPorAno[plChave(f2.ano, entPL)]) || null;
   if (actualDoAno && actualDoAno.length) {
     var isFullYearActual = (deIdx === 0 && ateIdx === 11);
-    var revMActual  = getActualMonthly('REVENUE', f2.ano);
-    var gmMActual   = getActualMonthly('GROSS MARGIN', f2.ano);
-    var ebitMActual = getActualMonthly('OPERATING PROFIT/(LOSS) - EBITDA', f2.ano);
-    var sumRangeActual = function(arr, label){ return isFullYearActual ? getActualAnnual(label, f2.ano) : arr.slice(deIdx, ateIdx + 1).reduce(function(s,v){ return s+v; }, 0); };
+    // O esquema e o da aba de Actual, nao o do Budget: as duas podem estar em
+    // layouts diferentes durante a migracao.
+    var esqA = plEsquema(actualDoAno);
+    var revMActual  = getActualMonthly('REVENUE', f2.ano, entPL);
+    var gmMActual   = getActualMonthly(esqA.margemLinha, f2.ano, entPL);
+    var ebitMActual = getActualMonthly(esqA.resultLinha, f2.ano, entPL);
+    var sumRangeActual = function(arr, label){ return isFullYearActual ? getActualAnnual(label, f2.ano, entPL) : arr.slice(deIdx, ateIdx + 1).reduce(function(s,v){ return s+v; }, 0); };
     rev  = sumRangeActual(revMActual, 'REVENUE');
-    gm   = sumRangeActual(gmMActual, 'GROSS MARGIN');
-    ebit = sumRangeActual(ebitMActual, 'OPERATING PROFIT/(LOSS) - EBITDA');
+    gm   = sumRangeActual(gmMActual, esqA.margemLinha);
+    ebit = sumRangeActual(ebitMActual, esqA.resultLinha);
+    esq.margemLabel = esqA.margemLabel; esq.resultLabel = esqA.resultLabel;
     pat  = null;
     gmBase = rev;
     // A aba de Actuals do ano corrente e forecast (realizado + orcado no resto) -
@@ -3801,7 +3943,7 @@ function renderAll() {
   }
 
   // KPIs
-  renderKPIs(rev, gm, ebit, pat, clientCount, f2.ano, gmFonteReal, gmBase, ebitFonteReal, (actualDoAno && actualDoAno.length) ? gmFonteReal : null);
+  renderKPIs(rev, gm, ebit, pat, clientCount, f2.ano, gmFonteReal, gmBase, ebitFonteReal, (actualDoAno && actualDoAno.length) ? gmFonteReal : null, esq);
 
   // Charts
   renderMonthlyChart(revMChart, gmMChart, MONTHS.slice(deIdx, ateIdx + 1));
@@ -3821,19 +3963,23 @@ function renderAll() {
     (f.tipo !== 'all' ? ' — ' + f.tipo : '');
 }
 
-function renderKPIs(rev, gm, ebit, pat, clientCount, anoFiltro, gmFonteReal, gmBase, ebitFonteReal, rotuloFonteRev) {
+function renderKPIs(rev, gm, ebit, pat, clientCount, anoFiltro, gmFonteReal, gmBase, ebitFonteReal, rotuloFonteRev, esq) {
+  esq = esq || { margemLabel: 'Gross Margin', resultLabel: 'EBITDA' };
+  // No modelo mexicano o segundo card e o custo total, nao a margem bruta: ele
+  // vem negativo e "% de margem" nao descreve o que esta ali.
+  const ehMargem = esq.margemLabel === 'Gross Margin';
   const gmPct   = (gmBase > 0 && gm !== null) ? gm / gmBase : 0;
   const ebitPct = (rev > 0 && ebit !== null) ? ebit / rev : 0;
   const gmSub = gm === null
     ? 'Sem dado real por ano — clique em "Rentabilidade Real (VBS)"'
-    : pct(gmPct) + ' de margem' + (gmFonteReal ? ' · '+gmFonteReal : '');
+    : pct(Math.abs(gmPct)) + (ehMargem ? ' de margem' : ' da receita') + (gmFonteReal ? ' · '+gmFonteReal : '');
   const ebitSub = ebit === null
     ? 'Sem dado real por ano'
     : pct(ebitPct) + ' de margem' + (ebitFonteReal ? ' · '+ebitFonteReal : '');
   const cards = [
     { label: 'Receita Bruta',  value: fmt(rev),  sub: rotuloFonteRev || (anoFiltro === '2025' ? 'Actual 2025' : 'Budget 2026') },
-    { label: 'Gross Margin',   value: gm   === null ? '—' : fmt(gm),   sub: gmSub, cls: gm === null ? '' : (gmPct > 0 ? 'pos' : 'neg') },
-    { label: 'EBITDA',         value: ebit === null ? '—' : fmt(ebit), sub: ebitSub, cls: ebit === null ? '' : (ebitPct > 0 ? 'pos' : 'neg') },
+    { label: esq.margemLabel,  value: gm   === null ? '—' : fmt(gm),   sub: gmSub, cls: gm === null ? '' : (ehMargem ? (gmPct > 0 ? 'pos' : 'neg') : '') },
+    { label: esq.resultLabel,  value: ebit === null ? '—' : fmt(ebit), sub: ebitSub, cls: ebit === null ? '' : (ebitPct > 0 ? 'pos' : 'neg') },
     { label: 'Clientes Ativos',value: String(clientCount), sub: 'com budget no período' }
   ];
   document.getElementById('kpi-grid').innerHTML = cards.map(k =>
@@ -4063,17 +4209,21 @@ function renderPLFull() {
     { label: 'FINANCE & GENERAL',                          section: false },
     { label: 'PROFIT/(LOSS) BEFORE INCOME TAX - EBITA',   section: true  },
     { label: 'INCOME TAX',                                 section: false },
+    // So existe no modelo mexicano; nas abas do Brasil a linha nao e encontrada
+    // e some sozinha, como todas as outras que faltam.
+    { label: 'PROFIT BEFORE PTU AND ISR',                  section: true  },
     { label: 'PROFIT/(LOSS) AFTER TAX',                    section: true  },
   ];
 
-  const subtotals = ['GROSS MARGIN','TOTAL OPERATING COSTS','OPERATING PROFIT/(LOSS) - EBITDA','PROFIT/(LOSS) BEFORE INCOME TAX - EBITA','PROFIT/(LOSS) AFTER TAX'];
+  const subtotals = ['GROSS MARGIN','TOTAL OPERATING COSTS','OPERATING PROFIT/(LOSS) - EBITDA','PROFIT/(LOSS) BEFORE INCOME TAX - EBITA','PROFIT BEFORE PTU AND ISR','PROFIT/(LOSS) AFTER TAX'];
   const mainTotals = ['OPERATING PROFIT/(LOSS) - EBITDA','PROFIT/(LOSS) AFTER TAX'];
 
   const rows_html = lines.map(({ label }) => {
-    const row = getPLRow(label);
-    if (!row) return '';
-    const vals = Array.from({length: 12}, (_, i) => parseNum(row[2 + i]) * 1000);
-    const total = parseNum(row[15]) * 1000 || vals.reduce((a,b) => a+b, 0);
+    if (!getPLRow(label)) return '';
+    // Mesma leitura do Dashboard: coluna do total e escala vem do conteudo da
+    // aba. Isto aqui tinha os indices e o "x 1000" escritos de novo.
+    const v12 = plValores(G.pl || [], label);
+    const vals = v12.mensal, total = v12.anual;
     const isMain = mainTotals.includes(label);
     const isSub  = subtotals.includes(label) && !isMain;
     const cls = isMain ? 'total-row' : isSub ? 'subtotal-row' : '';
@@ -5077,9 +5227,18 @@ async function mxImportar(input){
   if(!f) return;
   if(typeof XLSX==='undefined'){ alert('Biblioteca de planilha não carregou.'); return; }
   var ent = currentUser ? currentUser.entidade : '?';
+  // Isto ja foi um confirm() com "Importar mesmo assim?". Em 29/10/2026 alguem
+  // respondeu que sim estando no Brasil e 256 linhas do Mexico entraram no
+  // pipeline brasileiro com entidade BR - somando MXN como se fosse BRL e
+  // dobrando o pipeline de 2026. Nao ha caso legitimo em que importar a
+  // planilha do Mexico fora da entidade MX seja o que a pessoa queria, entao
+  // aqui a resposta e nao, sem opcao de insistir.
   if(ent!=='MX'){
-    if(!confirm('Você está na entidade '+ent+'.\n\nEsta planilha é do México e os dados seriam gravados na entidade atual.\n\n'+
-      'Troque para 🇲🇽 Euphoria México no seletor do topo antes de importar.\n\nImportar mesmo assim?')){ input.value=''; return; }
+    alert('Esta planilha é do México e você está na unidade '+ent+'.\n\n'+
+          'Os dados seriam gravados como se fossem desta unidade — foi assim que '+
+          'o pipeline do Brasil ficou com linhas mexicanas.\n\n'+
+          'Troque para 🇲🇽 Euphoria México no seletor do topo e importe de novo.');
+    input.value=''; return;
   }
   var leitor=new FileReader();
   leitor.onload=async function(ev){
@@ -5233,7 +5392,7 @@ var SYNC_MODULOS = [
   'euphoria_people_v2','euphoria_people_hist','euphoria_movimentacoes',
   'euphoria_ferias','euphoria_ausencias','euphoria_alocacao_v1',
   'euphoria_juridico','euphoria_projetos','euphoria_ts','euphoria_ti_ativos',
-  'euphoria_nf_ctrl','euphoria_despesas_fixas','euphoria_lancamentos',
+  'euphoria_nf_ctrl','euphoria_nf_pj','euphoria_despesas_fixas','euphoria_lancamentos',
   'crm_meta_2025','crm_meta_2026','crm_meta_2027','crm_meta_2028'
 ];
 var _syncTimers = {};
@@ -5961,6 +6120,12 @@ function setupEntidade(ent){
   document.querySelectorAll('.btn-vbs, [data-vbs="1"]').forEach(function(el){
     el.style.display = cfg.temVBS?'':'none';
   });
+  // Acoes que so fazem sentido numa unidade (hoje: importar a planilha do
+  // Mexico). mxImportar ja recusa se a entidade estiver errada, mas um botao
+  // visivel que so sabe dizer "nao" convida ao erro - melhor nao oferecer.
+  document.querySelectorAll('[data-so-entidade]').forEach(function(el){
+    el.style.display = (el.getAttribute('data-so-entidade')===ent) ? '' : 'none';
+  });
 
   // Update currency symbol in labels if needed
   if(ent==='MX'){
@@ -6021,7 +6186,7 @@ function backupAutoSave(){
 function backupColetar(){
   var ent = currentUser&&currentUser.entidade ? currentUser.entidade : 'BR';
   var keys = [
-    'euphoria_people_v2','euphoria_people_hist','euphoria_movimentacoes','euphoria_nf_ctrl','euphoria_despesas_fixas','euphoria_ferias','euphoria_ausencias',
+    'euphoria_people_v2','euphoria_people_hist','euphoria_movimentacoes','euphoria_nf_ctrl','euphoria_nf_pj','euphoria_despesas_fixas','euphoria_ferias','euphoria_ausencias',
     'euphoria_alocacao_v1','euphoria_lancamentos',
     'crm_prospects','crm_responsaveis',
     'euphoria_ts','euphoria_projetos','euphoria_juridico',
@@ -6401,6 +6566,7 @@ var FNF_STOP = {'DA':1,'DE':1,'DO':1,'DAS':1,'DOS':1,'LTDA':1,'EPP':1,'EIRELI':1
 var FNF_MESES = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO',
                  'AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
 var _fnfTerceiros = null;   // cadastro de fornecedores do VBS (cache local)
+var _fnfTerceirosOrigem = null; // de onde vieram: cadastro, titulos, erros
 var _fnfTitulos = null;     // titulos do VBS da janela conferida
 var _fnfConferido = null;   // 'ano-mes' ja conferido
 
@@ -6431,37 +6597,111 @@ function fnfInit(){
   fnfAjustarVencimento();
   fnfRender();
 }
-// Ultimo dia do mes, que e o que a Euphoria vem usando. Editavel.
+// A Euphoria paga a folha no ultimo dia util do mes, e trata o mes como se
+// terminasse no dia 30: em mes de 31 dias, o 31 nao conta. Entao o candidato e o
+// dia 30 (ou o ultimo dia, nos fevereiros) e dali se volta ate cair em dia util.
+// Feriado nao entra na conta - o sistema nao tem calendario de feriados, so sabe
+// distinguir fim de semana. Em mes com feriado no fim, confira a data na mao.
+function folhaDataPagamento(ano, mes){
+  var ultimo = new Date(ano, mes+1, 0).getDate();
+  var d = new Date(ano, mes, Math.min(ultimo, 30));
+  while(d.getDay()===0 || d.getDay()===6) d.setDate(d.getDate()-1);
+  return d;
+}
+function folhaDataPagamentoISO(ano, mes){
+  var d = folhaDataPagamento(ano, mes);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+
+         String(d.getDate()).padStart(2,'0');
+}
+
+// Vencimento sugerido = data de pagamento da folha. Editavel.
 function fnfAjustarVencimento(){
   var el = document.getElementById('fnf-venc'); if(!el) return;
   var r = fnfMesAno();
   if(isNaN(r.ano) || isNaN(r.mes)) return;
-  var ult = new Date(r.ano, r.mes+1, 0);
-  el.value = r.ano+'-'+String(r.mes+1).padStart(2,'0')+'-'+String(ult.getDate()).padStart(2,'0');
+  el.value = folhaDataPagamentoISO(r.ano, r.mes);
+}
+
+// O cadastro de terceiros do VBS devolve so os do tipo "Autonomo" - nove, em
+// 11/2026 - e nenhuma das PJ da folha esta entre eles. Filtrar por outro tipo
+// (F, P, C, T) devolve zero. Mas toda PJ que ja teve titulo lancado aparece nas
+// contas a pagar, e o titulo carrega o cadastro inteiro do fornecedor: ID,
+// codigo, digito, CNPJ e razao social. Entao o catalogo util e a uniao dos
+// dois, com as contas a pagar fazendo o trabalho pesado - em 10/2026 eram 71
+// fornecedores de folha contra 9 do cadastro.
+async function fnfTerceirosDosTitulos(meses){
+  var hoje = new Date();
+  var ini = new Date(hoje.getFullYear(), hoje.getMonth()-(meses||12), 1);
+  var fim = new Date(hoje.getFullYear(), hoje.getMonth()+2, 0);
+  var fmt = function(d){
+    return String(d.getDate()).padStart(2,'0')+String(d.getMonth()+1).padStart(2,'0')+d.getFullYear();
+  };
+  var r = await fetch(API+'/api/contas-pagar?duplicatas_canceladas=N&apresenta_cancelado=N'+
+    '&data_vencimento_de='+fmt(ini)+'&data_vencimento_ate='+fmt(fim), {cache:'no-store'});
+  var titulos = vbsRetorno(await r.json(), 'contas a pagar');
+  var mapa = {};
+  titulos.forEach(function(t){
+    var id = t.ID_Terceiro_CP;
+    if(!id || mapa[id]) return;
+    mapa[id] = { id:id, cod:t.CodVBS_Terceiro_CP, dv:t.DV_CodVBS_Terceiro_CP,
+                 cnpj:t.CNPJ_CPF_Terceiro_CP,
+                 razao:t.RazaoSocial_Terceiro_CP || t.Nome_Terceiro_CP,
+                 fantasia:t.Nome_Terceiro_CP, tipo:'com título lançado' };
+  });
+  return Object.keys(mapa).map(function(k){ return mapa[k]; });
 }
 
 async function fnfCarregarTerceiros(forcar){
   if(_fnfTerceiros && !forcar){ fnfRender(); return; }
   var tb = document.getElementById('fnf-vinc-tbody');
   if(tb) tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text3)">Carregando fornecedores do VBS…</td></tr>';
+  var doCadastro = [], dosTitulos = [], erros = [];
+  // As duas fontes sao independentes: se uma falhar, a outra ainda serve.
   try{
     var r = await fetch(API+'/api/terceiros?ativos=1',{cache:'no-store'});
-    var lista = vbsRetorno(await r.json(), 'terceiros');
     // Guarda so o necessario: o retorno completo traz contatos, contas
-    // bancarias e PIX de 1100 fornecedores e nao cabe no localStorage.
-    _fnfTerceiros = lista.map(function(t){
+    // bancarias e PIX, e nao cabe no localStorage.
+    doCadastro = vbsRetorno(await r.json(), 'terceiros').map(function(t){
       return { id:t.ID_terceiro, cod:t.CodVBS_terceiro, dv:t.Digito_CodVBS_terceiro,
                cnpj:t.CNPJ_CPF_terceiro, razao:t.Razao_social_terceiro,
                fantasia:t.Nome_fantasia_terceiro, tipo:t.Descricao_Tipo_terceiro };
     });
-    try{ lsSetLocal('vbs_terceiros_cache', JSON.stringify(_fnfTerceiros)); }catch(e){}
-    fnfRender();
-  }catch(e){
-    if(tb) tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--neg)">'+e.message+'</td></tr>';
+  }catch(e){ erros.push('cadastro de terceiros: '+e.message); }
+  try{
+    dosTitulos = await fnfTerceirosDosTitulos(12);
+  }catch(e){ erros.push('contas a pagar: '+e.message); }
+
+  if(!doCadastro.length && !dosTitulos.length){
+    if(tb) tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--neg)">'+
+      (erros.join(' · ') || 'o VBS não devolveu nenhum fornecedor')+'</td></tr>';
+    return;
   }
+  // Titulo ganha do cadastro no caso de ID repetido: traz CNPJ e codigo que o
+  // cadastro as vezes nao tem.
+  var porId = {};
+  doCadastro.forEach(function(t){ if(t.id) porId[t.id] = t; });
+  dosTitulos.forEach(function(t){ porId[t.id] = t; });
+  _fnfTerceiros = Object.keys(porId).map(function(k){ return porId[k]; });
+  _fnfTerceirosOrigem = { cadastro:doCadastro.length, titulos:dosTitulos.length, erros:erros };
+  try{ lsSetLocal('vbs_terceiros_cache', JSON.stringify(_fnfTerceiros)); }catch(e){}
+  fnfRender();
+  if(erros.length) alert('Carreguei o que deu:\n- '+erros.join('\n- '));
 }
 
 function fnfVinculo(p){ return p && p.vbs_terceiro ? p.vbs_terceiro : null; }
+
+function fnfFmtDoc(dig){
+  if(dig.length===14) return dig.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,'$1.$2.$3/$4-$5');
+  if(dig.length===11) return dig.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/,'$1.$2.$3-$4');
+  return dig;
+}
+
+// Fornecedor do VBS cujo documento bate exatamente com o digitado. Diferente do
+// casamento por nome, CNPJ nao tem "quase": ou e a empresa ou nao e.
+function fnfAcharPorDoc(dig){
+  if(!dig || !_fnfTerceiros) return null;
+  return _fnfTerceiros.find(function(t){ return fnfSoDig(t.cnpj)===dig; }) || null;
+}
 
 function fnfSalvarVinculo(pessoaId, idTerceiro){
   var d = getPplData();
@@ -6472,11 +6712,66 @@ function fnfSalvarVinculo(pessoaId, idTerceiro){
     var t = (_fnfTerceiros||[]).find(function(x){ return String(x.id)===String(idTerceiro); });
     if(!t) return;
     d[i].vbs_terceiro = { id:t.id, cod:t.cod, dv:t.dv, cnpj:t.cnpj, razao:t.razao,
+                          origem:'sugestao',
                           confirmado_em:new Date().toISOString(),
                           confirmado_por:(currentUser&&currentUser.name)||null };
   }
   savePplData(d);
   fnfRender();
+}
+
+// Vinculo pelo documento digitado. Quando o fornecedor existe no VBS, o cadastro
+// inteiro vem junto (id, codigo, razao social) e a conferencia segue funcionando
+// igual. Quando nao existe, o CNPJ fica gravado assim mesmo e a linha avisa: nao
+// da pra lancar titulo para fornecedor que o VBS nao conhece, e esconder isso so
+// adiaria a descoberta para a hora do lancamento.
+// Grava o vinculo a partir do que foi digitado. O CNPJ e a chave: quando bate
+// com um fornecedor conhecido, o ID e o codigo do VBS vem junto e a conferencia
+// continua funcionando. Quando nao bate, vale o que foi escrito - a razao social
+// digitada ganha da do cadastro, porque quem digita esta corrigindo.
+function fnfVincularPorDoc(pessoaId, valores){
+  var dig, razaoDigitada;
+  if(valores){
+    dig = fnfSoDig(valores.cnpj); razaoDigitada = (valores.razao||'').trim();
+  } else {
+    var inp = document.getElementById('fnf-cnpj-'+pessoaId);
+    var inr = document.getElementById('fnf-razao-'+pessoaId);
+    if(!inp) return;
+    dig = fnfSoDig(inp.value); razaoDigitada = inr ? inr.value.trim() : '';
+  }
+  if(dig.length!==14 && dig.length!==11){
+    alert('CNPJ tem 14 dígitos e CPF tem 11. Você digitou '+dig.length+'.');
+    return;
+  }
+  var d = getPplData();
+  var i = d.findIndex(function(x){ return String(x.id)===String(pessoaId); });
+  if(i<0) return;
+
+  var t = fnfAcharPorDoc(dig);
+  var v = { cnpj: t ? t.cnpj : fnfFmtDoc(dig),
+            razao: razaoDigitada || (t ? t.razao : null),
+            id: t ? t.id : null, cod: t ? t.cod : null, dv: t ? t.dv : null,
+            origem:'cnpj',
+            confirmado_em:new Date().toISOString(),
+            confirmado_por:(currentUser&&currentUser.name)||null };
+  // So da para afirmar que o fornecedor nao existe no VBS depois de ter olhado
+  // o catalogo. Sem ele carregado, o que falta e a conferencia, nao o cadastro.
+  if(!t) { if(_fnfTerceiros) v.fora_do_vbs = true; else v.nao_conferido = true; }
+  d[i].vbs_terceiro = v;
+  savePplData(d);
+  fnfRender();
+}
+
+// Edicao livre de um vinculo ja gravado, para corrigir o que veio do VBS.
+function fnfEditarVinculo(pessoaId){
+  var p = getPplData().find(function(x){ return String(x.id)===String(pessoaId); });
+  if(!p) return;
+  var v = fnfVinculo(p) || {};
+  var cnpj = prompt('CNPJ de '+p.nome+':', v.cnpj||'');
+  if(cnpj===null) return;
+  var razao = prompt('Razão social no VBS:', v.razao||'');
+  if(razao===null) return;
+  fnfVincularPorDoc(pessoaId, { cnpj:cnpj, razao:razao });
 }
 
 // Sugestoes ordenadas, com o motivo de cada uma visivel na tela.
@@ -6531,24 +6826,50 @@ function fnfPessoasDoMes(ano, mes){
   }).sort(function(a,b){ return String(a.nome).localeCompare(String(b.nome),'pt-BR'); });
 }
 
+// O mes pode ter mais de uma parcela por pessoa: em novembro e dezembro entra
+// metade do 13o, e a Euphoria pede uma NF para cada parcela - salario numa,
+// 13o noutra. Por isso o lote devolve as parcelas separadas e o esperado do mes
+// e a soma delas, nao so o salario.
 function fnfLote(ano, mes){
   return fnfPessoasDoMes(ano, mes).map(function(p){
     var sal = parseFloat(pplSalarioNoMes(p, ano, mes))||0;
     var dias = pplDiasTrabalhados(p, ano, mes);
-    var valor = dias>=30 ? sal : (sal/30*dias);
-    var v = fnfVinculo(p);
-    var titulo = null;
-    if(v && _fnfTitulos){
-      titulo = _fnfTitulos.find(function(t){ return String(t.ID_Terceiro_CP)===String(v.id); }) || null;
+    var salProp = dias>=30 ? sal : (sal/30*dias);
+    // 1/12 por mes trabalhado no ano, metade em novembro e metade em dezembro.
+    var decimo = parseFloat(pplDecimoTerceiroNoMes(p, ano, mes))||0;
+    var valor = salProp + decimo;
+
+    var parcelas = [{ tipo:'Salário', valor:salProp,
+                      historico: fnfHistorico(ano, mes) }];
+    if(decimo > 0){
+      parcelas.push({ tipo:'13º ('+(mes===10?'1ª':'2ª')+' parcela)', valor:decimo,
+                      historico:'ADIANTAMENTO 13 SALARIO '+FNF_MESES[mes]+' '+ano });
     }
+
+    var v = fnfVinculo(p);
+    // Soma TODOS os titulos do fornecedor na janela, nao so o primeiro: com duas
+    // parcelas sao dois titulos, e comparar um deles com o total acusaria
+    // divergencia falsa em todo mundo em novembro e dezembro.
+    var titulos = (v && v.id && _fnfTitulos)
+      ? _fnfTitulos.filter(function(t){ return String(t.ID_Terceiro_CP)===String(v.id); })
+      : [];
+    var lancado = titulos.reduce(function(s,t){ return s+(parseFloat(t.Valor_Documento_CP)||0); }, 0);
+
     var situacao;
     if(!v) situacao = {rot:'sem vínculo', cor:'gray'};
+    // CNPJ gravado, mas sem o codigo do VBS: o titulo nao tem como ser lancado
+    // ate alguem achar o fornecedor la, entao nao adianta dizer "falta lancar".
+    else if(!v.id) situacao = v.nao_conferido
+      ? {rot:'código VBS pendente', cor:'amber'}
+      : {rot:'fornecedor fora do VBS', cor:'red'};
     else if(!_fnfTitulos) situacao = {rot:'não conferido', cor:'gray'};
-    else if(!titulo) situacao = {rot:'falta lançar', cor:'amber'};
-    else if(Math.abs((parseFloat(titulo.Valor_Documento_CP)||0) - valor) > 0.01)
-      situacao = {rot:'valor diferente ('+moedaFmt(titulo.Valor_Documento_CP)+')', cor:'red'};
+    else if(!titulos.length) situacao = {rot:'falta lançar', cor:'amber'};
+    else if(Math.abs(lancado - valor) > 0.01)
+      situacao = {rot:'valor diferente ('+moedaFmt(lancado)+')', cor:'red'};
     else situacao = {rot:'lançado', cor:'green'};
-    return { p:p, sal:sal, dias:dias, valor:valor, vinc:v, titulo:titulo, situacao:situacao };
+
+    return { p:p, sal:salProp, decimo:decimo, dias:dias, valor:valor,
+             parcelas:parcelas, vinc:v, titulos:titulos, situacao:situacao };
   });
 }
 
@@ -6590,15 +6911,19 @@ function fnfRender(){
   var lote = fnfLote(r.ano, r.mes);
 
   var semVinc = lote.filter(function(l){ return !l.vinc; }).length;
+  var foraVbs = lote.filter(function(l){ return l.vinc && !l.vinc.id; }).length;
   var falta   = lote.filter(function(l){ return l.situacao.rot==='falta lançar'; }).length;
   var ok      = lote.filter(function(l){ return l.situacao.rot==='lançado'; }).length;
-  var difer   = lote.filter(function(l){ return l.situacao.cor==='red'; }).length;
+  // So divergencia de valor - "fornecedor fora do VBS" tambem e vermelho e
+  // contaria junto se o filtro fosse pela cor.
+  var difer   = lote.filter(function(l){ return l.situacao.rot.indexOf('valor diferente')===0; }).length;
   var total   = lote.reduce(function(s,l){ return s+l.valor; },0);
 
   document.getElementById('fnf-kpis').innerHTML =
     [['Pessoas no lote', lote.length, ''],
      ['Valor total', moedaFmt(total), ''],
      ['Sem vínculo', semVinc, semVinc?'neg':''],
+     ['Fora do VBS', foraVbs, foraVbs?'neg':''],
      ['Falta lançar', _fnfTitulos?falta:'—', falta?'amber':''],
      ['Já lançado', _fnfTitulos?ok:'—', ok?'pos':'']]
     .map(function(k){
@@ -6613,20 +6938,35 @@ function fnfRender(){
   if(!lote.length){
     tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">Nenhum PJ ativo neste mês</td></tr>';
   } else {
+    // Uma linha por parcela: em novembro e dezembro a pessoa aparece duas vezes,
+    // salario e 13o, porque sao duas NFs e dois titulos.
     tb.innerHTML = lote.map(function(l){
       var v = l.vinc;
-      return '<tr>'+
-        '<td><strong>'+l.p.nome+'</strong>'+(l.dias<30?'<div style="font-size:10px;color:var(--amber)">proporcional '+l.dias+'/30</div>':'')+'</td>'+
-        '<td style="font-size:11px">'+(v?v.razao:'<span style="color:var(--text3)">—</span>')+'</td>'+
-        '<td style="font-family:var(--font-mono);font-size:11px">'+(v?(v.cnpj||'—'):'—')+'</td>'+
-        '<td style="text-align:right">'+l.dias+'</td>'+
-        '<td style="text-align:right;font-weight:600">'+moedaFmt(l.valor)+'</td>'+
-        '<td style="font-size:10px;color:var(--text3)">'+fnfHistorico(r.ano,r.mes)+'</td>'+
-        '<td><span class="badge badge-'+l.situacao.cor+'">'+l.situacao.rot+'</span></td>'+
-        '<td style="text-align:right">'+(v?'<button class="btn" style="font-size:10px;padding:2px 8px" onclick="fnfSalvarVinculo(\''+l.p.id+'\',null)">desvincular</button>':'')+'</td>'+
-      '</tr>';
+      return l.parcelas.map(function(par, i){
+        var primeira = i===0;
+        return '<tr'+(primeira?'':' style="opacity:.85"')+'>'+
+          '<td>'+(primeira
+            ? '<strong>'+l.p.nome+'</strong>'+(l.dias<30?'<div style="font-size:10px;color:var(--amber)">proporcional '+l.dias+'/30</div>':'')
+            : '<span style="color:var(--text3);padding-left:12px">↳ '+l.p.nome+'</span>')+
+            '<div style="font-size:10px;color:var(--text3)">'+par.tipo+'</div></td>'+
+          '<td style="font-size:11px">'+(primeira?(v?v.razao:'<span style="color:var(--text3)">—</span>'):'')+'</td>'+
+          '<td style="font-family:var(--font-mono);font-size:11px">'+(primeira?(v?(v.cnpj||'—'):'—'):'')+'</td>'+
+          '<td style="text-align:right">'+(primeira?l.dias:'')+'</td>'+
+          '<td style="text-align:right;font-weight:600">'+moedaFmt(par.valor)+
+            (l.parcelas.length>1&&primeira?'<div style="font-size:10px;color:var(--text3);font-weight:400">total '+moedaFmt(l.valor)+'</div>':'')+'</td>'+
+          '<td style="font-size:10px;color:var(--text3)">'+par.historico+'</td>'+
+          '<td>'+(primeira?'<span class="badge badge-'+l.situacao.cor+'">'+l.situacao.rot+'</span>':'')+'</td>'+
+          '<td style="text-align:right">'+(primeira&&v?'<button class="btn" style="font-size:10px;padding:2px 8px" onclick="fnfSalvarVinculo(\''+l.p.id+'\',null)">desvincular</button>':'')+'</td>'+
+        '</tr>';
+      }).join('');
     }).join('');
   }
+
+  // Antes do painel de vinculos, que tem return proprio quando o cadastro do
+  // VBS ainda nao foi carregado — nem a solicitacao nem a conferencia de NF
+  // dependem disso.
+  fnfSolRender();
+  fnfNfRender();
 
   // ── painel de vinculos ──
   var vtb = document.getElementById('fnf-vinc-tbody');
@@ -6637,23 +6977,50 @@ function fnfRender(){
   }
   var pessoas = fnfPessoasDoMes(r.ano, r.mes);
   var vinculadas = pessoas.filter(function(p){ return fnfVinculo(p); }).length;
+  var o = _fnfTerceirosOrigem;
   document.getElementById('fnf-vinc-meta').textContent =
-    vinculadas+' de '+pessoas.length+' vinculados · '+_fnfTerceiros.length+' fornecedores no VBS';
+    vinculadas+' de '+pessoas.length+' vinculados · '+_fnfTerceiros.length+' fornecedores'+
+    (o ? ' ('+o.titulos+' com título lançado, '+o.cadastro+' do cadastro)' : '');
+
+  // Campos livres para preencher na mao, sem depender da sugestao por nome nem
+  // do cadastro do VBS. O CNPJ e a chave: se bater com um fornecedor conhecido,
+  // o codigo e o ID vem junto; se nao bater, vale o que foi digitado.
+  function campoDoc(p){
+    var est = 'background:var(--bg3);border:1px solid var(--border);color:var(--text2);'+
+              'padding:5px 8px;border-radius:6px;font-size:11px;outline:none';
+    var enter = ' onkeydown="if(event.key===\'Enter\'){event.preventDefault();fnfVincularPorDoc(\''+p.id+'\');}"';
+    return '<div style="display:flex;gap:6px;margin-top:6px">'+
+      '<input id="fnf-cnpj-'+p.id+'" maxlength="18" placeholder="CNPJ"'+enter+
+        ' style="width:150px;font-family:var(--font-mono);'+est+'">'+
+      '<input id="fnf-razao-'+p.id+'" placeholder="razão social (opcional)"'+enter+
+        ' style="flex:1;'+est+'">'+
+      '<button class="btn" style="font-size:10px;padding:3px 10px" onclick="fnfVincularPorDoc(\''+p.id+'\')">vincular</button>'+
+    '</div>';
+  }
 
   vtb.innerHTML = pessoas.map(function(p){
     var v = fnfVinculo(p);
     if(v){
+      var achado = !!v.id;
+      var sel = achado ? {cor:'green', rot:'confirmado'}
+              : v.nao_conferido ? {cor:'amber', rot:'código VBS pendente'}
+              : {cor:'red', rot:'cadastrar no VBS'};
       return '<tr><td><strong>'+p.nome+'</strong></td>'+
-        '<td style="font-size:11px">'+v.razao+'</td>'+
+        '<td style="font-size:11px">'+(v.razao ||
+          '<span style="color:var(--text3)">— sem razão social —</span>')+'</td>'+
         '<td style="font-family:var(--font-mono);font-size:11px">'+(v.cnpj||'—')+'</td>'+
-        '<td><span class="badge badge-green">confirmado</span>'+
-          (v.confirmado_por?'<div style="font-size:10px;color:var(--text3)">'+v.confirmado_por+'</div>':'')+'</td>'+
-        '<td style="text-align:right"><button class="btn" style="font-size:10px;padding:2px 8px" onclick="fnfSalvarVinculo(\''+p.id+'\',null)">trocar</button></td></tr>';
+        '<td><span class="badge badge-'+sel.cor+'">'+sel.rot+'</span>'+
+          (v.confirmado_por?'<div style="font-size:10px;color:var(--text3)">'+v.confirmado_por+
+            (v.origem==='cnpj'?' · por CNPJ':'')+'</div>':'')+'</td>'+
+        '<td style="text-align:right;white-space:nowrap">'+
+          '<button class="btn" style="font-size:10px;padding:2px 8px" onclick="fnfEditarVinculo(\''+p.id+'\')">editar</button> '+
+          '<button class="btn" style="font-size:10px;padding:2px 8px" onclick="fnfSalvarVinculo(\''+p.id+'\',null)">trocar</button></td></tr>';
     }
     var sug = fnfSugestoes(p);
     if(!sug.length){
       return '<tr><td><strong>'+p.nome+'</strong></td>'+
-        '<td colspan="3" style="font-size:11px;color:var(--text3)">nenhum fornecedor parecido — procure pelo nome da PJ no VBS</td>'+
+        '<td colspan="2" style="font-size:11px;color:var(--text3)">nenhum fornecedor parecido'+campoDoc(p)+'</td>'+
+        '<td><span class="badge badge-gray">—</span></td>'+
         '<td></td></tr>';
     }
     var niv = fnfNivel(sug[0]);
@@ -6663,7 +7030,7 @@ function fnfRender(){
              (s.motivos.length?'  ['+s.motivos.join(' + ')+']':'')+'</option>';
     }).join('');
     return '<tr><td><strong>'+p.nome+'</strong><div style="font-size:10px;color:var(--text3)">'+moedaFmt(p.salario)+'</div></td>'+
-      '<td colspan="2"><select id="fnf-sug-'+p.id+'" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:11px;outline:none">'+opts+'</select></td>'+
+      '<td colspan="2"><select id="fnf-sug-'+p.id+'" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:11px;outline:none">'+opts+'</select>'+campoDoc(p)+'</td>'+
       '<td><span class="badge badge-'+niv.cor+'">'+niv.rot+'</span></td>'+
       '<td style="text-align:right"><button class="btn btn-primary" style="font-size:10px;padding:3px 10px" onclick="fnfConfirmarSugestao(\''+p.id+'\')">confirmar</button></td></tr>';
   }).join('');
@@ -6689,23 +7056,486 @@ function fnfExportar(){
   aoa.push(['Gerado pelo Euphoria OS em '+new Date().toLocaleString(localeEnt())+
             ' · valor já proporcional (dias/30) · vencimento '+vencBR]);
   aoa.push([]);
-  aoa.push(['#','COLABORADOR','RAZÃO SOCIAL (VBS)','CNPJ/CPF','CÓD. VBS','DIAS','VALOR',
+  aoa.push(['#','COLABORADOR','PARCELA','RAZÃO SOCIAL (VBS)','CNPJ/CPF','CÓD. VBS','DIAS','VALOR',
             'VENCIMENTO','HISTÓRICO','CONTA CONTÁBIL','SITUAÇÃO NO VBS','Nº NF']);
-  lote.forEach(function(l,i){
-    aoa.push([i+1, l.p.nome, l.vinc?l.vinc.razao:'— SEM VÍNCULO —', l.vinc?l.vinc.cnpj:'',
-              l.vinc?(l.vinc.cod+(l.vinc.dv!=null?'-'+l.vinc.dv:'')):'',
-              l.dias, Math.round(l.valor*100)/100, vencBR, hist,
-              '40803-8 SERVIÇOS TERCEIROS PJ', l.situacao.rot, '']);
+  var linha = 0, totalGeral = 0;
+  lote.forEach(function(l){
+    l.parcelas.forEach(function(par, i){
+      linha++;
+      totalGeral += Math.round(par.valor*100)/100;
+      aoa.push([linha, l.p.nome, par.tipo,
+                l.vinc ? (l.vinc.razao || '— NÃO CADASTRADO NO VBS —') : '— SEM VÍNCULO —',
+                l.vinc?l.vinc.cnpj:'',
+                (l.vinc&&l.vinc.cod)?(l.vinc.cod+(l.vinc.dv!=null?'-'+l.vinc.dv:'')):'',
+                i===0?l.dias:'', Math.round(par.valor*100)/100, vencBR, par.historico,
+                '40803-8 SERVIÇOS TERCEIROS PJ', i===0?l.situacao.rot:'', '']);
+    });
   });
   aoa.push([]);
-  aoa.push(['','TOTAL','','','','',
-    Math.round(lote.reduce(function(s,l){ return s+Math.round(l.valor*100)/100; },0)*100)/100]);
+  aoa.push(['','TOTAL','','','','','', Math.round(totalGeral*100)/100]);
 
   var ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = [{wch:4},{wch:34},{wch:42},{wch:20},{wch:12},{wch:6},{wch:13},{wch:12},{wch:34},{wch:30},{wch:22},{wch:12}];
+  ws['!cols'] = [{wch:4},{wch:34},{wch:18},{wch:42},{wch:20},{wch:12},{wch:6},{wch:13},{wch:12},{wch:34},{wch:30},{wch:22},{wch:12}];
   var wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Lote '+FNF_MESES[r.mes].slice(0,3)+r.ano);
   XLSX.writeFile(wb, 'lote-folha-pj-'+String(r.mes+1).padStart(2,'0')+'-'+r.ano+'.xlsx');
+}
+
+// ── SOLICITAÇÃO DE EMISSÃO ───────────────────────────────────────────────────
+// O ciclo do mes comeca aqui, antes de qualquer nota existir: alguem precisa
+// pedir a emissao. Parte dos PJ tem a nota emitida pela contabilidade e parte
+// emite a propria - inclusive quem faz o pedido. Mandar e-mail para si mesmo
+// nao resolveria nada; o que faz o controle e a linha ficar pendente ate a NF
+// chegar, e para isso quem emite sozinho precisa estar na lista como os outros.
+var FNF_EMISSORES = { contabilidade:'Contabilidade', propria:'A própria pessoa' };
+
+function fnfSolEmissor(p){ return (p && p.nf_emissor) || ''; }
+
+function fnfSolDefinir(pessoaId, valor){
+  var d = getPplData();
+  var i = d.findIndex(function(x){ return String(x.id)===String(pessoaId); });
+  if(i<0) return;
+  if(valor) d[i].nf_emissor = valor; else delete d[i].nf_emissor;
+  savePplData(d);
+  fnfRender();
+}
+
+// Junta o que deve ser emitido com o que ja chegou, por pessoa.
+function fnfSolLinhas(ano, mes){
+  var recebidas = fnfNfDoMes(ano, mes), porCnpj = {};
+  recebidas.forEach(function(n){ (porCnpj[n.cnpj] = porCnpj[n.cnpj] || []).push(n); });
+  return fnfLote(ano, mes).map(function(l){
+    var dig = l.vinc && l.vinc.cnpj ? fnfSoDig(l.vinc.cnpj) : '';
+    var nfs = dig ? (porCnpj[dig]||[]) : [];
+    var soma = nfs.reduce(function(s,n){ return s+n.valor; },0);
+    var situacao;
+    if(!fnfSolEmissor(l.p)) situacao = {rot:'definir quem emite', cor:'gray'};
+    else if(!nfs.length) situacao = {rot:'a emitir', cor:'amber'};
+    else if(nfs.length < l.parcelas.length) situacao = {rot:'falta '+(l.parcelas.length-nfs.length)+' NF', cor:'amber'};
+    else if(Math.abs(soma-l.valor) > 0.01) situacao = {rot:'valor difere', cor:'red'};
+    else situacao = {rot:'emitida', cor:'green'};
+    return { l:l, nfs:nfs, situacao:situacao };
+  });
+}
+
+function fnfSolRender(){
+  var tb = document.getElementById('fnf-sol-tbody'); if(!tb) return;
+  var r = fnfMesAno();
+  var linhas = fnfSolLinhas(r.ano, r.mes);
+  var semDefinir = linhas.filter(function(x){ return !fnfSolEmissor(x.l.p); }).length;
+  var aEmitir = linhas.filter(function(x){ return x.situacao.cor==='amber'; }).length;
+  var total = linhas.reduce(function(s,x){ return s+x.l.valor; },0);
+  var tem13 = linhas.some(function(x){ return x.l.decimo>0; });
+
+  document.getElementById('fnf-sol-meta').textContent =
+    linhas.length+' PJ · '+moedaFmt(total)+' a emitir'+
+    (tem13?' · com 13º':'')+(semDefinir?' · '+semDefinir+' sem emissor definido':'');
+
+  if(!linhas.length){
+    tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Nenhum PJ ativo neste mês</td></tr>';
+    return;
+  }
+  tb.innerHTML = linhas.map(function(x){
+    var p = x.l.p, em = fnfSolEmissor(p);
+    var opts = ['<option value="">— definir —</option>'].concat(
+      Object.keys(FNF_EMISSORES).map(function(k){
+        return '<option value="'+k+'"'+(em===k?' selected':'')+'>'+FNF_EMISSORES[k]+'</option>';
+      })).join('');
+    return '<tr>'+
+      '<td><strong>'+p.nome+'</strong>'+
+        (x.l.dias<30?'<div style="font-size:10px;color:var(--amber)">proporcional '+x.l.dias+'/30</div>':'')+'</td>'+
+      '<td><select onchange="fnfSolDefinir(\''+p.id+'\',this.value)" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:4px 7px;border-radius:6px;font-size:11px;outline:none">'+opts+'</select></td>'+
+      '<td style="text-align:right">'+moedaFmt(x.l.sal)+'</td>'+
+      '<td style="text-align:right">'+(x.l.decimo?moedaFmt(x.l.decimo):'<span style="color:var(--text3)">—</span>')+'</td>'+
+      '<td style="text-align:right;font-weight:600">'+moedaFmt(x.l.valor)+
+        '<div style="font-size:10px;color:var(--text3);font-weight:400">'+x.l.parcelas.length+' NF</div></td>'+
+      '<td style="font-size:11px">'+(x.nfs.length?x.nfs.map(function(n){ return n.nf; }).join(', ')
+                                                 :'<span style="color:var(--text3)">—</span>')+'</td>'+
+      '<td><span class="badge badge-'+x.situacao.cor+'">'+x.situacao.rot+'</span></td>'+
+    '</tr>';
+  }).join('');
+}
+
+function fnfSolExportar(grupo){
+  if(typeof XLSX==='undefined'){ alert('Biblioteca de planilha não carregou. Recarregue a página.'); return; }
+  var r = fnfMesAno();
+  var linhas = fnfSolLinhas(r.ano, r.mes).filter(function(x){ return fnfSolEmissor(x.l.p)===grupo; });
+  if(!linhas.length){
+    alert('Ninguém marcado como "'+FNF_EMISSORES[grupo]+'" em '+FNF_MESES[r.mes]+'/'+r.ano+'.');
+    return;
+  }
+  var venc = document.getElementById('fnf-venc').value || '';
+  var vencBR = venc ? venc.split('-').reverse().join('/') : '';
+  var aoa = [['SOLICITAÇÃO DE EMISSÃO DE NF — '+FNF_MESES[r.mes]+'/'+r.ano],
+             [FNF_EMISSORES[grupo]+' · pagamento em '+vencBR+
+              ' · uma NF por parcela · gerado em '+new Date().toLocaleString(localeEnt())],[],
+             ['#','COLABORADOR','RAZÃO SOCIAL','CNPJ','PARCELA','VALOR','COMPETÊNCIA','DESCRIÇÃO SUGERIDA']];
+  var n = 0, total = 0;
+  linhas.forEach(function(x){
+    x.l.parcelas.forEach(function(par){
+      n++; total += Math.round(par.valor*100)/100;
+      aoa.push([n, x.l.p.nome,
+                x.l.vinc ? (x.l.vinc.razao||'') : '— SEM CNPJ CADASTRADO —',
+                x.l.vinc ? (x.l.vinc.cnpj||'') : '',
+                par.tipo, Math.round(par.valor*100)/100,
+                String(r.mes+1).padStart(2,'0')+'/'+r.ano, par.historico]);
+    });
+  });
+  aoa.push([]);
+  aoa.push(['','TOTAL','','','', Math.round(total*100)/100]);
+  var ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:4},{wch:34},{wch:42},{wch:20},{wch:18},{wch:13},{wch:13},{wch:38}];
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Emissão '+FNF_MESES[r.mes].slice(0,3));
+  XLSX.writeFile(wb, 'solicitacao-nf-'+grupo+'-'+String(r.mes+1).padStart(2,'0')+'-'+r.ano+'.xlsx');
+}
+
+// Texto pronto para colar no e-mail. Sem endereco de ninguem: o cadastro nao
+// guarda e-mail, e deduzir a partir do nome erraria em quem usa conta pessoal.
+function fnfSolCopiar(){
+  var r = fnfMesAno();
+  var linhas = fnfSolLinhas(r.ano, r.mes).filter(function(x){ return fnfSolEmissor(x.l.p)==='propria'; });
+  if(!linhas.length){ alert('Ninguém marcado como "A própria pessoa" neste mês.'); return; }
+  var venc = document.getElementById('fnf-venc').value || '';
+  var vencBR = venc ? venc.split('-').reverse().join('/') : '';
+  var txt = 'Emissão de NF — '+FNF_MESES[r.mes]+'/'+r.ano+'\n'+
+            'Pagamento em '+vencBR+'. Uma NF por parcela.\n\n';
+  linhas.forEach(function(x){
+    txt += x.l.p.nome+(x.l.vinc&&x.l.vinc.razao?' ('+x.l.vinc.razao+')':'')+'\n';
+    x.l.parcelas.forEach(function(par){
+      txt += '  - '+par.tipo+': '+moedaFmt(par.valor)+'\n';
+    });
+    if(x.l.parcelas.length>1) txt += '  total: '+moedaFmt(x.l.valor)+'\n';
+    txt += '\n';
+  });
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(function(){
+      alert('Lista de '+linhas.length+' pessoa(s) copiada — é só colar no e-mail.');
+    }, function(){ prompt('Copie a lista abaixo:', txt); });
+  } else {
+    prompt('Copie a lista abaixo:', txt);
+  }
+}
+
+// ── NFs RECEBIDAS DOS PJ ─────────────────────────────────────────────────────
+// O lote de um mes chega por dois caminhos que NAO se repetem - conferido em
+// 10/2026, 22 notas em XML e 24 em CSV, zero em comum:
+//
+//   CSV  export da NFS-e paulistana, um arquivo por emissor, texto em latin-1
+//         e numero no formato brasileiro (17.500,00);
+//   XML  quem emite fora de Sao Paulo, em tres layouts diferentes que a
+//         contabilidade manda no mesmo lote:
+//           NFSe      ns .../sped.fazenda.gov.br/nfse   (padrao nacional)
+//           CompNfse  ns .../giss.com.br/tipos-v2_04    (ABRASF municipal)
+//           NFSE      sem namespace                     (variante antiga)
+//         Os campos mudam de nome entre eles (o numero da nota e nNFSe,
+//         Numero ou IdentificacaoNfse/Numero), entao a leitura e por nome de
+//         tag em qualquer profundidade, com ordem de preferencia por campo.
+//
+// Quem manda a NF direto por e-mail nao entra por nenhum dos dois: e lancado a
+// mao na propria linha da pessoa.
+var FNF_CNPJ_EUPHORIA = '47882625000198';
+
+function getNfPj(){ try{ return JSON.parse(lsGet('euphoria_nf_pj')||'{}'); }catch(e){ return {}; } }
+function saveNfPj(d){ lsSet('euphoria_nf_pj', JSON.stringify(d)); backupAutoSave(); }
+function fnfNfChave(ano,mes){ return ano+'-'+mes; }
+function fnfNfDoMes(ano,mes){ return getNfPj()[fnfNfChave(ano,mes)] || []; }
+
+// "17.500,00" e "17500.00" chegam no mesmo lote, de fontes diferentes.
+function fnfNum(s){
+  s = String(s==null?'':s).trim();
+  if(!s) return 0;
+  if(s.indexOf(',')>=0) s = s.replace(/\./g,'').replace(',','.');
+  var v = parseFloat(s);
+  return isNaN(v) ? 0 : v;
+}
+function fnfNorm(s){
+  return String(s==null?'':s).normalize('NFD').replace(/[̀-ͯ]/g,'')
+         .toLowerCase().trim();
+}
+function fnfLocal(e){
+  return String(e.localName || e.nodeName || '').replace(/^.*:/,'');
+}
+
+// Indexa as folhas da arvore por "Pai/Filho" e por nome solto, para o mesmo
+// seletor servir aos tres layouts.
+function fnfXmlIndex(doc){
+  var idx = {}, todos = doc.getElementsByTagName('*');
+  for(var i=0;i<todos.length;i++){
+    var e = todos[i];
+    if(e.children && e.children.length) continue;
+    var txt = (e.textContent||'').trim();
+    if(!txt) continue;
+    var nome = fnfLocal(e);
+    var pai  = e.parentNode && e.parentNode.nodeType===1 ? fnfLocal(e.parentNode) : '';
+    if(pai && !(pai+'/'+nome in idx)) idx[pai+'/'+nome] = txt;
+    if(!(nome in idx)) idx[nome] = txt;
+  }
+  return idx;
+}
+function fnfIdxPega(idx){
+  for(var i=1;i<arguments.length;i++){ if(arguments[i] in idx) return idx[arguments[i]]; }
+  return '';
+}
+
+// Prestador e tomador tem a MESMA tag Cnpj no layout ABRASF, entao nao da para
+// pegar a primeira: sobe a arvore ate achar o bloco que diz de quem e.
+function fnfXmlCnpjPrestador(doc){
+  var todos = doc.getElementsByTagName('*'), reserva = '';
+  for(var i=0;i<todos.length;i++){
+    var e = todos[i];
+    if(!/^cnpj$/i.test(fnfLocal(e))) continue;
+    var dig = (e.textContent||'').replace(/\D/g,'');
+    if(!dig || dig===FNF_CNPJ_EUPHORIA) continue;
+    var p = e.parentNode, saltos = 0, ehPrestador = false;
+    while(p && p.nodeType===1 && saltos<6){
+      var pn = fnfLocal(p);
+      if(/prestador|^prest$|^emit$/i.test(pn)){ ehPrestador = true; break; }
+      if(/tomador|^toma$|intermediario/i.test(pn)) break;
+      p = p.parentNode; saltos++;
+    }
+    if(ehPrestador) return dig;
+    if(!reserva && dig.length===14) reserva = dig;
+  }
+  return reserva;
+}
+
+function fnfNfLerXml(texto, arquivo){
+  var doc = new DOMParser().parseFromString(texto, 'application/xml');
+  if(doc.getElementsByTagName('parsererror').length) return null;
+  var raiz = doc.documentElement; if(!raiz) return null;
+  var ns = raiz.namespaceURI || '';
+  var layout = /sped\.fazenda/i.test(ns) ? 'XML nacional'
+             : ns ? 'XML municipal' : 'XML sem namespace';
+  var idx = fnfXmlIndex(doc);
+  var valor = fnfIdxPega(idx,'valores/vLiq','vLiq','ValoresNfse/ValorLiquidoNfse',
+                             'Valores/ValorLiquidoNfse','ValorLiquidoNfse',
+                             'vServPrest/vServ','vServ','ValorServicos');
+  var nf = fnfIdxPega(idx,'infNFSe/nNFSe','nNFSe','InfNfse/Numero',
+                          'IdentificacaoNfse/Numero','Numero');
+  var data = fnfIdxPega(idx,'infNFSe/dhProc','dhProc','InfNfse/DataEmissao',
+                            'DataEmissao','Competencia').slice(0,10);
+  var cnpj = fnfXmlCnpjPrestador(doc);
+  if(!cnpj || !nf) return null;
+  return { cnpj:cnpj, nf:String(nf).replace(/^0+/,'') || String(nf),
+           razao: fnfIdxPega(idx,'emit/xNome','PrestadorServico/RazaoSocial','RazaoSocial','xNome'),
+           valor: fnfNum(valor), data:data, fonte:layout, arquivo:arquivo };
+}
+
+function fnfNfLerCsv(texto, arquivo){
+  var linhas = texto.split(/\r?\n/).filter(function(l){ return l.trim(); });
+  if(linhas.length<2) return [];
+  var cab = linhas[0].split(';').map(fnfNorm);
+  function col(nome){ var i = cab.indexOf(fnfNorm(nome)); return i; }
+  var iTipo  = col('tipo de registro'),
+      iCnpj  = col('cpf/cnpj do prestador'),
+      iRazao = col('razao social do prestador'),
+      iNf    = col('nº nfs-e'),
+      iValor = col('valor dos servicos'),
+      iData  = col('data hora nfe');
+  if(iCnpj<0 || iNf<0) return [];
+  var saida = [];
+  for(var i=1;i<linhas.length;i++){
+    var c = linhas[i].split(';');
+    // 'Total' e rodape do arquivo, nao e nota
+    if(iTipo>=0 && String(c[iTipo]||'').trim()!=='2') continue;
+    var cnpj = String(c[iCnpj]||'').replace(/\D/g,'');
+    var nf = String(c[iNf]||'').trim();
+    if(!cnpj || !nf) continue;
+    saida.push({ cnpj:cnpj, nf:nf.replace(/^0+/,'')||nf,
+                 razao:String(c[iRazao]||'').trim(), valor:fnfNum(c[iValor]),
+                 data:String(c[iData]||'').slice(0,10), fonte:'CSV São Paulo',
+                 arquivo:arquivo });
+  }
+  return saida;
+}
+
+function fnfNfImportar(input){
+  var arquivos = Array.prototype.slice.call(input.files||[]);
+  input.value = '';
+  if(!arquivos.length) return;
+  var r = fnfMesAno();
+  var lidas = [], falhas = [], pendentes = arquivos.length;
+
+  arquivos.forEach(function(f){
+    var leitor = new FileReader();
+    leitor.onload = function(){
+      try{
+        if(/\.xml$/i.test(f.name)){
+          var n = fnfNfLerXml(String(leitor.result||''), f.name);
+          if(n) lidas.push(n); else falhas.push(f.name);
+        } else {
+          var ns = fnfNfLerCsv(String(leitor.result||''), f.name);
+          if(ns.length) lidas = lidas.concat(ns); else falhas.push(f.name);
+        }
+      }catch(e){ falhas.push(f.name+' ('+e.message+')'); }
+      if(--pendentes===0) fnfNfGravar(r.ano, r.mes, lidas, falhas);
+    };
+    leitor.onerror = function(){
+      falhas.push(f.name);
+      if(--pendentes===0) fnfNfGravar(r.ano, r.mes, lidas, falhas);
+    };
+    // O CSV da prefeitura de SP vem em latin-1; lido como UTF-8 os acentos do
+    // cabecalho quebram e as colunas deixam de ser encontradas.
+    if(/\.xml$/i.test(f.name)) leitor.readAsText(f, 'UTF-8');
+    else leitor.readAsText(f, 'ISO-8859-1');
+  });
+}
+
+function fnfNfGravar(ano, mes, lidas, falhas){
+  var todos = getNfPj(), k = fnfNfChave(ano,mes);
+  var atuais = todos[k] || [];
+  var vistos = {};
+  atuais.forEach(function(n){ vistos[n.cnpj+'|'+n.nf] = true; });
+  var novas = 0, repetidas = 0;
+  lidas.forEach(function(n){
+    var ch = n.cnpj+'|'+n.nf;
+    if(vistos[ch]){ repetidas++; return; }
+    vistos[ch] = true; atuais.push(n); novas++;
+  });
+  todos[k] = atuais; saveNfPj(todos);
+  fnfRender();
+  var msg = novas+' nota(s) importada(s).';
+  if(repetidas) msg += '\n'+repetidas+' já estavam no mês (mesmo CNPJ e número) — ignoradas.';
+  if(falhas.length) msg += '\n\nNão consegui ler '+falhas.length+' arquivo(s):\n- '+falhas.slice(0,10).join('\n- ');
+  alert(msg);
+}
+
+function fnfNfLancarManual(pessoaId){
+  var d = getPplData().find(function(x){ return String(x.id)===String(pessoaId); });
+  if(!d) return;
+  var v = fnfVinculo(d);
+  if(!v || !v.cnpj){ alert('Cadastre o CNPJ de '+d.nome+' antes — é por ele que a nota é reconhecida.'); return; }
+  var nf = prompt('Número da NF de '+d.nome+':'); if(nf===null) return;
+  nf = String(nf).trim(); if(!nf) return;
+  var val = prompt('Valor da NF (R$):'); if(val===null) return;
+  var valor = fnfNum(val);
+  if(!valor){ alert('Valor inválido.'); return; }
+  var r = fnfMesAno();
+  var padrao = folhaDataPagamentoISO(r.ano, r.mes);
+  var data = prompt('Data de emissão (AAAA-MM-DD):', padrao); if(data===null) return;
+  fnfNfGravar(r.ano, r.mes, [{ cnpj:fnfSoDig(v.cnpj), nf:nf, razao:v.razao||d.nome,
+                               valor:valor, data:String(data).slice(0,10),
+                               fonte:'manual', arquivo:'' }], []);
+}
+
+function fnfNfRemover(cnpj, nf){
+  if(!confirm('Remover a NF '+nf+' deste mês?')) return;
+  var r = fnfMesAno(), todos = getNfPj(), k = fnfNfChave(r.ano,r.mes);
+  todos[k] = (todos[k]||[]).filter(function(n){ return !(n.cnpj===cnpj && n.nf===nf); });
+  saveNfPj(todos); fnfRender();
+}
+
+function fnfNfLimpar(){
+  var r = fnfMesAno();
+  var n = fnfNfDoMes(r.ano,r.mes).length;
+  if(!n){ alert('Não há NF registrada neste mês.'); return; }
+  if(!confirm('Apagar as '+n+' nota(s) de '+FNF_MESES[r.mes]+'/'+r.ano+'?')) return;
+  var todos = getNfPj(); delete todos[fnfNfChave(r.ano,r.mes)];
+  saveNfPj(todos); fnfRender();
+}
+
+// Cruza o que chegou com o que a folha diz que deveria chegar.
+function fnfNfConferencia(ano, mes){
+  var recebidas = fnfNfDoMes(ano, mes);
+  var porCnpj = {};
+  recebidas.forEach(function(n){
+    (porCnpj[n.cnpj] = porCnpj[n.cnpj] || []).push(n);
+  });
+  var linhas = [], usados = {};
+  fnfLote(ano, mes).forEach(function(l){
+    var dig = l.vinc && l.vinc.cnpj ? fnfSoDig(l.vinc.cnpj) : '';
+    var nfs = dig ? (porCnpj[dig]||[]) : [];
+    if(dig) usados[dig] = true;
+    if(!nfs.length){
+      linhas.push({ pessoa:l.p, esperado:l.valor, nf:null, semVinculo:!dig,
+                    situacao: dig ? {rot:'falta a NF', cor:'amber'}
+                                  : {rot:'sem CNPJ cadastrado', cor:'gray'} });
+      return;
+    }
+    // Uma pessoa pode emitir mais de uma nota no mes (rescisao, ferias): o que
+    // tem de bater com o esperado e a soma, nao cada nota isolada.
+    var soma = nfs.reduce(function(s,n){ return s+n.valor; },0);
+    nfs.forEach(function(n,i){
+      linhas.push({ pessoa:l.p, esperado: i===0?l.valor:null, nf:n,
+                    situacao: i>0 ? {rot:'2ª nota no mês', cor:'blue'}
+                            : Math.abs(soma-l.valor)<=0.01 ? {rot:'confere', cor:'green'}
+                            : {rot:'difere '+moedaFmt(soma-l.valor), cor:'red'} });
+    });
+  });
+  // Notas que chegaram sem dono: CNPJ que nao esta no cadastro de ninguem.
+  Object.keys(porCnpj).forEach(function(dig){
+    if(usados[dig]) return;
+    porCnpj[dig].forEach(function(n){
+      linhas.push({ pessoa:null, esperado:null, nf:n, orfa:true,
+                    situacao:{rot:'CNPJ não cadastrado', cor:'red'} });
+    });
+  });
+  return linhas;
+}
+
+function fnfNfRender(){
+  var tb = document.getElementById('fnf-nf-tbody');
+  if(!tb) return;
+  var r = fnfMesAno();
+  var linhas = fnfNfConferencia(r.ano, r.mes);
+  var recebidas = fnfNfDoMes(r.ano, r.mes);
+  var falta = linhas.filter(function(l){ return l.situacao.rot==='falta a NF'; }).length;
+  var orfas = linhas.filter(function(l){ return l.orfa; }).length;
+  var total = recebidas.reduce(function(s,n){ return s+n.valor; },0);
+
+  document.getElementById('fnf-nf-meta').textContent =
+    recebidas.length+' nota(s) · '+moedaFmt(total)+
+    (falta?' · faltam '+falta:'')+(orfas?' · '+orfas+' sem dono':'');
+
+  if(!linhas.length){
+    tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">Nenhum PJ ativo neste mês</td></tr>';
+    return;
+  }
+  tb.innerHTML = linhas.map(function(l){
+    var n = l.nf;
+    var nome = l.pessoa ? l.pessoa.nome
+             : '<span style="color:var(--text3)">'+(n.razao||'—')+'</span>';
+    var acao = '';
+    if(!n && !l.semVinculo){
+      acao = '<button class="btn" style="font-size:10px;padding:2px 8px" onclick="fnfNfLancarManual(\''+l.pessoa.id+'\')">lançar</button>';
+    } else if(n){
+      acao = '<button class="btn" style="font-size:10px;padding:2px 8px" onclick="fnfNfRemover(\''+n.cnpj+'\',\''+n.nf+'\')">remover</button>';
+    }
+    return '<tr>'+
+      '<td><strong>'+nome+'</strong>'+
+        (l.orfa?'<div style="font-size:10px;color:var(--text3);font-family:var(--font-mono)">'+fnfFmtDoc(n.cnpj)+'</div>':'')+'</td>'+
+      '<td style="font-family:var(--font-mono);font-size:11px">'+(n?n.nf:'—')+'</td>'+
+      '<td style="text-align:right">'+(n?moedaFmt(n.valor):'—')+'</td>'+
+      '<td style="text-align:right;color:var(--text3)">'+(l.esperado!=null?moedaFmt(l.esperado):'—')+'</td>'+
+      '<td style="font-size:11px">'+(n&&n.data?n.data.split('-').reverse().join('/'):'—')+'</td>'+
+      '<td style="font-size:10px;color:var(--text3)">'+(n?n.fonte:'—')+'</td>'+
+      '<td><span class="badge badge-'+l.situacao.cor+'">'+l.situacao.rot+'</span></td>'+
+      '<td style="text-align:right">'+acao+'</td>'+
+    '</tr>';
+  }).join('');
+}
+
+function fnfNfExportar(){
+  if(typeof XLSX==='undefined'){ alert('Biblioteca de planilha não carregou. Recarregue a página.'); return; }
+  var r = fnfMesAno();
+  var linhas = fnfNfConferencia(r.ano, r.mes);
+  if(!linhas.length){ alert('Nada a exportar neste mês.'); return; }
+  var aoa = [['CONFERÊNCIA DE NFs DOS PJ — '+FNF_MESES[r.mes]+'/'+r.ano],
+             ['Gerado pelo Euphoria OS em '+new Date().toLocaleString(localeEnt())],[],
+             ['COLABORADOR','CNPJ','NF','VALOR DA NF','ESPERADO','EMISSÃO','ORIGEM','SITUAÇÃO']];
+  linhas.forEach(function(l){
+    var n = l.nf;
+    aoa.push([ l.pessoa?l.pessoa.nome:(n?n.razao:''),
+               n?fnfFmtDoc(n.cnpj):(l.pessoa&&fnfVinculo(l.pessoa)?fnfVinculo(l.pessoa).cnpj:''),
+               n?n.nf:'', n?n.valor:'', l.esperado!=null?l.esperado:'',
+               n?n.data:'', n?n.fonte:'', l.situacao.rot ]);
+  });
+  var ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:34},{wch:20},{wch:8},{wch:13},{wch:13},{wch:12},{wch:16},{wch:24}];
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'NFs '+FNF_MESES[r.mes].slice(0,3)+r.ano);
+  XLSX.writeFile(wb, 'nfs-pj-'+String(r.mes+1).padStart(2,'0')+'-'+r.ano+'.xlsx');
 }
 
 // ── MOVIMENTAÇÕES INTERNAS ───────────────────────────────────────────────────
@@ -12526,7 +13356,6 @@ function cfDataKeyLocal(y,m,d){return y+'-'+String(m+1).padStart(2,'0')+'-'+Stri
 function cfProjetarDiario(){
   var saldoInicial=parseFloat(document.getElementById('cf-saldo-inicial').value)||0;
   var nDias=parseInt((document.getElementById('cfd-dias')||{}).value)||30;
-  var diaFolha=parseInt((document.getElementById('cfd-dia-folha')||{}).value)||5;
 
   var crAll=window._crRows||[], cpAll=window._cpRows||[];
   if(!crAll.length&&!cpAll.length){alert('Clique em "Gerar Fluxo" primeiro (busca CR e CP no VBS).');return;}
@@ -12590,7 +13419,10 @@ function cfProjetarDiario(){
     var k=cfDataKeyLocal(y,m,dia);
     var rec=crPorDia[k]||0, pag=cpPorDia[k]||0;
     var folha=0;
-    if(dia===diaFolha){
+    // A folha cai no dia de pagamento daquele mes especifico - que muda conforme
+    // o mes termina em fim de semana ou nao, entao e recalculado a cada mes da
+    // projecao em vez de ser um dia fixo.
+    if(dia===folhaDataPagamento(y,m).getDate()){
       var mk=y+'-'+m;
       if(custoMesCache[mk]===undefined){
         var total=0;
@@ -14675,6 +15507,15 @@ function recImprimirMensal(){
 function gerarFinancialHighlights(){
   if(!G.pl || !G.clientes){ alert('Carregue os dados do Dashboard primeiro (clique em "↺ Actual do VBS" na aba Financeiro).'); return; }
 
+  // Esta apresentacao e construida sobre margem bruta e EBITDA. O modelo
+  // mexicano de 2027 nao tem essas linhas: gerar assim sairia uma apresentacao
+  // de margem zero e EBITDA zero, com a cara de quem apurou - pior que nao gerar.
+  if (!plLinha(G.pl||[], 'OPERATING PROFIT/(LOSS) - EBITDA', plDetectarColunaRotulo(G.pl||[]))) {
+    alert('Esta apresentação usa Gross Margin e EBITDA, que o P&L carregado não tem.\n\n'+
+          'O modelo mexicano vai de Ingresos a Utilidad antes de PTU e ISR. '+
+          'Gerar assim mostraria margem e EBITDA zerados como se fossem apurados.');
+    return;
+  }
   var revM=getMonthly('REVENUE'), gmM=getMonthly('GROSS MARGIN'), ebitM=getMonthly('OPERATING PROFIT/(LOSS) - EBITDA'), patM=getMonthly('PROFIT/(LOSS) AFTER TAX');
   var revAnnual=revM.reduce(function(s,v){return s+v;},0);
   var gmAnnual=gmM.reduce(function(s,v){return s+v;},0);
@@ -15162,8 +16003,12 @@ async function dashCarregarPLActual(){
   var txt = btn ? btn.textContent : null;
   if(btn){ btn.textContent='Carregando...'; btn.disabled=true; }
   try{
-    await carregarPLActual(ano);
-    var linhas = ((G.plActualPorAno||{})[ano]||[]).length;
+    // Sem a entidade, isto buscava o P&L do Brasil e o guardava na chave 'BR:ano'
+    // - era a origem do dado brasileiro no Dashboard do Mexico.
+    var entPL = (typeof entidadeAtual==='function') ? entidadeAtual() : 'BR';
+    await carregarPLActual(ano, entPL);
+    // A chave do cache e "{entidade}:{ano}"; indexar so por ano sempre dava 0.
+    var linhas = ((G.plActualPorAno||{})[plChave(ano, entPL)]||[]).length;
     applyFilters();
     alert('P&L Actual '+ano+' carregado ('+linhas+' linhas).');
   }catch(e){
