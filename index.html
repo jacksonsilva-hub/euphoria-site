@@ -1719,7 +1719,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
         <button class="btn btn-primary" onclick="pplAbrirModal()">+ Novo Colaborador</button>
         <button class="btn" onclick="pplImportarVBS()" class="btn-vbs" style="font-size:11px">⬇️ Importar do VBS</button>
-        <button class="btn" onclick="document.getElementById('mx-file').click()" style="font-size:11px" title="Importa Pipeline, Pessoas e FTEs da planilha do México">🇲🇽 Importar planilha MX</button>
+        <button class="btn" data-so-entidade="MX" onclick="document.getElementById('mx-file').click()" style="font-size:11px" title="Importa Pipeline, Pessoas e FTEs da planilha do México">🇲🇽 Importar planilha MX</button>
         <input type="file" id="mx-file" accept=".xlsx,.xls" style="display:none" onchange="mxImportar(this)">
         <button class="btn" onclick="pplExportExcel()" style="font-size:11px">📊 Exportar Excel</button>
         <span style="display:inline-flex;gap:4px;align-items:center;border-left:1px solid var(--border);padding-left:8px;margin-left:2px">
@@ -5128,9 +5128,18 @@ async function mxImportar(input){
   if(!f) return;
   if(typeof XLSX==='undefined'){ alert('Biblioteca de planilha não carregou.'); return; }
   var ent = currentUser ? currentUser.entidade : '?';
+  // Isto ja foi um confirm() com "Importar mesmo assim?". Em 29/10/2026 alguem
+  // respondeu que sim estando no Brasil e 256 linhas do Mexico entraram no
+  // pipeline brasileiro com entidade BR - somando MXN como se fosse BRL e
+  // dobrando o pipeline de 2026. Nao ha caso legitimo em que importar a
+  // planilha do Mexico fora da entidade MX seja o que a pessoa queria, entao
+  // aqui a resposta e nao, sem opcao de insistir.
   if(ent!=='MX'){
-    if(!confirm('Você está na entidade '+ent+'.\n\nEsta planilha é do México e os dados seriam gravados na entidade atual.\n\n'+
-      'Troque para 🇲🇽 Euphoria México no seletor do topo antes de importar.\n\nImportar mesmo assim?')){ input.value=''; return; }
+    alert('Esta planilha é do México e você está na unidade '+ent+'.\n\n'+
+          'Os dados seriam gravados como se fossem desta unidade — foi assim que '+
+          'o pipeline do Brasil ficou com linhas mexicanas.\n\n'+
+          'Troque para 🇲🇽 Euphoria México no seletor do topo e importe de novo.');
+    input.value=''; return;
   }
   var leitor=new FileReader();
   leitor.onload=async function(ev){
@@ -6011,6 +6020,12 @@ function setupEntidade(ent){
 
   document.querySelectorAll('.btn-vbs, [data-vbs="1"]').forEach(function(el){
     el.style.display = cfg.temVBS?'':'none';
+  });
+  // Acoes que so fazem sentido numa unidade (hoje: importar a planilha do
+  // Mexico). mxImportar ja recusa se a entidade estiver errada, mas um botao
+  // visivel que so sabe dizer "nao" convida ao erro - melhor nao oferecer.
+  document.querySelectorAll('[data-so-entidade]').forEach(function(el){
+    el.style.display = (el.getAttribute('data-so-entidade')===ent) ? '' : 'none';
   });
 
   // Update currency symbol in labels if needed
