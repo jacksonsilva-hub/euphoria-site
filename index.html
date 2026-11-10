@@ -3467,17 +3467,28 @@ let G = { pl: null, clientes: null, cashflow: null, plActualPorAno: {} };
 let chartRC = null, chartCL = null;
 
 // ─── FETCH DATA ──────────────────────────────────────────
+// Quantas cargas ja foram disparadas. A pagina chama loadData() uma vez logo que
+// carrega, antes mesmo do login; se essa primeira resposta demora e chega depois
+// de outra, ela sobrescreve a mais nova e o Dashboard volta para o ano anterior
+// sem nada na tela explicando. So a ultima disparada pode escrever em G.pl.
+var _plPedido = 0;
+
 async function loadData() {
+  var meuPedido = ++_plPedido;
   try {
+    // Sem o ano, /api/pl sempre devolvia a aba de 2026.
+    var anoPL = (typeof plAnoSelecionado === 'function') ? plAnoSelecionado() : '2026';
     const [plRes, recRes] = await Promise.all([
-      fetch(API + '/api/pl'),
+      fetch(API + '/api/pl?ano=' + encodeURIComponent(anoPL)),
       fetch(API + '/api/receita')
     ]);
     const plJson = await plRes.json();
     const recJson = await recRes.json();
+    if (meuPedido !== _plPedido) return;  // chegou atrasada: outra carga ja venceu
     if (!plJson.ok) throw new Error('Erro no P&L: ' + plJson.error);
     if (!recJson.ok) throw new Error('Erro nos clientes: ' + recJson.error);
     G.pl = plJson.data;
+    plAnoCarregado = anoPL;
     G.clientes = recJson.data;
     populateClientFilter();
     // Show content FIRST so canvas elements have dimensions
@@ -3486,6 +3497,7 @@ async function loadData() {
     // Then render charts after DOM update
     setTimeout(function() { renderAll(); }, 50);
   } catch (err) {
+    if (meuPedido !== _plPedido) return;
     initVbsDates(); tiInit(); document.getElementById('dash-loading').innerHTML =
       '<div class="error-box">Erro ao carregar dados: ' + err.message +
       '<br><small>Verifique se o servidor está rodando: <code>node index.js</code></small></div>';
@@ -3521,7 +3533,23 @@ function getFilters() {
   };
 }
 
+// Ano do filtro do Dashboard, so quando e um ano de verdade ("2025+2026" nao e).
+function plAnoSelecionado(){
+  var v = (document.getElementById('sel-ano') || {}).value || '2026';
+  return /^\d{4}$/.test(v) ? v : '2026';
+}
+// De qual ano e a aba de Budget que esta em G.pl.
+var plAnoCarregado = null;
+
 function applyFilters() {
+  // O Budget em G.pl e de um ano so, e ate agora era sempre o de 2026: o filtro
+  // de ano mexia no Actual e deixava o Budget onde estava. Com 2027 selecionado
+  // os cards mostrariam o orcado de 2026 sob o rotulo de 2027 - numero de um ano
+  // apresentado como se fosse de outro. Trocar o ano recarrega a aba.
+  if (plAnoCarregado && plAnoSelecionado() !== plAnoCarregado && typeof loadData === 'function') {
+    loadData();
+    return;
+  }
   renderAll();
   // If clientes tab is visible, also refresh it
   var cliPanel = document.getElementById('fin-clientes');
@@ -3977,7 +4005,9 @@ function renderKPIs(rev, gm, ebit, pat, clientCount, anoFiltro, gmFonteReal, gmB
     ? 'Sem dado real por ano'
     : pct(ebitPct) + ' de margem' + (ebitFonteReal ? ' · '+ebitFonteReal : '');
   const cards = [
-    { label: 'Receita Bruta',  value: fmt(rev),  sub: rotuloFonteRev || (anoFiltro === '2025' ? 'Actual 2025' : 'Budget 2026') },
+    // O rotulo da fonte era o texto fixo "Budget 2026". Com 2027 no filtro, o
+    // card mostrava o numero de 2027 dizendo que era de 2026.
+    { label: 'Receita Bruta',  value: fmt(rev),  sub: rotuloFonteRev || (anoFiltro === '2025' ? 'Actual 2025' : 'Budget ' + (/^\d{4}$/.test(String(anoFiltro)) ? anoFiltro : '2026')) },
     { label: esq.margemLabel,  value: gm   === null ? '—' : fmt(gm),   sub: gmSub, cls: gm === null ? '' : (ehMargem ? (gmPct > 0 ? 'pos' : 'neg') : '') },
     { label: esq.resultLabel,  value: ebit === null ? '—' : fmt(ebit), sub: ebitSub, cls: ebit === null ? '' : (ebitPct > 0 ? 'pos' : 'neg') },
     { label: 'Clientes Ativos',value: String(clientCount), sub: 'com budget no período' }
